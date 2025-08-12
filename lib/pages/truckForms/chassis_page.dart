@@ -9,6 +9,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:ctp/components/loading_overlay.dart';
 import 'dart:io';
 import 'package:auto_route/auto_route.dart';
 
@@ -100,172 +101,181 @@ class ChassisPageState extends State<ChassisPage>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Must call for AutomaticKeepAliveClientMixin
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16.0),
-            Text(
-              'Chassis Inspection'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 25,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            const Text(
-              'Condition of the Chassis',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-
-            // Condition radio buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               children: [
-                CustomRadioButton(
-                  label: 'Poor',
-                  value: 'poor',
-                  groupValue: _selectedCondition,
-                  onChanged: (val) => _updateAndNotify(() {
-                    _selectedCondition = val!;
-                  }),
+                const SizedBox(height: 16.0),
+                Text(
+                  'Chassis Inspection'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 25,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                CustomRadioButton(
-                  label: 'Good',
-                  value: 'good',
-                  groupValue: _selectedCondition,
-                  onChanged: (val) => _updateAndNotify(() {
-                    _selectedCondition = val!;
-                  }),
+                const SizedBox(height: 16.0),
+                const Text(
+                  'Condition of the Chassis',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                CustomRadioButton(
-                  label: 'Excellent',
-                  value: 'excellent',
-                  groupValue: _selectedCondition,
-                  onChanged: (val) => _updateAndNotify(() {
-                    _selectedCondition = val!;
-                  }),
+                const SizedBox(height: 16.0),
+
+                // Condition radio buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    CustomRadioButton(
+                      label: 'Poor',
+                      value: 'poor',
+                      groupValue: _selectedCondition,
+                      onChanged: (val) => _updateAndNotify(() {
+                        _selectedCondition = val!;
+                      }),
+                    ),
+                    CustomRadioButton(
+                      label: 'Good',
+                      value: 'good',
+                      groupValue: _selectedCondition,
+                      onChanged: (val) => _updateAndNotify(() {
+                        _selectedCondition = val!;
+                      }),
+                    ),
+                    CustomRadioButton(
+                      label: 'Excellent',
+                      value: 'excellent',
+                      groupValue: _selectedCondition,
+                      onChanged: (val) => _updateAndNotify(() {
+                        _selectedCondition = val!;
+                      }),
+                    ),
+                  ],
                 ),
+
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Front Axel
+                Text(
+                  'Front Axel'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                _buildImageGrid(
+                    ['Right Brake', 'Left Brake', 'Front Axel', 'Suspension']),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Center of Chassis
+                Text(
+                  'Center of Chassis'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                _buildImageGrid([
+                  'Fuel Tank',
+                  'Battery',
+                  'Cat Walk',
+                  'Electrical Cable Black',
+                  'Air Cable Yellow',
+                  'Air Cable Red'
+                ]),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Rear Axel
+                Text(
+                  'Rear Axel'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                _buildImageGrid([
+                  'Tail Board',
+                  '5th Wheel',
+                  'Left Brake Rear Axel',
+                  'Right Brake Rear Axel'
+                ]),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Damages Section
+                _buildAdditionalSection(
+                  title: 'Are there any damages?',
+                  anyItemsType: _damagesCondition,
+                  onChange: (val) => _updateAndNotify(() {
+                    _damagesCondition = val!;
+                    if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                      _damageList.add(ItemData(
+                        description: '',
+                        imageData: const ImageData(),
+                      ));
+                    } else if (_damagesCondition == 'no') {
+                      _damageList.clear();
+                    }
+                  }),
+                  buildItemSection: _buildDamageSection,
+                ),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Additional Features Section
+                _buildAdditionalSection(
+                  title: 'Are there any additional features?',
+                  anyItemsType: _additionalFeaturesCondition,
+                  onChange: (val) => _updateAndNotify(() {
+                    _additionalFeaturesCondition = val!;
+                    if (_additionalFeaturesCondition == 'yes' &&
+                        _additionalFeaturesList.isEmpty) {
+                      _additionalFeaturesList.add(ItemData(
+                        description: '',
+                        imageData: const ImageData(),
+                      ));
+                    } else if (_additionalFeaturesCondition == 'no') {
+                      _additionalFeaturesList.clear();
+                    }
+                  }),
+                  buildItemSection: _buildAdditionalFeaturesSection,
+                ),
+                const SizedBox(height: 16.0),
               ],
             ),
-
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Front Axel
-            Text(
-              'Front Axel'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            _buildImageGrid(
-                ['Right Brake', 'Left Brake', 'Front Axel', 'Suspension']),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Center of Chassis
-            Text(
-              'Center of Chassis'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            _buildImageGrid([
-              'Fuel Tank',
-              'Battery',
-              'Cat Walk',
-              'Electrical Cable Black',
-              'Air Cable Yellow',
-              'Air Cable Red'
-            ]),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Rear Axel
-            Text(
-              'Rear Axel'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            _buildImageGrid([
-              'Tail Board',
-              '5th Wheel',
-              'Left Brake Rear Axel',
-              'Right Brake Rear Axel'
-            ]),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Damages Section
-            _buildAdditionalSection(
-              title: 'Are there any damages?',
-              anyItemsType: _damagesCondition,
-              onChange: (val) => _updateAndNotify(() {
-                _damagesCondition = val!;
-                if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                  _damageList.add(ItemData(
-                    description: '',
-                    imageData: const ImageData(),
-                  ));
-                } else if (_damagesCondition == 'no') {
-                  _damageList.clear();
-                }
-              }),
-              buildItemSection: _buildDamageSection,
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Additional Features Section
-            _buildAdditionalSection(
-              title: 'Are there any additional features?',
-              anyItemsType: _additionalFeaturesCondition,
-              onChange: (val) => _updateAndNotify(() {
-                _additionalFeaturesCondition = val!;
-                if (_additionalFeaturesCondition == 'yes' &&
-                    _additionalFeaturesList.isEmpty) {
-                  _additionalFeaturesList.add(ItemData(
-                    description: '',
-                    imageData: const ImageData(),
-                  ));
-                } else if (_additionalFeaturesCondition == 'no') {
-                  _additionalFeaturesList.clear();
-                }
-              }),
-              buildItemSection: _buildAdditionalFeaturesSection,
-            ),
-            const SizedBox(height: 16.0),
-          ],
+          ),
         ),
-      ),
+        LoadingOverlay(
+          progress: 0.5,
+          status: 'Processing...',
+          isVisible: true, // Always visible for testing
+        ),
+      ],
     );
   }
 

@@ -57,7 +57,7 @@ class ListingCard extends StatelessWidget {
           : (vehicle.makeModel ?? 'N/A');
       return makeModel ?? 'N/A';
     }
-    return '${vehicle.brands.join(" ")} ${vehicle.makeModel}'.trim();
+    return '${vehicle.brands.join(" ")} ${vehicle.variant}'.trim();
   }
 
   String get displayYear {
@@ -411,26 +411,6 @@ class ListingCard extends StatelessWidget {
                                   maxLines: 1,
                                 ),
                               ),
-                            // Reference Number
-                            if (displayReferenceNumber.isNotEmpty)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                    top: paddingVal * 0.15,
-                                    bottom: paddingVal * 0.15),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    'Ref: $displayReferenceNumber',
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: subtitleFontSize,
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFFFF4E00),
-                                    ),
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              ),
                             if (!isTrailer) ...[
                               SizedBox(height: paddingVal * 0.25),
                               FittedBox(
@@ -449,6 +429,26 @@ class ListingCard extends StatelessWidget {
                             ],
                           ],
                         ),
+                        // Reference Number
+                        if (displayReferenceNumber.isNotEmpty)
+                          Padding(
+                            padding: EdgeInsets.only(
+                                top: paddingVal * 0.15,
+                                bottom: paddingVal * 0.15),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Ref: $displayReferenceNumber',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: subtitleFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFFFF4E00),
+                                ),
+                                maxLines: 1,
+                              ),
+                            ),
+                          ),
                         SizedBox(height: paddingVal),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,

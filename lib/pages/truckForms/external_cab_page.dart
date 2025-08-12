@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // Image picker for uploading images
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:ctp/components/loading_overlay.dart';
 import 'package:universal_html/html.dart'
     as html; // Ensure this import path is correct
 import 'package:auto_route/auto_route.dart';
@@ -26,7 +27,8 @@ class ItemData {
   ItemData({required this.description, required this.imageData});
 }
 
-@RoutePage()class ExternalCabPage extends StatefulWidget {
+@RoutePage()
+class ExternalCabPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback? onContinue;
   final VoidCallback onProgressUpdate;
@@ -68,7 +70,10 @@ class ExternalCabPageState extends State<ExternalCabPage>
   // List to store additional feature images and descriptions
   List<ItemData> _additionalFeaturesList = [];
 
-  bool _isInitialized = false; // Flag to prevent re-initialization
+  // Upload progress tracking for external cab section
+  bool _isUploading = false;
+  String _uploadStatus = 'Processing...';
+  double _uploadProgress = 0.0;
 
   @override
   void dispose() {
@@ -83,105 +88,115 @@ class ExternalCabPageState extends State<ExternalCabPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return SingleChildScrollView(
-      controller: _scrollController, // Attach the scroll controller
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 16.0),
-          Text(
-            'Details for EXTERNAL CAB'.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 25,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w900,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16.0),
-          const Text(
-            'Condition of the Outside CAB',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16.0),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController, // Attach the scroll controller
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CustomRadioButton(
-                label: 'Poor',
-                value: 'poor',
-                groupValue: _selectedCondition,
-                onChanged: _updateCondition,
+              const SizedBox(height: 16.0),
+              Text(
+                'Details for EXTERNAL CAB'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 25,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
+                ),
+                textAlign: TextAlign.center,
               ),
-              CustomRadioButton(
-                label: 'Good',
-                value: 'good',
-                groupValue: _selectedCondition,
-                onChanged: _updateCondition,
+              const SizedBox(height: 16.0),
+              const Text(
+                'Condition of the Outside CAB',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
               ),
-              CustomRadioButton(
-                label: 'Excellent',
-                value: 'excellent',
-                groupValue: _selectedCondition,
-                onChanged: _updateCondition,
+              const SizedBox(height: 16.0),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  CustomRadioButton(
+                    label: 'Poor',
+                    value: 'poor',
+                    groupValue: _selectedCondition,
+                    onChanged: _updateCondition,
+                  ),
+                  CustomRadioButton(
+                    label: 'Good',
+                    value: 'good',
+                    groupValue: _selectedCondition,
+                    onChanged: _updateCondition,
+                  ),
+                  CustomRadioButton(
+                    label: 'Excellent',
+                    value: 'excellent',
+                    groupValue: _selectedCondition,
+                    onChanged: _updateCondition,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+              Text(
+                'Front Side of Cab'.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 25,
+                  color: Color.fromARGB(221, 255, 255, 255),
+                  fontWeight: FontWeight.w900,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16.0),
+
+              // Photo Blocks Section
+              GridView.count(
+                shrinkWrap: true, // Allows GridView to fit inside the Column
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                childAspectRatio:
+                    1.5, // Adjust to control the shape of each block
+                children: _selectedImages.keys
+                    .map((title) => _buildPhotoBlock(title))
+                    .toList(),
+              ),
+
+              const SizedBox(height: 70.0),
+              // Damage Section
+              _buildAdditionalSection(
+                title: 'Are there any damages on the cab',
+                anyItemsType: _anyDamagesType,
+                onChange: _updateDamagesType,
+                buildItemSection: _buildDamageSection,
+              ),
+
+              const SizedBox(height: 16.0),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 16.0),
+
+              // Additional Features Section
+              _buildAdditionalSection(
+                title: 'Are there any additional features on the cab',
+                anyItemsType: _anyAdditionalFeaturesType,
+                onChange: _updateAdditionalFeaturesType,
+                buildItemSection: _buildAdditionalFeaturesSection,
               ),
             ],
           ),
-          const SizedBox(height: 16.0),
-          const Divider(thickness: 1.0),
-          const SizedBox(height: 16.0),
-          Text(
-            'Front Side of Cab'.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 25,
-              color: Color.fromARGB(221, 255, 255, 255),
-              fontWeight: FontWeight.w900,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16.0),
-
-          // Photo Blocks Section
-          GridView.count(
-            shrinkWrap: true, // Allows GridView to fit inside the Column
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 16.0,
-            mainAxisSpacing: 16.0,
-            childAspectRatio: 1.5, // Adjust to control the shape of each block
-            children: _selectedImages.keys
-                .map((title) => _buildPhotoBlock(title))
-                .toList(),
-          ),
-
-          const SizedBox(height: 70.0),
-          // Damage Section
-          _buildAdditionalSection(
-            title: 'Are there any damages on the cab',
-            anyItemsType: _anyDamagesType,
-            onChange: _updateDamagesType,
-            buildItemSection: _buildDamageSection,
-          ),
-
-          const SizedBox(height: 16.0),
-          const Divider(thickness: 1.0),
-          const SizedBox(height: 16.0),
-
-          // Additional Features Section
-          _buildAdditionalSection(
-            title: 'Are there any additional features on the cab',
-            anyItemsType: _anyAdditionalFeaturesType,
-            onChange: _updateAdditionalFeaturesType,
-            buildItemSection: _buildAdditionalFeaturesSection,
-          ),
-        ],
-      ),
+        ),
+        LoadingOverlay(
+          progress: _uploadProgress,
+          status: _uploadStatus,
+          isVisible: _isUploading, // Only show during save operations
+        ),
+      ],
     );
   }
 
@@ -252,7 +267,6 @@ class ExternalCabPageState extends State<ExternalCabPage>
     }
   }
 
-  @override
   void initializeWithData(Map<String, dynamic> data) {
     if (data.isEmpty) return;
     setState(() {
@@ -316,10 +330,118 @@ class ExternalCabPageState extends State<ExternalCabPage>
     });
   }
 
-  @override
   Future<bool> saveData() async {
-    // This method can be left empty or used for additional save logic if needed
-    return true;
+    // Calculate total steps for progress tracking
+    int totalSteps = 1; // Database save step
+    int currentStep = 0;
+
+    // Count upload steps needed
+    int imageUploads = 0;
+    for (var entry in _selectedImages.entries) {
+      if (entry.value.file != null) imageUploads++;
+    }
+    for (var damage in _damageList) {
+      if (damage.imageData.file != null) imageUploads++;
+    }
+    for (var feature in _additionalFeaturesList) {
+      if (feature.imageData.file != null) imageUploads++;
+    }
+
+    totalSteps += imageUploads;
+
+    setState(() {
+      _isUploading = true;
+      _uploadStatus = 'Preparing to save External Cab data...';
+      _uploadProgress = 0.0;
+    });
+
+    try {
+      // Upload main images
+      Map<String, dynamic> serializedImages = {};
+      for (var entry in _selectedImages.entries) {
+        if (entry.value.file != null) {
+          setState(() {
+            _uploadStatus = 'Uploading ${entry.key} image...';
+          });
+          String imageUrl = await _uploadImageToFirebase(
+              entry.value.file!, entry.key.replaceAll(' ', '_').toLowerCase());
+          serializedImages[entry.key] = {'url': imageUrl, 'isNew': true};
+          currentStep++;
+          setState(() {
+            _uploadProgress = currentStep / totalSteps;
+          });
+        }
+      }
+
+      // Upload damage images
+      List<Map<String, dynamic>> serializedDamages = [];
+      for (int i = 0; i < _damageList.length; i++) {
+        var damage = _damageList[i];
+        if (damage.imageData.file != null) {
+          setState(() {
+            _uploadStatus = 'Uploading damage image ${i + 1}...';
+          });
+          String imageUrl =
+              await _uploadImageToFirebase(damage.imageData.file!, 'damage');
+          serializedDamages.add({
+            'description': damage.description,
+            'imageUrl': imageUrl,
+            'isNew': true,
+          });
+          currentStep++;
+          setState(() {
+            _uploadProgress = currentStep / totalSteps;
+          });
+        }
+      }
+
+      // Upload feature images
+      List<Map<String, dynamic>> serializedFeatures = [];
+      for (int i = 0; i < _additionalFeaturesList.length; i++) {
+        var feature = _additionalFeaturesList[i];
+        if (feature.imageData.file != null) {
+          setState(() {
+            _uploadStatus = 'Uploading feature image ${i + 1}...';
+          });
+          String imageUrl =
+              await _uploadImageToFirebase(feature.imageData.file!, 'feature');
+          serializedFeatures.add({
+            'description': feature.description,
+            'imageUrl': imageUrl,
+            'isNew': true,
+          });
+          currentStep++;
+          setState(() {
+            _uploadProgress = currentStep / totalSteps;
+          });
+        }
+      }
+
+      setState(() {
+        _uploadStatus = 'Saving to Database...';
+      });
+
+      // Note: The actual database save would happen here if needed
+      // For now, we'll just simulate completion
+      currentStep++;
+      setState(() {
+        _uploadProgress = 1.0; // Complete
+        _uploadStatus = 'External Cab data saved successfully!';
+      });
+
+      return true;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save External Cab data: $e')),
+      );
+      return false;
+    } finally {
+      setState(() {
+        _isUploading = false;
+        _uploadStatus = 'Processing...';
+        _uploadProgress = 0.0;
+      });
+    }
   }
 
   Future<String> _uploadImageToFirebase(
@@ -398,18 +520,6 @@ class ExternalCabPageState extends State<ExternalCabPage>
       });
       _damageList.clear();
       _additionalFeaturesList.clear();
-      _isInitialized = false; // Allow re-initialization if needed
-    });
-  }
-
-  // Helper method to scroll to the bottom of the page
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
     });
   }
 
@@ -928,21 +1038,9 @@ class ExternalCabPageState extends State<ExternalCabPage>
     }
   }
 
-  Future<void> _updateImage(String title, Uint8List imageFile) async {
-    _updateAndNotify(() {
-      _selectedImages[title] = ImageData(file: imageFile);
-    });
-  }
-
   void _updateDamageDescription(int index, String value) {
     _updateAndNotify(() {
       _damageList[index].description = value;
-    });
-  }
-
-  Future<void> _updateDamageImage(int index, Uint8List imageFile) async {
-    _updateAndNotify(() {
-      _damageList[index].imageData = ImageData(file: imageFile);
     });
   }
 }

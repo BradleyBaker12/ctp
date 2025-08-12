@@ -26,6 +26,7 @@ import 'package:universal_html/html.dart' as html;
 import '../editTruckForms/basic_information_edit.dart';
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
+import 'package:ctp/components/loading_overlay.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
 // import 'package:auto_route/auto_route.dart';
 // Import the camera helper
@@ -69,6 +70,9 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   final List<GlobalKey<FormState>> _formKeys =
       List.generate(1, (index) => GlobalKey<FormState>());
   bool _isLoading = false;
+  bool _isOptimisticLoading = false;
+  double _uploadProgress = 0.0;
+  String _uploadStatus = '';
   String? _vehicleId;
   DateTime? _availableDate;
 
@@ -324,8 +328,33 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     });
     _vehicleId = null;
     _isLoading = false;
+    _uploadProgress = 0.0;
+    _uploadStatus = '';
     _currentStep = 0;
     _selectedTruckType = null;
+  }
+
+  /// Shows immediate success feedback to user
+  void _showOptimisticSuccess() {
+    // Show immediate visual feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: const [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Processing your vehicle...'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    // Disable form interaction to prevent duplicate submissions
+    setState(() {
+      _isOptimisticLoading = true;
+    });
   }
 
   void _initializeTextControllers(FormDataProvider formData) {
@@ -721,19 +750,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               ),
             ),
           ),
-          if (_isLoading)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-                child: Center(
-                  child: Image.asset(
-                    'lib/assets/Loading_Logo_CTP.gif',
-                    width: 100,
-                    height: 100,
-                  ),
-                ),
-              ),
-            ),
+          LoadingOverlay(
+            progress: _uploadProgress,
+            status: _uploadStatus,
+            isVisible: _isLoading, // Always visible for testing
+          ),
         ],
       ),
     );
@@ -1746,6 +1767,221 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
+  /// Save Section 1 Data with Optimistic Updates and Progressive Feedback
+  Future<String?> _saveSection1DataOptimized() async {
+    try {
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+
+      // For admin uploads, ensure that a Sales Rep has been selected.
+      if (widget.isAdminUpload) {
+        if (_selectedSalesRep == null || _selectedSalesRep!.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please select a Sales Rep')),
+          );
+          return null;
+        }
+      } else {
+        if (!_validateRequiredFields(formData)) {
+          return null;
+        }
+      }
+
+      debugPrint("=== _saveSection1DataOptimized START ===");
+
+      // Step 1: Immediate feedback (10%)
+      setState(() {
+        _uploadProgress = 0.1;
+        _uploadStatus = 'Preparing data...';
+      });
+
+      // Validate VIN uniqueness first (this is fast)
+      if (!await VinService.isVinNumberUnique(formData.vinNumber!)) {
+        final existingVehicleId =
+            await _findVehicleIdByVin(formData.vinNumber!);
+        await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Duplicate VIN"),
+              content: const Text(
+                  "The VIN Number is already in use. Would you like to report this issue?"),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    if (existingVehicleId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReportVehicleIssuePage(
+                              vehicleId: existingVehicleId),
+                        ),
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ReportVehicleIssuePage(
+                              vehicleId: 'unknown'),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text("Report this issue"),
+                ),
+              ],
+            );
+          },
+        );
+        setState(() {
+          _uploadProgress = 0.0;
+          _uploadStatus = '';
+        });
+        return null;
+      }
+
+      // Step 2: Create vehicle document first (30%)
+      setState(() {
+        _uploadProgress = 0.3;
+        _uploadStatus = 'Creating vehicle record...';
+      });
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+      String? assignedSalesRepId;
+      if (widget.isAdminUpload) {
+        assignedSalesRepId = _selectedSalesRep;
+      } else {
+        assignedSalesRepId = currentUser?.uid;
+      }
+
+      // Create basic vehicle data without images first
+      final vehicleData = {
+        'year': formData.year,
+        'makeModel': formData.makeModel,
+        'variant': formData.variant,
+        'brands': formData.brands,
+        'modelDetails': {
+          'year': formData.year,
+          'manufacturer': formData.brands?.first ?? '',
+          'model': formData.makeModel,
+          'variant': formData.variant,
+        },
+        'vinNumber': formData.vinNumber,
+        'config': formData.config ?? _configController.text,
+        'mileage': formData.mileage,
+        'application': formData.application,
+        'engineNumber': formData.engineNumber,
+        'registrationNumber': formData.registrationNumber,
+        'sellingPrice': formData.sellingPrice,
+        'vehicleType': 'truck',
+        'suspensionType': formData.suspension,
+        'transmissionType': formData.transmissionType,
+        'hydraulics': formData.hydraulics,
+        'maintenance': formData.maintenance,
+        'warranty': formData.warranty,
+        'warrantyDetails': formData.warrantyDetails,
+        'requireToSettleType': formData.requireToSettleType,
+        'referenceNumber': formData.referenceNumber,
+        'country': formData.country,
+        'province': formData.province,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'userId': currentUser?.uid,
+        'assignedSalesRepId': assignedSalesRepId,
+        'vehicleStatus': 'Draft',
+        'truckType': _selectedTruckType,
+        // Placeholder URLs that will be updated
+        'mainImageUrl': null,
+        'rc1NatisFile': null,
+      };
+
+      final docRef = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .add(vehicleData);
+      _vehicleId = docRef.id;
+
+      // Step 3: Upload main image in background (60%)
+      setState(() {
+        _uploadProgress = 0.6;
+        _uploadStatus = 'Uploading main image...';
+      });
+
+      String? imageUrl;
+      if (formData.selectedMainImage != null) {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('vehicle_images')
+            .child('${DateTime.now().toIso8601String()}.jpg');
+        await ref.putData(formData.selectedMainImage!);
+        imageUrl = await ref.getDownloadURL();
+
+        // Update the document with image URL
+        await docRef.update({'mainImageUrl': imageUrl});
+      }
+
+      // Step 4: Upload NATIS/RC1 document (90%)
+      setState(() {
+        _uploadProgress = 0.9;
+        _uploadStatus = 'Uploading documents...';
+      });
+
+      String? natisRc1Url;
+      if (_natisRc1File != null) {
+        final fileName = _natisRc1FileName ?? 'document';
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('vehicle_documents')
+            .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+        await ref.putData(_natisRc1File!);
+        natisRc1Url = await ref.getDownloadURL();
+
+        // Update the document with NATIS URL
+        await docRef.update({'rc1NatisFile': natisRc1Url});
+      }
+
+      // Step 5: Finalize (100%)
+      setState(() {
+        _uploadProgress = 1.0;
+        _uploadStatus = 'Almost done...';
+      });
+
+      // Small delay to show completion
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      await VinService.storeVinNumber(formData.vinNumber!);
+
+      debugPrint("Vehicle successfully created with document ID: $_vehicleId");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vehicle created successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      debugPrint("=== _saveSection1DataOptimized END ===");
+      return _vehicleId;
+    } catch (e) {
+      debugPrint("Error in _saveSection1DataOptimized: $e");
+      setState(() {
+        _uploadProgress = 0.0;
+        _uploadStatus = '';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving vehicle: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return null;
+    }
+  }
+
   bool _validateRequiredFields(FormDataProvider formData) {
     if (formData.selectedMainImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1806,7 +2042,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
           }
           setState(() => _isLoading = true);
           try {
-            String? vehicleId = await _saveSection1Data();
+            String? vehicleId = await _saveSection1DataOptimized();
             if (vehicleId != null) {
               Navigator.pushReplacement(
                 context,
@@ -1824,7 +2060,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               );
             }
           } finally {
-            setState(() => _isLoading = false);
+            setState(() {
+              _isLoading = false;
+              _uploadProgress = 0.0;
+              _uploadStatus = '';
+            });
           }
         },
       ),

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:ctp/components/loading_overlay.dart';
 // For web camera access
 import 'package:ctp/utils/camera_helper.dart'; // Import camera helper
 import 'package:auto_route/auto_route.dart';
@@ -22,7 +23,9 @@ class ImageData {
   bool get hasImage =>
       file != null || webImage != null || (url != null && url!.isNotEmpty);
 }
-@RoutePage()class TyresPage extends StatefulWidget {
+
+@RoutePage()
+class TyresPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
@@ -155,6 +158,11 @@ class TyresPageState extends State<TyresPage>
               ),
             ),
           ),
+        LoadingOverlay(
+          progress: 0.5,
+          status: 'Processing...',
+          isVisible: true, // Always visible for testing
+        ),
       ],
     );
   }

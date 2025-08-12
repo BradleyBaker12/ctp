@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
+import 'package:ctp/components/loading_overlay.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +56,11 @@ class TyresEditPageState extends State<TyresEditPage>
 
   bool _isInitialized = false;
   bool _isSaving = false;
+
+  // Upload progress tracking for tyres section
+  bool _isUploading = false;
+  String _uploadStatus = 'Processing...';
+  double _uploadProgress = 0.0;
 
   @override
   void initState() {
@@ -154,53 +160,48 @@ class TyresEditPageState extends State<TyresEditPage>
 
     Widget content = Material(
       type: MaterialType.transparency,
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 16.0),
-              Text(
-                'Details for TYRES'.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 25,
-                  color: Color.fromARGB(221, 255, 255, 255),
-                  fontWeight: FontWeight.w900,
-                ),
-                textAlign: TextAlign.center,
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16.0),
+                  Text(
+                    'Details for TYRES'.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 25,
+                      color: Color.fromARGB(221, 255, 255, 255),
+                      fontWeight: FontWeight.w900,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16.0),
+                  ...List.generate(
+                      6, (index) => _buildTyrePosSection(index + 1)),
+                  const SizedBox(height: 16.0),
+                  if (!isDealer) Divider(thickness: 1.0),
+                  const SizedBox(height: 16.0),
+                  if (!isDealer)
+                    CustomButton(
+                      text: 'Save Changes',
+                      borderColor: Colors.deepOrange,
+                      isLoading: _isSaving,
+                      onPressed: () async {
+                        await _saveWithProgress();
+                      },
+                    ),
+                ],
               ),
-              const SizedBox(height: 16.0),
-              ...List.generate(6, (index) => _buildTyrePosSection(index + 1)),
-              const SizedBox(height: 16.0),
-              if (!isDealer) Divider(thickness: 1.0),
-              const SizedBox(height: 16.0),
-              if (!isDealer)
-                CustomButton(
-                  text: 'Save Changes',
-                  borderColor: Colors.deepOrange,
-                  isLoading: _isSaving,
-                  onPressed: () async {
-                    setState(() => _isSaving = true);
-                    try {
-                      final data = await getData();
-                      await _firestore
-                          .collection('vehicles')
-                          .doc(widget.vehicleId)
-                          .update({
-                        'truckConditions.tyres': data,
-                      });
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error saving changes: $e')),
-                      );
-                    } finally {
-                      setState(() => _isSaving = false);
-                    }
-                  },
-                ),
-            ],
+            ),
           ),
-        ),
+          LoadingOverlay(
+            progress: _uploadProgress,
+            status: _uploadStatus,
+            isVisible: _isUploading, // Only show during save operations
+          ),
+        ],
       ),
     );
 
@@ -404,7 +405,6 @@ class TyresEditPageState extends State<TyresEditPage>
   Widget _buildImageUploadBlock(String key) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bool isDealer = userProvider.getUserRole == 'dealer';
-    String title = key.replaceAll('_', ' ').replaceAll('Photo', 'Photo');
 
     return GestureDetector(
       onTap: () async {
@@ -605,6 +605,99 @@ class TyresEditPageState extends State<TyresEditPage>
           ],
         ),
       );
+    }
+  }
+
+  /// Saves data with progress tracking
+  Future<void> _saveWithProgress() async {
+    // Calculate total steps for progress tracking
+    int totalSteps = 1; // Database save step
+    int currentStep = 0;
+
+    // Count upload steps needed
+    int imageUploads = 0;
+    for (int pos = 1; pos <= 6; pos++) {
+      String photoKey = 'Tyre_Pos_$pos Photo';
+      if (_selectedImages[photoKey] != null) imageUploads++;
+    }
+
+    totalSteps += imageUploads;
+
+    setState(() {
+      _isUploading = true;
+      _isSaving = true;
+      _uploadStatus = 'Preparing to save Tyres data...';
+      _uploadProgress = 0.0;
+    });
+
+    try {
+      // Process each tyre with progress updates
+      Map<String, dynamic> allTyresData = {};
+
+      for (int pos = 1; pos <= 6; pos++) {
+        String posKey = 'Tyre_Pos_$pos';
+        String photoKey = '$posKey Photo';
+
+        Map<String, dynamic> tyreData = {
+          'chassisCondition': _chassisConditions[pos] ?? '',
+          'virginOrRecap': _virginOrRecaps[pos] ?? '',
+          'rimType': _rimTypes[pos] ?? '',
+        };
+
+        if (_selectedImages[photoKey] != null) {
+          setState(() {
+            _uploadStatus = 'Uploading Tyre Position $pos image...';
+          });
+          String imageUrl = await _uploadImageToFirebase(
+            _selectedImages[photoKey]!,
+            'position_$pos',
+          );
+          tyreData['imageUrl'] = imageUrl;
+          setState(() {
+            _imageUrls[photoKey] = imageUrl;
+            _selectedImages.remove(photoKey);
+          });
+          currentStep++;
+          setState(() {
+            _uploadProgress = currentStep / totalSteps;
+          });
+        } else if (_imageUrls[photoKey] != null &&
+            _imageUrls[photoKey]!.isNotEmpty) {
+          tyreData['imageUrl'] = _imageUrls[photoKey];
+        }
+
+        allTyresData[posKey] = tyreData;
+      }
+
+      setState(() {
+        _uploadStatus = 'Saving to Database...';
+      });
+
+      // Save to Firestore
+      await _firestore.collection('vehicles').doc(widget.vehicleId).update({
+        'truckConditions.tyres': allTyresData,
+      });
+
+      currentStep++;
+      setState(() {
+        _uploadProgress = 1.0; // Complete
+        _uploadStatus = 'Tyres data saved successfully!';
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tyres data saved successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving changes: $e')),
+      );
+    } finally {
+      setState(() {
+        _isUploading = false;
+        _isSaving = false;
+        _uploadStatus = 'Processing...';
+        _uploadProgress = 0.0;
+      });
     }
   }
 

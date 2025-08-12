@@ -691,19 +691,19 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
                 ),
               ),
             ),
-            if (_isLoading)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.5),
-                  child: Center(
-                    child: Image.asset(
-                      'lib/assets/Loading_Logo_CTP.gif',
-                      width: 100,
-                      height: 100,
-                    ),
-                  ),
-                ),
-              ),
+            // if (_isLoading)
+            //   Positioned.fill(
+            //     child: Container(
+            //       color: Colors.black.withOpacity(0.5),
+            //       child: Center(
+            //         child: Image.asset(
+            //           'lib/assets/Loading_Logo_CTP.gif',
+            //           width: 100,
+            //           height: 100,
+            //         ),
+            //       ),
+            //     ),
+            //   ),
           ],
         );
       }),

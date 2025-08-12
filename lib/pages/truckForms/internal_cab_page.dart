@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_radio_button.dart';
+import 'package:ctp/components/loading_overlay.dart';
 // For web functionality
 
 // Import the camera helper for cross-platform photo capture
@@ -30,8 +31,8 @@ class ItemData {
   ItemData({required this.description, required this.imageData});
 }
 
-
-@RoutePage()class InternalCabPage extends StatefulWidget {
+@RoutePage()
+class InternalCabPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
@@ -86,254 +87,263 @@ class InternalCabPageState extends State<InternalCabPage>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Needed by AutomaticKeepAliveClientMixin
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16.0),
-            Text(
-              'Details for INTERNAL CAB'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 25,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            const Text(
-              'Condition of the Inside CAB',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            // Condition Radio Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               children: [
-                CustomRadioButton(
-                  label: 'Poor',
-                  value: 'poor',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
+                const SizedBox(height: 16.0),
+                Text(
+                  'Details for INTERNAL CAB'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 25,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                CustomRadioButton(
-                  label: 'Good',
-                  value: 'good',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
-                  },
+                const SizedBox(height: 16.0),
+                const Text(
+                  'Condition of the Inside CAB',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                CustomRadioButton(
-                  label: 'Excellent',
-                  value: 'excellent',
-                  groupValue: _selectedCondition,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateAndNotify(() {
-                        _selectedCondition = value;
-                      });
-                    }
+                const SizedBox(height: 16.0),
+                // Condition Radio Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    CustomRadioButton(
+                      label: 'Poor',
+                      value: 'poor',
+                      groupValue: _selectedCondition,
+                      onChanged: (value) {
+                        if (value != null) {
+                          _updateAndNotify(() {
+                            _selectedCondition = value;
+                          });
+                        }
+                      },
+                    ),
+                    CustomRadioButton(
+                      label: 'Good',
+                      value: 'good',
+                      groupValue: _selectedCondition,
+                      onChanged: (value) {
+                        if (value != null) {
+                          _updateAndNotify(() {
+                            _selectedCondition = value;
+                          });
+                        }
+                      },
+                    ),
+                    CustomRadioButton(
+                      label: 'Excellent',
+                      value: 'excellent',
+                      groupValue: _selectedCondition,
+                      onChanged: (value) {
+                        if (value != null) {
+                          _updateAndNotify(() {
+                            _selectedCondition = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Front Side of Cab
+                Text(
+                  'Front Side of Cab'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16.0,
+                  mainAxisSpacing: 16.0,
+                  children: [
+                    ..._selectedImages.keys
+                        .where((key) =>
+                            key.contains('Dash') ||
+                            key.contains('Mileage') ||
+                            key.contains('Visors') ||
+                            key.contains('Console'))
+                        .map((key) => _buildPhotoBlock(key)),
+                    _buildPhotoBlock('Steering'),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Left Side of Cab
+                Text(
+                  'Left Side of Cab'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16.0,
+                  mainAxisSpacing: 16.0,
+                  children: _selectedImages.keys
+                      .where((key) => key.startsWith('Left'))
+                      .map((key) => _buildPhotoBlock(key))
+                      .toList(),
+                ),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Rear Side of Cab
+                Text(
+                  'Rear Side of Cab'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16.0,
+                  mainAxisSpacing: 16.0,
+                  children: [
+                    ..._selectedImages.keys
+                        .where((key) => key == 'Roof' || key == 'Bunk Beds')
+                        .map((key) => _buildPhotoBlock(key)),
+                    _buildPhotoBlock('Rear Panel'),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Right Side of Cab
+                Text(
+                  'Right Side of Cab'.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Color.fromARGB(221, 255, 255, 255),
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16.0,
+                  mainAxisSpacing: 16.0,
+                  children: _selectedImages.keys
+                      .where((key) => key.startsWith('Right'))
+                      .map((key) => _buildPhotoBlock(key))
+                      .toList(),
+                ),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Damages Section
+                _buildAdditionalSection(
+                  title: 'Are there any damages?',
+                  anyItemsType: _damagesCondition,
+                  onChange: (value) {
+                    _updateAndNotify(() {
+                      _damagesCondition = value!;
+                      if (_damagesCondition == 'yes' && _damageList.isEmpty) {
+                        _damageList.add(
+                            ItemData(description: '', imageData: ImageData()));
+                      } else if (_damagesCondition == 'no') {
+                        _damageList.clear();
+                      }
+                    });
                   },
+                  buildItemSection: _buildDamageSection,
+                ),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Additional Features Section
+                _buildAdditionalSection(
+                  title: 'Are there any additional features?',
+                  anyItemsType: _additionalFeaturesCondition,
+                  onChange: (value) {
+                    _updateAndNotify(() {
+                      _additionalFeaturesCondition = value!;
+                      if (_additionalFeaturesCondition == 'yes' &&
+                          _additionalFeaturesList.isEmpty) {
+                        _additionalFeaturesList.add(
+                            ItemData(description: '', imageData: ImageData()));
+                      } else if (_additionalFeaturesCondition == 'no') {
+                        _additionalFeaturesList.clear();
+                      }
+                    });
+                  },
+                  buildItemSection: _buildAdditionalFeaturesSection,
+                ),
+                const SizedBox(height: 16.0),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 16.0),
+
+                // Fault Codes Section
+                _buildAdditionalSection(
+                  title: 'Are there any fault codes?',
+                  anyItemsType: _faultCodesCondition,
+                  onChange: (value) {
+                    _updateAndNotify(() {
+                      _faultCodesCondition = value!;
+                      if (_faultCodesCondition == 'yes' &&
+                          _faultCodesList.isEmpty) {
+                        _faultCodesList.add(
+                            ItemData(description: '', imageData: ImageData()));
+                      } else if (_faultCodesCondition == 'no') {
+                        _faultCodesList.clear();
+                      }
+                    });
+                  },
+                  buildItemSection: _buildFaultCodesSection,
                 ),
               ],
             ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Front Side of Cab
-            Text(
-              'Front Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              children: [
-                ..._selectedImages.keys
-                    .where((key) =>
-                        key.contains('Dash') ||
-                        key.contains('Mileage') ||
-                        key.contains('Visors') ||
-                        key.contains('Console'))
-                    .map((key) => _buildPhotoBlock(key)),
-                _buildPhotoBlock('Steering'),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Left Side of Cab
-            Text(
-              'Left Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              children: _selectedImages.keys
-                  .where((key) => key.startsWith('Left'))
-                  .map((key) => _buildPhotoBlock(key))
-                  .toList(),
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Rear Side of Cab
-            Text(
-              'Rear Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              children: [
-                ..._selectedImages.keys
-                    .where((key) => key == 'Roof' || key == 'Bunk Beds')
-                    .map((key) => _buildPhotoBlock(key)),
-                _buildPhotoBlock('Rear Panel'),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Right Side of Cab
-            Text(
-              'Right Side of Cab'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color.fromARGB(221, 255, 255, 255),
-                fontWeight: FontWeight.w900,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16.0),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16.0,
-              mainAxisSpacing: 16.0,
-              children: _selectedImages.keys
-                  .where((key) => key.startsWith('Right'))
-                  .map((key) => _buildPhotoBlock(key))
-                  .toList(),
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Damages Section
-            _buildAdditionalSection(
-              title: 'Are there any damages?',
-              anyItemsType: _damagesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _damagesCondition = value!;
-                  if (_damagesCondition == 'yes' && _damageList.isEmpty) {
-                    _damageList
-                        .add(ItemData(description: '', imageData: ImageData()));
-                  } else if (_damagesCondition == 'no') {
-                    _damageList.clear();
-                  }
-                });
-              },
-              buildItemSection: _buildDamageSection,
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Additional Features Section
-            _buildAdditionalSection(
-              title: 'Are there any additional features?',
-              anyItemsType: _additionalFeaturesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _additionalFeaturesCondition = value!;
-                  if (_additionalFeaturesCondition == 'yes' &&
-                      _additionalFeaturesList.isEmpty) {
-                    _additionalFeaturesList
-                        .add(ItemData(description: '', imageData: ImageData()));
-                  } else if (_additionalFeaturesCondition == 'no') {
-                    _additionalFeaturesList.clear();
-                  }
-                });
-              },
-              buildItemSection: _buildAdditionalFeaturesSection,
-            ),
-            const SizedBox(height: 16.0),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 16.0),
-
-            // Fault Codes Section
-            _buildAdditionalSection(
-              title: 'Are there any fault codes?',
-              anyItemsType: _faultCodesCondition,
-              onChange: (value) {
-                _updateAndNotify(() {
-                  _faultCodesCondition = value!;
-                  if (_faultCodesCondition == 'yes' &&
-                      _faultCodesList.isEmpty) {
-                    _faultCodesList
-                        .add(ItemData(description: '', imageData: ImageData()));
-                  } else if (_faultCodesCondition == 'no') {
-                    _faultCodesList.clear();
-                  }
-                });
-              },
-              buildItemSection: _buildFaultCodesSection,
-            ),
-          ],
+          ),
         ),
-      ),
+        LoadingOverlay(
+          progress: 0.5,
+          status: 'Processing...',
+          isVisible: true, // Always visible for testing
+        ),
+      ],
     );
   }
 

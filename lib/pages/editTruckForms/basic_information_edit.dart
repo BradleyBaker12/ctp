@@ -1,6 +1,5 @@
 // lib/pages/editTruckForms/basic_information_edit.dart
 
-import 'dart:io';
 import 'dart:convert'; // Added for JSON decoding
 import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/vehicles_list.dart';
@@ -74,7 +73,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
   bool _isLoading = false;
   String? _vehicleId;
-  DateTime? _availableDate;
+  // Removed unused _availableDate
   bool isDealer = false;
 
   List<String> _countryOptions = []; // Define the country options list
@@ -156,7 +155,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   String? _existingNatisRc1Url;
   String? _existingNatisRc1Name;
 
-  int _currentStep = 0;
+  // Removed unused _currentStep
 
   final TextEditingController _configController = TextEditingController();
   final TextEditingController _applicationController = TextEditingController();
@@ -178,16 +177,13 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // ------------------------------------------------------------------
 
   // Add new properties for web navigation
-  final bool _isDrawerOpen = false;
+  // Removed unused _isDrawerOpen
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // Add truck type options and application lists
   String? _selectedTruckType;
 
-  final List<String> _truckTypeOptions = [
-    'Rigid Trucks',
-    'Tractor Trucks',
-  ];
+  // Removed unused _truckTypeOptions
 
   // Replace the old _applicationOptions with a getter
   List<String> get _applicationOptions {
@@ -372,6 +368,55 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
   }
 
+  // Prompt to save before leaving the page. Returns true to allow pop, false to stay.
+  Future<bool> _confirmSaveBeforeExit() async {
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Save changes?'),
+        content: const Text(
+            'Do you want to save your changes before leaving this page?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSave == true) {
+      try {
+        setState(() => _isLoading = true);
+        // Validate required fields before saving.
+        final formData = Provider.of<FormDataProvider>(context, listen: false);
+        if (!_validateRequiredFields(formData)) {
+          return false;
+        }
+        // Save without additional navigation; let the pop proceed on success.
+        final id = await _saveSection1Data();
+        if (id != null) {
+          if (widget.isNewUpload) {
+            // Clear any in-progress form state if this was a new upload flow.
+            _clearAllData(formData);
+          }
+          return true; // allow pop
+        }
+        // Save failed
+        return false; // stay on page
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+    // User cancelled
+    return false;
+  }
+
   // Load country options from JSON
   Future<void> _loadCountryOptions() async {
     try {
@@ -451,7 +496,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     });
     _vehicleId = null;
     _isLoading = false;
-    _currentStep = 0;
     debugPrint('All form data cleared.');
   }
 
@@ -657,7 +701,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         if (_referenceNumberController.text.isEmpty &&
             widget.vehicle?.adminData != null) {
           _referenceNumberController.text =
-              widget.vehicle!.referenceNumber ?? '';
+              widget.vehicle?.referenceNumber ?? '';
         }
         debugPrint(
             "Prepopulated Reference Number: ${_referenceNumberController.text}");
@@ -816,57 +860,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
   }
 
-  // Helper method to check if file is an image
-  bool _isImageFile(String path) {
-    final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-    String extension = path.split('.').last.toLowerCase();
-    return imageExtensions.contains(extension);
-  }
+  // _isImageFile was unused and removed.
 
-  // Helper method to display uploaded files
-  Widget _buildUploadedFile(File? file, bool isUploading) {
-    if (file == null) {
-      return const Text('No file selected',
-          style: TextStyle(color: Colors.white70));
-    } else {
-      String fileName = file.path.split('/').last;
-      String extension = fileName.split('.').last;
-      return Column(
-        children: [
-          if (_isImageFile(file.path))
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child:
-                  Image.file(file, width: 100, height: 100, fit: BoxFit.cover),
-            )
-          else
-            Column(
-              children: [
-                Icon(_getFileIcon(extension), color: Colors.white, size: 50.0),
-                const SizedBox(height: 8),
-                Text(fileName,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center),
-              ],
-            ),
-          const SizedBox(height: 8),
-          if (isUploading)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                CircularProgressIndicator(),
-                SizedBox(width: 10),
-                Text('Uploading...', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-        ],
-      );
-    }
-  }
+  // _buildUploadedFile was unused; removed to satisfy analyzer.
 
   // -------------------------- New Function: Load Sales Rep Users ---------------------------
   /// Load users from Firestore whose userRole is either 'admin' or 'sales representative'
@@ -1069,29 +1065,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
   @override
   Widget build(BuildContext context) {
-    final formData = Provider.of<FormDataProvider>(context);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final String userRole = userProvider.getUserRole;
-    final bool isAdmin = userRole == 'admin';
-    final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter';
-    // New flag for sales representatives
-    final bool isSalesRep = userRole == 'sales representative';
-
     // Get the screen width
     final double screenWidth = MediaQuery.of(context).size.width;
     final bool isCompactNavigation = screenWidth < 800;
 
     return WillPopScope(
-      onWillPop: () async {
-        if (widget.isNewUpload) {
-          final formData =
-              Provider.of<FormDataProvider>(context, listen: false);
-          _clearAllData(formData);
-          debugPrint('Navigating back. Cleared all form data for new upload.');
-        }
-        return true;
-      },
+      onWillPop: () => _confirmSaveBeforeExit(),
       child: Stack(
         children: [
           Scaffold(
@@ -1480,8 +1459,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           if (isTransporter || isAdmin || isSalesRep)
             _buildReferenceNumberField(),
           const SizedBox(height: 15),
-          if (isTransporter || isAdmin || isSalesRep)
-            _buildNatisRc1Section(),
+          if (isTransporter || isAdmin || isSalesRep) _buildNatisRc1Section(),
           const SizedBox(height: 15),
           if (isAdmin || isSalesRep) ...[
             _buildTruckOwnerField(),

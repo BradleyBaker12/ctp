@@ -34,8 +34,8 @@ class ItemData {
   ItemData({required this.description, required this.imageData});
 }
 
-
-@RoutePage()class InternalCabEditPage extends StatefulWidget {
+@RoutePage()
+class InternalCabEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
@@ -90,6 +90,11 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
   bool _isInitialized = false; // Flag to prevent re-initialization
   bool _isSaving = false; // Flag to indicate saving state
+
+  // Upload progress tracking for internal cab section
+  final bool _isUploading = false;
+  final String _uploadStatus = 'Processing...';
+  final double _uploadProgress = 0.0;
 
   @override
   void initState() {

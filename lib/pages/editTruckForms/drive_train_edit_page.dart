@@ -13,7 +13,9 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/truck_info_web_nav.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class DriveTrainEditPage extends StatefulWidget {
+
+@RoutePage()
+class DriveTrainEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
@@ -70,6 +72,11 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
 
   bool _isInitialized = false; // Flag to prevent re-initialization
   bool _isSaving = false;
+
+  // Upload progress tracking for drive train section
+  final bool _isUploading = false;
+  final String _uploadStatus = 'Processing...';
+  final double _uploadProgress = 0.0;
 
   @override
   bool get wantKeepAlive => true;
@@ -405,30 +412,29 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
     }
     return Scaffold(
       key: _scaffoldKey,
-      appBar:PreferredSize(
-              preferredSize: const Size.fromHeight(70),
-              child: TruckInfoWebNavBar(
-                scaffoldKey: _scaffoldKey,
-                selectedTab: "Drive Train",
-                vehicleId: widget.vehicleId,
-                onHomePressed: () => Navigator.pushNamed(context, '/home'),
-                onBasicInfoPressed: () =>
-                    Navigator.pushNamed(context, '/basic_information'),
-                onTruckConditionsPressed: () =>
-                    Navigator.pushNamed(context, '/truck_conditions'),
-                onMaintenanceWarrantyPressed: () =>
-                    Navigator.pushNamed(context, '/maintenance_warranty'),
-                onExternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/external_cab'),
-                onInternalCabPressed: () =>
-                    Navigator.pushNamed(context, '/internal_cab'),
-                onChassisPressed: () =>
-                    Navigator.pushNamed(context, '/chassis'),
-                onDriveTrainPressed: () =>
-                    Navigator.pushNamed(context, '/drive_train'),
-                onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
-              ),
-            ),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: TruckInfoWebNavBar(
+          scaffoldKey: _scaffoldKey,
+          selectedTab: "Drive Train",
+          vehicleId: widget.vehicleId,
+          onHomePressed: () => Navigator.pushNamed(context, '/home'),
+          onBasicInfoPressed: () =>
+              Navigator.pushNamed(context, '/basic_information'),
+          onTruckConditionsPressed: () =>
+              Navigator.pushNamed(context, '/truck_conditions'),
+          onMaintenanceWarrantyPressed: () =>
+              Navigator.pushNamed(context, '/maintenance_warranty'),
+          onExternalCabPressed: () =>
+              Navigator.pushNamed(context, '/external_cab'),
+          onInternalCabPressed: () =>
+              Navigator.pushNamed(context, '/internal_cab'),
+          onChassisPressed: () => Navigator.pushNamed(context, '/chassis'),
+          onDriveTrainPressed: () =>
+              Navigator.pushNamed(context, '/drive_train'),
+          onTyresPressed: () => Navigator.pushNamed(context, '/tyres'),
+        ),
+      ),
       body: content,
     );
   }
@@ -768,7 +774,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
 
       if (data['images'] != null) {
         final images = Map<String, dynamic>.from(data['images']);
-       images.forEach((key, value) {
+        images.forEach((key, value) {
           if (value is Map && value.containsKey('url')) {
             final url = value['url']?.toString() ?? '';
             if (url.isNotEmpty) {
@@ -776,8 +782,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
             }
             _selectedImages[key] = null;
           }
-          }
-        );
+        });
       }
     });
     print('DriveTrain: Initialization complete');

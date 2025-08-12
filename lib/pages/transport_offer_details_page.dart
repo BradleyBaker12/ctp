@@ -43,8 +43,6 @@ class TransporterOfferDetailsPage extends StatefulWidget {
 class _TransporterOfferDetailsPageState
     extends State<TransporterOfferDetailsPage> {
   final TextEditingController _rejectReasonController = TextEditingController();
-  // Commission rate for calculating transporter payout (e.g., 10%)
-  static const double _commissionRate = 0.10;
   PlatformFile? _selectedInvoice;
   String? _existingInvoiceUrl;
   int _currentImageIndex = 0;
@@ -635,44 +633,6 @@ class _TransporterOfferDetailsPageState
                   ],
                 ),
 
-                // Accept and Reject Buttons
-                if (offerStatus == 'in-progress' && !_hasResponded)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: CustomButton(
-                            text: 'Accept',
-                            borderColor: Colors.blue,
-                            onPressed: _handleAccept,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: CustomButton(
-                            text: 'Reject',
-                            borderColor: const Color(0xFFFF4E00),
-                            onPressed: _promptRejectReason,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 16.0),
-                    child: Center(
-                      child: Text(
-                        _responseMessage,
-                        style: customFont(18, FontWeight.bold, Colors.white),
-                      ),
-                    ),
-                  ),
-
                 // Show inspection/collection setup/status only if NOT dealer and offer is not in-progress or rejected
                 if ((userRole == 'transporter' ||
                         userRole == 'admin' ||
@@ -892,27 +852,52 @@ class _TransporterOfferDetailsPageState
                         style: customFont(20, FontWeight.bold, Colors.white),
                       ),
                       const SizedBox(height: 10),
-                      _buildInfoRow('Offer Amount',
-                          'R ${widget.offer.offerAmount.toString()}'),
-                      // Transporter commission and payout breakdown
+                      // Financial breakdown
                       Builder(builder: (context) {
-                        // Retrieve the gross offer amount
+                        // Retrieve the offer data
                         final dataMap =
                             offerSnapshot.data!.data() as Map<String, dynamic>;
-                        final gross =
-                            (dataMap['offerAmount'] as num).toDouble();
-                        final commission = gross * _commissionRate;
-                        final payout = gross - 12500;
+
+                        // Get the typed offer amount (base amount user entered)
+                        final typedOfferAmount =
+                            (dataMap['typedOfferAmount'] as num?)?.toDouble() ??
+                                0.0;
+
+                        // Fixed commission amount
+                        const double commission = 12500.0;
+
+                        // Calculate amount after commission is deducted
+                        final amountAfterCommission =
+                            typedOfferAmount - commission;
+
+                        // Calculate VAT (15% of amount after commission)
+                        final vat = amountAfterCommission * 0.15;
+
+                        // Calculate transporter payout (amount after commission + VAT)
+                        final transporterPayout = amountAfterCommission + vat;
+
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildInfoRow(
+                              'Typed Offer Amount',
+                              'R ${typedOfferAmount.toStringAsFixed(2)}',
+                            ),
+                            _buildInfoRow(
                               'Commission',
-                              'R 12 500.00',
+                              'R ${commission.toStringAsFixed(2)}',
+                            ),
+                            _buildInfoRow(
+                              'Amount After Commission',
+                              'R ${amountAfterCommission.toStringAsFixed(2)}',
+                            ),
+                            _buildInfoRow(
+                              'VAT (15%)',
+                              'R ${vat.toStringAsFixed(2)}',
                             ),
                             _buildInfoRow(
                               'Your Payout',
-                              'R ${payout.toStringAsFixed(2)}',
+                              'R ${transporterPayout.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 20),
                           ],
@@ -924,12 +909,63 @@ class _TransporterOfferDetailsPageState
                         style: customFont(20, FontWeight.bold, Colors.white),
                       ),
                       const SizedBox(height: 10),
-                      _buildInfoRow('Make/Model',
-                          _safeCapitalize(widget.vehicle.makeModel.toString())),
+                      _buildInfoRow(
+                          'Brand',
+                          widget.vehicle.brands.isNotEmpty
+                              ? widget.vehicle.brands.join(', ').toUpperCase()
+                              : 'N/A'),
                       _buildInfoRow('Year', widget.vehicle.year.toString()),
+                      _buildInfoRow(
+                          'Variant',
+                          widget.vehicle.variant?.isNotEmpty == true
+                              ? _safeCapitalize(widget.vehicle.variant!)
+                              : 'N/A'),
+                      _buildInfoRow(
+                          'Reference Number',
+                          widget.vehicle.referenceNumber.isNotEmpty
+                              ? widget.vehicle.referenceNumber.toUpperCase()
+                              : 'N/A'),
                     ],
                   ),
                 ),
+
+                // Accept and Reject Buttons
+                if (offerStatus == 'in-progress' && !_hasResponded)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: CustomButton(
+                            text: 'Accept',
+                            borderColor: Colors.blue,
+                            onPressed: _handleAccept,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: CustomButton(
+                            text: 'Reject',
+                            borderColor: const Color(0xFFFF4E00),
+                            onPressed: _promptRejectReason,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 16.0),
+                    child: Center(
+                      child: Text(
+                        _responseMessage,
+                        style: customFont(18, FontWeight.bold, Colors.white),
+                      ),
+                    ),
+                  ),
               ],
             ),
           );

@@ -21,7 +21,9 @@ import 'package:ctp/components/custom_button.dart';
 import 'dart:ui';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class VehiclesListPage extends StatefulWidget {
+
+@RoutePage()
+class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
 
   @override
@@ -305,50 +307,62 @@ class _VehiclesListPageState extends State<VehiclesListPage>
           ),
         ),
         floatingActionButton: null,
-        bottomNavigationBar: kIsWeb
+        bottomNavigationBar: (kIsWeb ||
+                userProvider.getUserRole == 'admin' ||
+                userProvider.getUserRole == 'sales representative')
             ? null
-            : CustomBottomNavigation(
-                selectedIndex: _selectedIndex,
-                onItemTapped: (index) async {
-                  _onItemTapped(index);
-                  final userRole =
-                      userProvider.getUserRole.toLowerCase().trim();
+            : SafeArea(
+                top: false,
+                bottom: true,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewPadding.bottom,
+                  ),
+                  child: CustomBottomNavigation(
+                    selectedIndex: _selectedIndex,
+                    onItemTapped: (index) async {
+                      _onItemTapped(index);
+                      final userRole =
+                          userProvider.getUserRole.toLowerCase().trim();
 
-                  // Example for dealers
-                  if (userRole == 'dealer') {
-                    // 0: Home, 1: Vehicles, 2: Offers
-                    if (index == 0) {
-                      await MyNavigator.pushReplacement(
-                          context, const HomePage());
-                    } else if (index == 1) {
-                      await MyNavigator.pushReplacement(
-                          context, const VehiclesListPage());
-                    } else if (index == 2) {
-                      await MyNavigator.pushReplacement(
-                          context, const OffersPage());
-                    }
-                  }
-                  // Example for transporters
-                  else if (userRole == 'transporter') {
-                    // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
-                    if (index == 0) {
-                      await MyNavigator.pushReplacement(
-                          context, const HomePage());
-                    } else if (index == 1) {
-                      await MyNavigator.pushReplacement(
-                        context,
-                        const VehiclesListPage(),
-                      );
-                    } else if (index == 2) {
-                      await MyNavigator.pushReplacement(
-                          context, const OffersPage());
-                    } else if (index == 3) {
-                      await MyNavigator.pushReplacement(context, ProfilePage());
-                    }
-                  } else {
-                    // Handle other roles if needed
-                  }
-                },
+                      // Example for dealers
+                      if (userRole == 'dealer') {
+                        // 0: Home, 1: Vehicles, 2: Offers
+                        if (index == 0) {
+                          await MyNavigator.pushReplacement(
+                              context, const HomePage());
+                        } else if (index == 1) {
+                          await MyNavigator.pushReplacement(
+                              context, const VehiclesListPage());
+                        } else if (index == 2) {
+                          await MyNavigator.pushReplacement(
+                              context, const OffersPage());
+                        }
+                      }
+                      // Example for transporters
+                      else if (userRole == 'transporter') {
+                        // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
+                        if (index == 0) {
+                          await MyNavigator.pushReplacement(
+                              context, const HomePage());
+                        } else if (index == 1) {
+                          await MyNavigator.pushReplacement(
+                            context,
+                            const VehiclesListPage(),
+                          );
+                        } else if (index == 2) {
+                          await MyNavigator.pushReplacement(
+                              context, const OffersPage());
+                        } else if (index == 3) {
+                          await MyNavigator.pushReplacement(
+                              context, ProfilePage());
+                        }
+                      } else {
+                        // Handle other roles if needed
+                      }
+                    },
+                  ),
+                ),
               ),
       ),
     );

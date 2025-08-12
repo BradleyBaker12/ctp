@@ -270,6 +270,86 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
     }
   }
 
+  // Test deep linking with different notification types
+  Future<void> _testDeepLinking(String notificationType) async {
+    try {
+      print('DEBUG: Testing deep linking for type: $notificationType');
+
+      String title;
+      String body;
+      Map<String, dynamic> data = {
+        'notificationType': notificationType,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      // Customize message and data based on notification type
+      switch (notificationType) {
+        case 'new_offer':
+          title = 'Deep Link Test - New Offer';
+          body = 'Tap to test navigation to offers page';
+          data.addAll({
+            'vehicleId': 'test_vehicle_123',
+            'offerId': 'test_offer_456',
+            'dealerId': 'test_dealer_789',
+          });
+          break;
+
+        case 'new_vehicle':
+          title = 'Deep Link Test - New Vehicle';
+          body = 'Tap to test navigation to vehicle details';
+          data.addAll({
+            'vehicleId': 'test_vehicle_123',
+          });
+          break;
+
+        case 'inspection_booked':
+          title = 'Deep Link Test - Inspection Booked';
+          body = 'Tap to test navigation to offer details';
+          data.addAll({
+            'vehicleId': 'test_vehicle_123',
+            'offerId': 'test_offer_456',
+            'dealerId': 'test_dealer_789',
+          });
+          break;
+
+        case 'sale_completion_dealer':
+          title = 'Deep Link Test - Sale Completed';
+          body = 'Tap to test navigation to completed offers';
+          data.addAll({
+            'vehicleId': 'test_vehicle_123',
+            'offerId': 'test_offer_456',
+            'dealerId': 'test_dealer_789',
+          });
+          break;
+
+        default:
+          title = 'Deep Link Test - Unknown Type';
+          body = 'Tap to test fallback navigation';
+          break;
+      }
+
+      await NotificationService.sendTestNotification(
+        title: title,
+        body: body,
+        data: data,
+      );
+
+      setState(() {
+        resultMessage =
+            'Deep linking test sent for "$notificationType"!\nTap the notification to test navigation.';
+        isSuccess = true;
+      });
+
+      print('DEBUG: Deep linking test notification sent for $notificationType');
+    } catch (e) {
+      setState(() {
+        resultMessage = 'Error sending deep linking test: ${e.toString()}';
+        isSuccess = false;
+      });
+      print('DEBUG: Error in deep linking test: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
@@ -497,7 +577,110 @@ class _NotificationTestPageState extends State<NotificationTestPage> {
             ),
             const SizedBox(height: 16),
 
-            // Direct local notification test (bypasses Firebase)
+            // Deep linking test section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Deep Linking Tests',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.purple,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Test new offer notification
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _testDeepLinking('new_offer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Test New Offer → Offers Page',
+                        style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Test new vehicle notification
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _testDeepLinking('new_vehicle'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Test New Vehicle → Vehicle Details',
+                        style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Test inspection notification
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _testDeepLinking('inspection_booked'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Test Inspection Booked → Offers Page',
+                        style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Test sale completion notification
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          _testDeepLinking('sale_completion_dealer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Test Sale Completion → Offers Page',
+                        style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

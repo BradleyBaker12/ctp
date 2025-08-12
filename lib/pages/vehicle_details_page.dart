@@ -102,6 +102,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   // Add new state variable
   bool _isLiked = false;
 
+  // Vehicle owner information (for admins)
+  String? _ownerName;
+  String? _ownerEmail;
+  bool _isLoadingOwnerInfo = false;
+
   // Add these state variables
   bool _isTruckConditionsExpanded = false;
 
@@ -144,13 +149,25 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     // 3. If accepted, see if that acceptedOfferId belongs to this user
     _checkIfMyOfferAccepted();
 
+    // 3.5. Check if user has already made an offer
+    _checkIfOfferMade();
+
     // 4. Admin/sales => fetch dealers
     _fetchAllDealers();
 
     // 5. Check if inspection/collection complete
     _checkSetupStatus();
 
-    // 6. Prepare photos
+    // 6. Fetch vehicle owner info for admins
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (userProvider.getUserRole == 'admin' ||
+          userProvider.getUserRole == 'sales representative') {
+        _fetchVehicleOwnerInfo();
+      }
+    });
+
+    // 7. Prepare photos
     WidgetsBinding.instance.addPostFrameCallback((_) => _preparePhotos());
     _pageController = PageController();
   }
@@ -181,6 +198,34 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     }
   }
 
+  // Fetch vehicle owner information for admins
+  Future<void> _fetchVehicleOwnerInfo() async {
+    if (vehicle.userId.isEmpty) return;
+
+    setState(() {
+      _isLoadingOwnerInfo = true;
+    });
+
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final ownerName = await userProvider.getUserNameById(vehicle.userId);
+      final ownerEmail = await userProvider.getUserEmailById(vehicle.userId);
+
+      setState(() {
+        _ownerName = ownerName;
+        _ownerEmail = ownerEmail ?? 'Unknown';
+        _isLoadingOwnerInfo = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching vehicle owner info: $e');
+      setState(() {
+        _ownerName = 'Unknown';
+        _ownerEmail = 'Unknown';
+        _isLoadingOwnerInfo = false;
+      });
+    }
+  }
+
   Future<void> _checkOfferAvailability() async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -203,6 +248,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      // Fetch offers for this dealer+vehicle and then select the latest non-rejected one
       final snapshot = await FirebaseFirestore.instance
           .collection('offers')
           .where('dealerId', isEqualTo: user.uid)
@@ -210,9 +256,41 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           .get();
 
       if (snapshot.docs.isNotEmpty) {
+        QueryDocumentSnapshot<Map<String, dynamic>>? latest;
+        DateTime? latestCreated;
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final status = (data['offerStatus']?.toString() ?? '').toLowerCase();
+          if (status == 'rejected' || status == 'archived') {
+            continue; // skip inactive offers
+          }
+          final ts = data['createdAt'];
+          final created = ts is Timestamp ? ts.toDate() : null;
+          // Compare using epoch for nulls to avoid null checks
+          final createdSafe = created ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final latestSafe =
+              latestCreated ?? DateTime.fromMillisecondsSinceEpoch(0);
+          if (latest == null || createdSafe.isAfter(latestSafe)) {
+            latest = doc;
+            latestCreated = created;
+          }
+        }
+
+        if (latest != null) {
+          final data = latest.data();
+          setState(() {
+            _hasMadeOffer = true;
+            _offerStatus = data['offerStatus']?.toString() ?? 'in-progress';
+          });
+        } else {
+          // No active offers
+          setState(() {
+            _hasMadeOffer = false;
+          });
+        }
+      } else {
         setState(() {
-          _hasMadeOffer = true;
-          _offerStatus = snapshot.docs.first['offerStatus'] ?? 'in-progress';
+          _hasMadeOffer = false;
         });
       }
     } catch (e) {
@@ -258,8 +336,13 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   void _shareVehicle() {
     final String vehicleId = vehicle.id;
     final String url = 'https://www.ctpapp.co.za/vehicle/$vehicleId';
-    final String message = 'Check out this vehicle on CTP: $url';
-    Share.share(message);
+
+    // Create a more descriptive message with vehicle details
+    final String vehicleName =
+        '${vehicle.brands.join(', ')} ${vehicle.makeModel} ${vehicle.year}';
+    final String message = 'Check out this $vehicleName on CTP:\n\n$url';
+
+    Share.share(message, subject: 'Vehicle Details - $vehicleName');
   }
 
   Future<void> _fetchAllDealers() async {
@@ -690,7 +773,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                         value: 0,
                         child: Text('No Lifespan'),
                       ),
-                      ...List.generate(7, (index) {
+                      ...List.generate(30, (index) {
                         final day = index + 1;
                         return DropdownMenuItem<int>(
                           value: day,
@@ -739,7 +822,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   ),
                   onPressed: () async {
                     debugPrint('DEBUG: Confirm button pressed');
-                    await _makeOffer();
                     Navigator.of(context, rootNavigator: true).pop(true);
                   },
                   child: const Text('Confirm'),
@@ -838,6 +920,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         return 'Set Location and Time';
       case 'accepted':
         return 'Accepted';
+      case 'payment approved':
+        return 'Payment Approved';
       case 'set location and time':
         return 'Setup Inspection';
       case 'confirm location':
@@ -848,6 +932,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         return 'Step 3 of 4';
       case 'paid':
         return 'Paid';
+      case 'sold':
+        return 'Sold';
+      case 'archived':
+        return 'Archived';
       case 'issue reported':
         return 'Issue Reported';
       case 'resolved':
@@ -1212,6 +1300,94 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               Colors.white,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // Vehicle owner information widget (only for admins)
+  Widget _buildVehicleOwnerInfo() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2F7FFF), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.person,
+                color: Color(0xFFFF4E00),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'VEHICLE OWNER',
+                style:
+                    _customFont(16, FontWeight.bold, const Color(0xFFFF4E00)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_isLoadingOwnerInfo)
+            const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFFFF4E00),
+              ),
+            )
+          else ...[
+            Row(
+              children: [
+                const Icon(
+                  Icons.account_circle,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Name:',
+                  style: _customFont(14, FontWeight.w600, Colors.white70),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    _ownerName ?? 'Loading...',
+                    style: _customFont(14, FontWeight.normal, Colors.white),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.email,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Email:',
+                  style: _customFont(14, FontWeight.w600, Colors.white70),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    _ownerEmail ?? 'Loading...',
+                    style: _customFont(14, FontWeight.normal, Colors.white),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -2321,10 +2497,18 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           );
         }
         makeOfferWidgets.add(const SizedBox(height: 16));
+
+        // Vehicle Owner Information Section (Admin Only):
+        if (userProvider.getUserRole == 'admin' ||
+            userProvider.getUserRole == 'sales representative') {
+          makeOfferWidgets.add(_buildVehicleOwnerInfo());
+          makeOfferWidgets.add(const SizedBox(height: 16));
+        }
+
         makeOfferWidgets.add(
           Center(
             child: Text(
-              'Make an Offer',
+              'Make an Offer (exl VAT)',
               style: _customFont(20, FontWeight.bold, Colors.white),
             ),
           ),

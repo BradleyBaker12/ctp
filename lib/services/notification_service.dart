@@ -238,11 +238,20 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
+      // Create a payload with deep linking data for testing
+      final testPayload = {
+        'notificationType': data?['notificationType'] ?? 'new_offer',
+        'vehicleId': data?['vehicleId'] ?? 'test_vehicle_id',
+        'offerId': data?['offerId'] ?? 'test_offer_id',
+        'dealerId': data?['dealerId'] ?? 'test_dealer_id',
+        'transporterId': data?['transporterId'] ?? 'test_transporter_id',
+      }.toString();
+
       // First, show a local notification immediately
       await showNotification(
         title: title,
         body: body,
-        payload: 'test_notification',
+        payload: testPayload,
       );
 
       // Then, save to Firestore for server-side processing
@@ -254,7 +263,7 @@ class NotificationService {
         data: data,
       );
 
-      print('Test notification sent via both methods');
+      print('Test notification sent via both methods with deep link data');
     } catch (e) {
       print('Error sending test notification: $e');
       rethrow;

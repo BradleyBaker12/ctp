@@ -147,7 +147,7 @@ exports.notifyTransporterOnNewOffer = onDocumentCreated(
       const message = {
         notification: {
           title: "New Offer on Your Vehicle",
-          body: `${dealerName} has made an offer of ${formattedAmount} on your ${vehicleName}.`,
+          body: `You have received a new offer of ${formattedAmount} for your vehicle, ${vehicleName}.`,
         },
         data: {
           vehicleId: offerData.vehicleId,
@@ -302,23 +302,23 @@ exports.notifyTransporterOnOfferStatusChange = onDocumentUpdated(
       switch (afterStatus) {
         case "accepted":
           title = "Offer Accepted! 🎉";
-          body = `Congratulations! You've accepted ${dealerName}'s offer of ${formattedAmount} for your ${vehicleName}.`;
+          body = `Congratulations! You've accepted an offer of ${formattedAmount} for your ${vehicleName}.`;
           break;
         case "rejected":
           title = "Offer Declined";
-          body = `You've declined ${dealerName}'s offer of ${formattedAmount} for your ${vehicleName}.`;
+          body = `You've declined an offer of ${formattedAmount} for your ${vehicleName}.`;
           break;
         case "pending":
           title = "Offer Updated";
-          body = `${dealerName}'s offer of ${formattedAmount} for your ${vehicleName} is now pending review.`;
+          body = `An offer of ${formattedAmount} for your ${vehicleName} is now pending review.`;
           break;
         case "expired":
           title = "Offer Expired";
-          body = `${dealerName}'s offer of ${formattedAmount} for your ${vehicleName} has expired.`;
+          body = `An offer of ${formattedAmount} for your ${vehicleName} has expired.`;
           break;
         default:
           title = "Offer Status Updated";
-          body = `Your offer from ${dealerName} for ${vehicleName} has been updated.`;
+          body = `Your offer for ${vehicleName} has been updated.`;
       }
 
       // Send push notification to transporter
@@ -691,7 +691,7 @@ exports.notifyPartiesOnSaleCompletion = onDocumentUpdated(
           const transporterMessage = {
             notification: {
               title: "🎉 Congratulations on Your Sale!",
-              body: `Your ${vehicleName} has been sold to ${dealerName} for ${formattedAmount}. Well done on completing the deal!`,
+              body: `Your ${vehicleName} has been sold for ${formattedAmount}. Well done on completing the deal!`,
             },
             data: {
               vehicleId: after.vehicleId,
@@ -778,7 +778,6 @@ exports.notifyPartiesOnSaleCompletion = onDocumentUpdated(
                   <h3 style="margin-top: 0; color: #333;">Sale Details:</h3>
                   <p><strong>Vehicle:</strong> ${vehicleName}</p>
                   <p><strong>Sale Price:</strong> ${formattedAmount}</p>
-                  <p><strong>Buyer:</strong> ${dealerName}</p>
                   <p><strong>Sale Date:</strong> ${new Date().toLocaleDateString()}</p>
                 </div>
                 
@@ -818,7 +817,6 @@ exports.notifyPartiesOnSaleCompletion = onDocumentUpdated(
                   <h3 style="margin-top: 0; color: #333;">Purchase Details:</h3>
                   <p><strong>Vehicle:</strong> ${vehicleName}</p>
                   <p><strong>Purchase Price:</strong> ${formattedAmount}</p>
-                  <p><strong>Seller:</strong> ${transporterName}</p>
                   <p><strong>Purchase Date:</strong> ${new Date().toLocaleDateString()}</p>
                 </div>
                 
@@ -2529,7 +2527,7 @@ exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
           const transporterMessage = {
             notification: {
               title: "📅 Inspection Booked",
-              body: `${dealerName} has scheduled an inspection for your ${vehicleName} on ${inspectionDate} at ${inspectionTime}`,
+              body: `An inspection for your ${vehicleName} has been scheduled on ${inspectionDate} at ${inspectionTime}`,
             },
             data: {
               offerId: offerId,
@@ -2659,7 +2657,6 @@ exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
                   <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
                     <p><strong>Vehicle:</strong> ${vehicleName}</p>
-                    <p><strong>Dealer:</strong> ${dealerName}</p>
                     <p><strong>Date:</strong> ${inspectionDate}</p>
                     <p><strong>Time:</strong> ${inspectionTime}</p>
                     <p><strong>Location:</strong> ${inspectionLocation}</p>
@@ -2948,7 +2945,7 @@ exports.notifyPartiesOnInspectionResultsUploaded = onDocumentUpdated(
           const transporterMessage = {
             notification: {
               title: "📋 Inspection Results Available",
-              body: `Inspection results for your ${vehicleName} have been uploaded by ${dealerName}. ${resultText}`,
+              body: `Inspection results for your ${vehicleName} have been uploaded. ${resultText}`,
             },
             data: {
               offerId: offerId,
@@ -3075,7 +3072,6 @@ exports.notifyPartiesOnInspectionResultsUploaded = onDocumentUpdated(
                   <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
                     <p><strong>Vehicle:</strong> ${vehicleName}</p>
-                    <p><strong>Inspected by:</strong> ${dealerName}</p>
                     <p><strong>Results include:</strong> ${resultText}</p>
                     ${
                       after.inspectionImages?.length
@@ -3420,7 +3416,7 @@ exports.sendInvoicePaymentReminders = onSchedule(
               const transporterMessage = {
                 notification: {
                   title: "📋 Payment Status Update",
-                  body: `Payment for your ${vehicleName} from ${dealerName} is ${daysOverdue} day(s) overdue. We're following up with the dealer.`,
+                  body: `Payment for your ${vehicleName} is ${daysOverdue} day(s) overdue. We're following up with the buyer.`,
                 },
                 data: {
                   offerId: offerId,
@@ -3521,7 +3517,6 @@ exports.sendInvoicePaymentReminders = onSchedule(
                         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                           <h3 style="margin-top: 0; color: #333;">Purchase Details:</h3>
                           <p><strong>Vehicle:</strong> ${vehicleName}</p>
-                          <p><strong>Seller:</strong> ${transporterName}</p>
                           <p><strong>Amount Due:</strong> R${offerAmount.toLocaleString()}</p>
                           <p><strong>Days Overdue:</strong> ${daysOverdue} day(s)</p>
                           <p><strong>Offer ID:</strong> ${offerId}</p>
@@ -3579,7 +3574,6 @@ exports.sendInvoicePaymentReminders = onSchedule(
                       <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                         <h3 style="margin-top: 0; color: #333;">Sale Details:</h3>
                         <p><strong>Vehicle:</strong> ${vehicleName}</p>
-                        <p><strong>Buyer:</strong> ${dealerName}</p>
                         <p><strong>Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
                         <p><strong>Payment Status:</strong> ${daysOverdue} day(s) overdue</p>
                       </div>
@@ -3912,7 +3906,6 @@ exports.notifyTransporterOnTruckReadyForCollection = onDocumentUpdated(
                     <div style="display: grid; gap: 10px;">
                       <p style="margin: 8px 0;"><strong>🚛 Vehicle:</strong> ${vehicleName}</p>
                       <p style="margin: 8px 0;"><strong>💰 Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
-                      <p style="margin: 8px 0;"><strong>👤 Buyer:</strong> ${dealerName}</p>
                       <p style="margin: 8px 0;"><strong>📅 Collection Date:</strong> ${collectionDate}</p>
                       <p style="margin: 8px 0;"><strong>🕐 Collection Time:</strong> ${collectionTime}</p>
                       <p style="margin: 8px 0;"><strong>📍 Collection Location:</strong> ${collectionLocation}</p>
@@ -4140,7 +4133,7 @@ exports.notifyPartiesOnCollectionBooked = onDocumentUpdated(
           const transporterMessage = {
             notification: {
               title: "📅 Collection Scheduled",
-              body: `${dealerName} has scheduled collection for your ${vehicleName} on ${collectionDate} at ${collectionTime}`,
+              body: `A collection appointment for your ${vehicleName} has been scheduled on ${collectionDate} at ${collectionTime}`,
             },
             data: {
               offerId: offerId,
@@ -4270,7 +4263,6 @@ exports.notifyPartiesOnCollectionBooked = onDocumentUpdated(
                   <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Collection Details:</h3>
                     <p><strong>Vehicle:</strong> ${vehicleName}</p>
-                    <p><strong>Buyer:</strong> ${dealerName}</p>
                     <p><strong>Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
                     <p><strong>Collection Date:</strong> ${collectionDate}</p>
                     <p><strong>Collection Time:</strong> ${collectionTime}</p>
@@ -4608,7 +4600,7 @@ exports.sendTodayInspectionReminders = onSchedule(
               const transporterMessage = {
                 notification: {
                   title: "🔍 Inspection Today",
-                  body: `Reminder: ${dealerName} has an inspection scheduled today for your ${vehicleName} at ${inspectionTime}`,
+                  body: `Reminder: You have a vehicle inspection scheduled today for your ${vehicleName} at ${inspectionTime}`,
                 },
                 data: {
                   offerId: offerId,
@@ -4742,7 +4734,6 @@ exports.sendTodayInspectionReminders = onSchedule(
                           <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #2F7FFF; padding-bottom: 10px;">Today's Inspection Details:</h3>
                           <div style="display: grid; gap: 10px;">
                             <p style="margin: 8px 0;"><strong>🚛 Your Vehicle:</strong> ${vehicleName}</p>
-                            <p style="margin: 8px 0;"><strong>👤 Buyer/Inspector:</strong> ${dealerName}</p>
                             <p style="margin: 8px 0;"><strong>💰 Offer Amount:</strong> R${offerAmount.toLocaleString()}</p>
                             <p style="margin: 8px 0;"><strong>📅 Date:</strong> ${inspectionDate} (Today)</p>
                             <p style="margin: 8px 0;"><strong>🕐 Time:</strong> ${inspectionTime}</p>
@@ -5375,7 +5366,7 @@ exports.notifyPartiesOnVehicleCollected = onDocumentUpdated(
           const transporterMessage = {
             notification: {
               title: "✅ Vehicle Collected Successfully",
-              body: `${dealerName} has successfully collected your ${vehicleName}. Transaction completed!`,
+              body: `Your ${vehicleName} has been collected. The transaction is now complete!`,
             },
             data: {
               offerId: offerId,
@@ -5384,7 +5375,6 @@ exports.notifyPartiesOnVehicleCollected = onDocumentUpdated(
               notificationType: "vehicle_collected",
               offerAmount: offerAmount.toString(),
               vehicleName: vehicleName,
-              dealerName: dealerName,
               timestamp: new Date().toISOString(),
             },
             token: transporterData.fcmToken,
@@ -5507,7 +5497,6 @@ exports.notifyPartiesOnVehicleCollected = onDocumentUpdated(
                       <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #28a745; padding-bottom: 10px;">Transaction Summary:</h3>
                       <div style="display: grid; gap: 10px;">
                         <p style="margin: 8px 0;"><strong>🚛 Vehicle Sold:</strong> ${vehicleName}</p>
-                        <p style="margin: 8px 0;"><strong>👤 Purchased By:</strong> ${dealerName}</p>
                         <p style="margin: 8px 0;"><strong>💰 Final Sale Amount:</strong> R${offerAmount.toLocaleString()}</p>
                         <p style="margin: 8px 0;"><strong>📋 Transaction ID:</strong> ${offerId}</p>
                         <p style="margin: 8px 0;"><strong>📅 Collection Date:</strong> ${collectionDate.toLocaleString()}</p>

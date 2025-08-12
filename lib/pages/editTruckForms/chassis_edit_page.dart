@@ -13,7 +13,9 @@ import 'package:provider/provider.dart';
 import 'package:ctp/components/truck_info_web_nav.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class ChassisEditPage extends StatefulWidget {
+
+@RoutePage()
+class ChassisEditPage extends StatefulWidget {
   final String vehicleId;
   final VoidCallback onProgressUpdate;
   final bool isEditing;
@@ -70,6 +72,11 @@ class ChassisEditPageState extends State<ChassisEditPage>
 
   bool _isInitialized = false;
   bool _isSaving = false;
+
+  // Upload progress tracking for chassis section
+  final bool _isUploading = false;
+  final String _uploadStatus = 'Processing...';
+  final double _uploadProgress = 0.0;
 
   @override
   bool get wantKeepAlive => true;

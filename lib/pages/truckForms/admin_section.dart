@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:ctp/components/loading_overlay.dart';
 
 // import 'package:auto_route/auto_route.dart';
 
@@ -65,6 +66,9 @@ class AdminSectionState extends State<AdminSection>
 
   bool _isUploading = false;
 
+  // Upload status tracking for admin section
+  String _uploadStatus = 'Processing...';
+  double _uploadProgress = 0.0;
   @override
   void initState() {
     super.initState();
@@ -265,18 +269,18 @@ class AdminSectionState extends State<AdminSection>
                     ],
                   ),
               const SizedBox(height: 8),
-              if (isUploading)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    CircularProgressIndicator(),
-                    SizedBox(width: 10),
-                    Text(
-                      'Uploading...',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
+              // if (isUploading)
+              //   Row(
+              //     mainAxisAlignment: MainAxisAlignment.center,
+              //     children: const [
+              //       CircularProgressIndicator(),
+              //       SizedBox(width: 10),
+              //       Text(
+              //         'Uploading...',
+              //         style: TextStyle(color: Colors.white),
+              //       ),
+              //     ],
+              //   ),
             ],
           ),
           // The DELETE (X) button
@@ -385,16 +389,36 @@ class AdminSectionState extends State<AdminSection>
       return false;
     }
 
+    // Calculate total steps needed for progress tracking
+    int totalSteps = 1; // Database save step
+    int currentStep = 0;
+
+    // Count upload steps needed
+    if (_natisRc1File != null) totalSteps++;
+    if (_licenseDiskFile != null) totalSteps++;
+    if (widget.requireToSettleType == 'yes' && _settlementLetterFile != null) {
+      totalSteps++;
+    }
+
     setState(() {
       _isUploading = true;
+      _uploadStatus = 'Preparing to save Admin Documents...';
+      _uploadProgress = 0.0;
     });
 
     try {
       // Upload documents if new files are selected, otherwise use existing URLs
       String natisRc1Url;
       if (_natisRc1File != null) {
+        setState(() {
+          _uploadStatus = 'Uploading NATIS/RC1 Document...';
+        });
         natisRc1Url = await _uploadDocument(
             _natisRc1File!, 'NATIS_RC1', _natisRc1FileName!);
+        currentStep++;
+        setState(() {
+          _uploadProgress = currentStep / totalSteps;
+        });
       } else if (_natisRc1Url != null) {
         natisRc1Url = _natisRc1Url!;
       } else {
@@ -407,8 +431,15 @@ class AdminSectionState extends State<AdminSection>
 
       String licenseDiskUrl;
       if (_licenseDiskFile != null) {
+        setState(() {
+          _uploadStatus = 'Uploading License Disk...';
+        });
         licenseDiskUrl = await _uploadDocument(
             _licenseDiskFile!, 'LicenseDisk', _licenseDiskFileName!);
+        currentStep++;
+        setState(() {
+          _uploadProgress = currentStep / totalSteps;
+        });
       } else if (_licenseDiskUrl != null) {
         licenseDiskUrl = _licenseDiskUrl!;
       } else {
@@ -421,8 +452,15 @@ class AdminSectionState extends State<AdminSection>
       String? settlementLetterUrl;
       if (widget.requireToSettleType == 'yes') {
         if (_settlementLetterFile != null) {
+          setState(() {
+            _uploadStatus = 'Uploading Settlement Letter...';
+          });
           settlementLetterUrl = await _uploadDocument(_settlementLetterFile!,
               'SettlementLetter', _settlementLetterFileName!);
+          currentStep++;
+          setState(() {
+            _uploadProgress = currentStep / totalSteps;
+          });
         } else if (_settlementLetterUrl != null) {
           settlementLetterUrl = _settlementLetterUrl!;
         } else {
@@ -433,6 +471,10 @@ class AdminSectionState extends State<AdminSection>
           return false;
         }
       }
+
+      setState(() {
+        _uploadStatus = 'Saving to Database...';
+      });
 
       // Prepare data to save
       Map<String, dynamic> adminData = {
@@ -451,6 +493,12 @@ class AdminSectionState extends State<AdminSection>
           .doc(widget.vehicleId)
           .set({'adminData': adminData}, SetOptions(merge: true));
 
+      currentStep++;
+      setState(() {
+        _uploadProgress = 1.0; // Complete
+        _uploadStatus = 'Admin data saved successfully!';
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Admin data saved successfully.')),
       );
@@ -464,6 +512,8 @@ class AdminSectionState extends State<AdminSection>
     } finally {
       setState(() {
         _isUploading = false;
+        _uploadStatus = 'Processing...';
+        _uploadProgress = 0.0;
       });
     }
   }
@@ -591,236 +641,246 @@ class AdminSectionState extends State<AdminSection>
   Widget build(BuildContext context) {
     super.build(context);
 
-    return Center(
-      // Add Center widget here
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          double maxWidth =
-              constraints.maxWidth > 600 ? 600 : constraints.maxWidth;
+    return Stack(
+      children: [
+        Center(
+          // Add Center widget here
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              double maxWidth =
+                  constraints.maxWidth > 600 ? 600 : constraints.maxWidth;
 
-          return SingleChildScrollView(
-            child: Container(
-              width: maxWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Text(
-                      'ADMINISTRATION'.toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 25,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Upload NATIS/RC1 Document
-                  Center(
-                    child: Text(
-                      'Please attach NATIS/RC1 Documentation'.toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  InkWell(
-                    onTap: () {
-                      _showAdminFilePickerOptions(1);
-                    },
-                    borderRadius: BorderRadius.circular(10.0),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(
-                          color: const Color(0xFF0E4CAF),
-                          width: 2.0,
+              return SingleChildScrollView(
+                child: Container(
+                  width: maxWidth,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Text(
+                          'ADMINISTRATION'.toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 25,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          if (_natisRc1File == null && _natisRc1Url == null)
-                            const Icon(
-                              Icons.drive_folder_upload_outlined,
+                      const SizedBox(height: 20),
+                      // Upload NATIS/RC1 Document
+                      Center(
+                        child: Text(
+                          'Please attach NATIS/RC1 Documentation'.toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 15,
                               color: Colors.white,
-                              size: 50.0,
-                              semanticLabel: 'NATIS/RC1 Upload',
-                            ),
-                          const SizedBox(height: 10),
-                          if (_natisRc1File != null || _natisRc1Url != null)
-                            _buildUploadedFile(_natisRc1File, _natisRc1Url,
-                                _isUploading, 1, _natisRc1FileName)
-                          else
-                            const Text(
-                              'NATIS/RC1 Upload',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  // Upload License Disk
-                  Center(
-                    child: Text(
-                      'Please attach License Disk Photo'.toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  InkWell(
-                    onTap: () {
-                      _showAdminFilePickerOptions(2);
-                    },
-                    borderRadius: BorderRadius.circular(10.0),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(
-                          color: const Color(0xFF0E4CAF),
-                          width: 2.0,
+                              fontWeight: FontWeight.w900),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          if (_licenseDiskFile == null &&
-                              _licenseDiskUrl == null)
-                            const Icon(
-                              Icons.drive_folder_upload_outlined,
-                              color: Colors.white,
-                              size: 50.0,
-                              semanticLabel: 'License Disk Upload',
+                      const SizedBox(height: 15),
+                      InkWell(
+                        onTap: () {
+                          _showAdminFilePickerOptions(1);
+                        },
+                        borderRadius: BorderRadius.circular(10.0),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16.0),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10.0),
+                            border: Border.all(
+                              color: const Color(0xFF0E4CAF),
+                              width: 2.0,
                             ),
-                          const SizedBox(height: 10),
-                          if (_licenseDiskFile != null ||
-                              _licenseDiskUrl != null)
-                            _buildUploadedFile(
-                                _licenseDiskFile,
-                                _licenseDiskUrl,
-                                _isUploading,
-                                2,
-                                _licenseDiskFileName)
-                          else
-                            const Text(
-                              'License Disk Upload',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  // Conditionally display Settlement Letter upload and Settlement Amount field
-                  if (widget.requireToSettleType == 'yes') ...[
-                    // Upload Settlement Letter
-                    Center(
-                      child: Text(
-                        'Please attach Settlement Letter'.toUpperCase(),
-                        style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    InkWell(
-                      onTap: () {
-                        _showAdminFilePickerOptions(3);
-                      },
-                      borderRadius: BorderRadius.circular(10.0),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16.0),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0E4CAF).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10.0),
-                          border: Border.all(
-                            color: const Color(0xFF0E4CAF),
-                            width: 2.0,
+                          ),
+                          child: Column(
+                            children: [
+                              if (_natisRc1File == null && _natisRc1Url == null)
+                                const Icon(
+                                  Icons.drive_folder_upload_outlined,
+                                  color: Colors.white,
+                                  size: 50.0,
+                                  semanticLabel: 'NATIS/RC1 Upload',
+                                ),
+                              const SizedBox(height: 10),
+                              if (_natisRc1File != null || _natisRc1Url != null)
+                                _buildUploadedFile(_natisRc1File, _natisRc1Url,
+                                    _isUploading, 1, _natisRc1FileName)
+                              else
+                                const Text(
+                                  'NATIS/RC1 Upload',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                            ],
                           ),
                         ),
-                        child: Column(
-                          children: [
-                            if (_settlementLetterFile == null &&
-                                _settlementLetterUrl == null)
-                              const Icon(
-                                Icons.drive_folder_upload_outlined,
-                                color: Colors.white,
-                                size: 50.0,
-                                semanticLabel: 'Settlement Letter Upload',
-                              ),
-                            const SizedBox(height: 10),
-                            if (_settlementLetterFile != null ||
-                                _settlementLetterUrl != null)
-                              _buildUploadedFile(
-                                  _settlementLetterFile,
-                                  _settlementLetterUrl,
-                                  _isUploading,
-                                  3,
-                                  _settlementLetterFileName)
-                            else
-                              const Text(
-                                'Settlement Letter Upload',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white70,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                          ],
+                      ),
+                      const SizedBox(height: 15),
+                      // Upload License Disk
+                      Center(
+                        child: Text(
+                          'Please attach License Disk Photo'.toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 15,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Input Field for Settlement Amount
-                    Center(
-                      child: Text(
-                        'Please fill in your settlement amount'.toUpperCase(),
-                        style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w400),
-                        textAlign: TextAlign.center,
+                      const SizedBox(height: 15),
+                      InkWell(
+                        onTap: () {
+                          _showAdminFilePickerOptions(2);
+                        },
+                        borderRadius: BorderRadius.circular(10.0),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16.0),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10.0),
+                            border: Border.all(
+                              color: const Color(0xFF0E4CAF),
+                              width: 2.0,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              if (_licenseDiskFile == null &&
+                                  _licenseDiskUrl == null)
+                                const Icon(
+                                  Icons.drive_folder_upload_outlined,
+                                  color: Colors.white,
+                                  size: 50.0,
+                                  semanticLabel: 'License Disk Upload',
+                                ),
+                              const SizedBox(height: 10),
+                              if (_licenseDiskFile != null ||
+                                  _licenseDiskUrl != null)
+                                _buildUploadedFile(
+                                    _licenseDiskFile,
+                                    _licenseDiskUrl,
+                                    _isUploading,
+                                    2,
+                                    _licenseDiskFileName)
+                              else
+                                const Text(
+                                  'License Disk Upload',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 15),
-                    CustomTextField(
-                      controller: _settlementAmountController,
-                      hintText: 'AMOUNT',
-                      isCurrency: true,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+                      const SizedBox(height: 15),
+                      // Conditionally display Settlement Letter upload and Settlement Amount field
+                      if (widget.requireToSettleType == 'yes') ...[
+                        // Upload Settlement Letter
+                        Center(
+                          child: Text(
+                            'Please attach Settlement Letter'.toUpperCase(),
+                            style: const TextStyle(
+                                fontSize: 15,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        InkWell(
+                          onTap: () {
+                            _showAdminFilePickerOptions(3);
+                          },
+                          borderRadius: BorderRadius.circular(10.0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0E4CAF).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10.0),
+                              border: Border.all(
+                                color: const Color(0xFF0E4CAF),
+                                width: 2.0,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                if (_settlementLetterFile == null &&
+                                    _settlementLetterUrl == null)
+                                  const Icon(
+                                    Icons.drive_folder_upload_outlined,
+                                    color: Colors.white,
+                                    size: 50.0,
+                                    semanticLabel: 'Settlement Letter Upload',
+                                  ),
+                                const SizedBox(height: 10),
+                                if (_settlementLetterFile != null ||
+                                    _settlementLetterUrl != null)
+                                  _buildUploadedFile(
+                                      _settlementLetterFile,
+                                      _settlementLetterUrl,
+                                      _isUploading,
+                                      3,
+                                      _settlementLetterFileName)
+                                else
+                                  const Text(
+                                    'Settlement Letter Upload',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white70,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Input Field for Settlement Amount
+                        Center(
+                          child: Text(
+                            'Please fill in your settlement amount'
+                                .toUpperCase(),
+                            style: const TextStyle(
+                                fontSize: 15,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w400),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        CustomTextField(
+                          controller: _settlementAmountController,
+                          hintText: 'AMOUNT',
+                          isCurrency: true,
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        LoadingOverlay(
+          progress: _uploadProgress,
+          status: _uploadStatus,
+          isVisible: _isUploading, // Only show during save operations
+        ),
+      ],
     );
   }
 

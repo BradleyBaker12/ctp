@@ -8,6 +8,10 @@ import 'package:ctp/pages/admin_home_page.dart';
 import 'package:ctp/adminScreens/notification_test_page.dart';
 import 'package:ctp/pages/bulk_offer_page.dart';
 import 'package:ctp/pages/dealer_reg.dart';
+import 'package:ctp/pages/deep_link_test_vehicle_page.dart';
+import 'package:ctp/pages/deep_link_test_offer_page.dart';
+import 'package:ctp/pages/deep_link_vehicle_test_page.dart';
+import 'package:ctp/pages/transport_offer_details_page.dart';
 import 'package:ctp/pages/editTruckForms/basic_information_edit.dart';
 import 'package:ctp/pages/editTruckForms/chassis_edit_page.dart';
 import 'package:ctp/pages/editTruckForms/drive_train_edit_page.dart';
@@ -82,6 +86,378 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
 // Global FlutterLocalNotificationsPlugin for showing messages when in foreground
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+// Global navigation key for deep linking
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// Handle notification data from FCM
+void _handleNotificationTap(Map<String, dynamic> data) {
+  print('DEBUG: Handling notification tap with data: $data');
+
+  final context = navigatorKey.currentContext;
+  if (context == null) {
+    print('DEBUG: Navigator context not available, storing for later');
+    // Store the navigation data for when the app becomes available
+    _pendingNotificationData = data;
+    return;
+  }
+
+  _navigateBasedOnNotification(context, data);
+}
+
+// Handle notification payload from local notifications
+void _handleNotificationPayload(String payload) {
+  print('DEBUG: Handling notification payload: $payload');
+
+  final context = navigatorKey.currentContext;
+  if (context == null) {
+    print('DEBUG: Navigator context not available for payload');
+    return;
+  }
+
+  // Try to parse the payload
+  try {
+    // Remove outer braces and parse key-value pairs
+    String cleanPayload = payload.replaceAll(RegExp(r'^{|}$'), '');
+    Map<String, dynamic> data = {};
+
+    // Split by commas and parse each key-value pair
+    for (String pair in cleanPayload.split(', ')) {
+      List<String> keyValue = pair.split(': ');
+      if (keyValue.length == 2) {
+        String key = keyValue[0].trim();
+        String value = keyValue[1].trim();
+        // Remove null values
+        if (value != 'null') {
+          data[key] = value;
+        }
+      }
+    }
+
+    _navigateBasedOnNotification(context, data);
+  } catch (e) {
+    print('DEBUG: Could not parse payload: $e');
+    // Fallback to home page
+    Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+  }
+}
+
+// Navigate based on notification type and data
+void _navigateBasedOnNotification(
+    BuildContext context, Map<String, dynamic> data) {
+  final notificationType = data['notificationType']?.toString();
+  final vehicleId = data['vehicleId']?.toString();
+  final offerId = data['offerId']?.toString();
+
+  print('DEBUG: ===== DEEP LINKING NAVIGATION =====');
+  print('DEBUG: Full notification data: $data');
+  print(
+      'DEBUG: Navigation data - Type: $notificationType, VehicleId: $vehicleId, OfferId: $offerId');
+  print('DEBUG: =====================================');
+
+  try {
+    switch (notificationType) {
+      // Offer-related notifications
+      case 'new_offer':
+      case 'offer_response':
+      case 'offer_accepted_admin':
+      case 'offer_status_change':
+        if (offerId != null) {
+          _navigateToOfferDetails(
+              context, offerId, vehicleId, notificationType);
+        } else if (vehicleId != null) {
+          _navigateToVehicle(context, vehicleId, notificationType);
+        } else {
+          Navigator.of(context).pushNamed('/offers');
+        }
+        break;
+
+      // Vehicle-related notifications
+      case 'new_vehicle':
+      case 'live_vehicle_update':
+      case 'vehicle_pending_approval':
+        if (vehicleId != null) {
+          _navigateToVehicle(context, vehicleId, notificationType);
+        } else {
+          Navigator.of(context).pushNamed('/transporterList');
+        }
+        break;
+
+      // Inspection-related notifications
+      case 'inspection_booked':
+      case 'inspection_booked_confirmation':
+      case 'inspection_booked_admin':
+      case 'inspection_today_dealer':
+      case 'inspection_today_transporter':
+      case 'inspection_results_uploaded':
+      case 'inspection_results_uploaded_confirmation':
+      case 'inspection_results_uploaded_admin':
+        if (offerId != null) {
+          _navigateToOfferDetails(
+              context, offerId, vehicleId, notificationType);
+        } else {
+          Navigator.of(context).pushNamed('/offers');
+        }
+        break;
+
+      // Collection-related notifications
+      case 'collection_booked':
+      case 'collection_booked_confirmation':
+      case 'collection_booked_admin':
+      case 'collection_confirmed':
+      case 'truck_ready_for_collection':
+      case 'truck_ready_for_collection_admin':
+      case 'vehicle_collected':
+        if (offerId != null) {
+          _navigateToOfferDetails(
+              context, offerId, vehicleId, notificationType);
+        } else {
+          Navigator.of(context).pushNamed('/offers');
+        }
+        break;
+
+      // Sale completion and transaction notifications
+      case 'sale_completion_transporter':
+      case 'sale_completion_dealer':
+      case 'transaction_completed':
+        if (offerId != null) {
+          _navigateToOfferDetails(
+              context, offerId, vehicleId, notificationType);
+        } else {
+          Navigator.of(context).pushNamed('/offers');
+        }
+        break;
+
+      // Payment and invoice-related notifications
+      case 'invoice_payment_reminder':
+      case 'invoice_payment_reminder_transporter':
+      case 'invoice_payment_reminder_admin':
+      case 'invoice_request':
+      case 'proof_of_payment_uploaded':
+        if (offerId != null) {
+          _navigateToOfferDetails(
+              context, offerId, vehicleId, notificationType);
+        } else {
+          Navigator.of(context).pushNamed('/offers');
+        }
+        break;
+
+      // User registration notifications (for admins)
+      case 'new_user_registration':
+      case 'registration_completed':
+        Navigator.of(context).pushNamed('/adminUsers');
+        break;
+
+      // Document reminder notifications
+      case 'document_reminder':
+        Navigator.of(context).pushNamed('/profile');
+        break;
+
+      default:
+        print('DEBUG: Unknown notification type: $notificationType');
+        // For unknown types, try to route based on available data
+        if (offerId != null) {
+          print('DEBUG: Unknown type but has offerId, navigating to offers');
+          _navigateToOfferDetails(
+              context, offerId, vehicleId, notificationType);
+        } else if (vehicleId != null) {
+          print('DEBUG: Unknown type but has vehicleId, navigating to vehicle');
+          _navigateToVehicle(context, vehicleId, notificationType);
+        } else {
+          print('DEBUG: Unknown type and no data, fallback to offers page');
+          Navigator.of(context).pushNamed('/offers');
+        }
+        break;
+    }
+  } catch (e) {
+    print('DEBUG: Error during navigation: $e');
+    print(
+        'DEBUG: Original data - Type: $notificationType, VehicleId: $vehicleId, OfferId: $offerId');
+
+    // Intelligent fallback based on available data
+    if (offerId != null) {
+      print('DEBUG: Fallback - Navigating to offers due to offerId presence');
+      Navigator.of(context).pushNamed('/offers');
+    } else if (vehicleId != null) {
+      print(
+          'DEBUG: Fallback - Navigating to vehicle list due to vehicleId presence');
+      Navigator.of(context).pushNamed('/transporterList');
+    } else {
+      print('DEBUG: Fallback - Navigating to home page as last resort');
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+    }
+  }
+}
+
+// Navigate to vehicle details
+void _navigateToVehicle(
+    BuildContext context, String vehicleId, String? notificationType) {
+  print('DEBUG: Navigating to vehicle: $vehicleId');
+
+  // Check if this is a test vehicle ID
+  if (vehicleId.startsWith('test_vehicle_')) {
+    print('DEBUG: Detected test vehicle ID, navigating to test page');
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DeepLinkTestVehiclePage(
+          vehicleId: vehicleId,
+        ),
+      ),
+    );
+    return;
+  }
+
+  // Navigate to vehicle details page (handled by onGenerateRoute)
+  print('DEBUG: Navigating to production vehicle page: /vehicle/$vehicleId');
+  Navigator.of(context).pushNamed('/vehicle/$vehicleId');
+}
+
+// Navigate to offer details - determine the appropriate page based on user role
+Future<void> _navigateToOfferDetails(BuildContext context, String offerId,
+    String? vehicleId, String? notificationType) async {
+  print('DEBUG: Navigating to offer: $offerId');
+
+  // Check if this is a test offer ID
+  if (offerId.startsWith('test_offer_')) {
+    print('DEBUG: Detected test offer ID, navigating to test page');
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DeepLinkTestOfferPage(
+          offerId: offerId,
+          vehicleId: vehicleId,
+          notificationType: notificationType ?? 'new_offer',
+        ),
+      ),
+    );
+    return;
+  }
+
+  try {
+    // Get offer details from Firestore to determine navigation
+    final offerDoc = await FirebaseFirestore.instance
+        .collection('offers')
+        .doc(offerId)
+        .get();
+
+    if (!offerDoc.exists) {
+      print('DEBUG: Offer not found: $offerId, navigating to offers page');
+      Navigator.of(context).pushNamed('/offers');
+      return;
+    }
+
+    final offerData = offerDoc.data()!;
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      print('DEBUG: No authenticated user');
+      Navigator.of(context).pushNamed('/login');
+      return;
+    }
+
+    print('DEBUG: Current user ID: ${currentUser.uid}');
+    print('DEBUG: Offer dealer ID: ${offerData['dealerId']}');
+    print('DEBUG: Notification type: $notificationType');
+
+    // Get vehicle details if vehicleId is provided
+    if (vehicleId != null) {
+      final vehicleDoc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(vehicleId)
+          .get();
+
+      if (vehicleDoc.exists) {
+        final vehicleData = vehicleDoc.data()!;
+        final isTransporter = vehicleData['userId'] == currentUser.uid;
+        final isDealer = offerData['dealerId'] == currentUser.uid;
+
+        print(
+            'DEBUG: User role - isTransporter: $isTransporter, isDealer: $isDealer');
+        print('DEBUG: Vehicle owner ID: ${vehicleData['userId']}');
+
+        if (isTransporter) {
+          // Navigate to transporter specific offer details page
+          try {
+            final vehicle = Vehicle.fromDocument(vehicleDoc);
+            final offer = Offer.fromFirestore(offerDoc);
+
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => TransporterOfferDetailsPage(
+                  offer: offer,
+                  vehicle: vehicle,
+                ),
+              ),
+            );
+            return;
+          } catch (e) {
+            print('DEBUG: Error creating vehicle/offer objects: $e');
+            // Fallback to offers page
+            Navigator.of(context).pushNamed('/offers');
+            return;
+          }
+        } else if (isDealer) {
+          // For dealers, navigate to offers page where they can see their offers
+          Navigator.of(context).pushNamed('/offers');
+          return;
+        } else {
+          // Admin or other role - check user role from Firestore
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
+          if (userDoc.exists) {
+            final userData = userDoc.data()!;
+            final userRole =
+                userData['userRole']?.toString().toLowerCase() ?? '';
+
+            if (userRole == 'admin' || userRole == 'sales representative') {
+              // Navigate to admin offers page
+              Navigator.of(context).pushNamed('/adminOffers');
+              return;
+            }
+          }
+
+          // Default to offers page
+          Navigator.of(context).pushNamed('/offers');
+          return;
+        }
+      } else {
+        print('DEBUG: Vehicle not found: $vehicleId');
+      }
+    }
+
+    // Fallback navigation based on user role when vehicle data is not available
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .get();
+
+    if (userDoc.exists) {
+      final userData = userDoc.data()!;
+      final userRole = userData['userRole']?.toString().toLowerCase() ?? '';
+
+      if (userRole == 'admin' || userRole == 'sales representative') {
+        Navigator.of(context).pushNamed('/adminOffers');
+      } else if (userRole == 'dealer') {
+        Navigator.of(context).pushNamed('/offers');
+      } else if (userRole == 'transporter') {
+        Navigator.of(context).pushNamed('/offers');
+      } else {
+        Navigator.of(context).pushNamed('/offers');
+      }
+    } else {
+      // Final fallback - navigate to offers page
+      Navigator.of(context).pushNamed('/offers');
+    }
+  } catch (e) {
+    print('DEBUG: Error navigating to offer details: $e');
+    Navigator.of(context).pushNamed('/offers');
+  }
+}
+
+// Store pending notification data when app context is not available
+Map<String, dynamic>? _pendingNotificationData;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -176,6 +552,9 @@ Future<void> setupNotifications() async {
       initSettings,
       onDidReceiveNotificationResponse: (details) {
         print('Notification clicked: ${details.payload}');
+        if (details.payload != null) {
+          _handleNotificationPayload(details.payload!);
+        }
       },
     );
     await flutterLocalNotificationsPlugin
@@ -207,6 +586,15 @@ Future<void> setupNotifications() async {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = notification?.android;
       if (notification != null && android != null) {
+        // Include notification data in the payload for deep linking
+        final payloadData = {
+          'notificationType': message.data['notificationType'],
+          'vehicleId': message.data['vehicleId'],
+          'offerId': message.data['offerId'],
+          'dealerId': message.data['dealerId'],
+          'transporterId': message.data['transporterId'],
+        };
+
         flutterLocalNotificationsPlugin.show(
           notification.hashCode,
           notification.title,
@@ -220,7 +608,7 @@ Future<void> setupNotifications() async {
             ),
             iOS: DarwinNotificationDetails(),
           ),
-          payload: message.data.toString(),
+          payload: payloadData.toString(),
         );
       }
     });
@@ -228,6 +616,7 @@ Future<void> setupNotifications() async {
     // Notification tap handler
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('DEBUG: Notification opened: ${message.data}');
+      _handleNotificationTap(message.data);
     });
 
     // Initialize notification service
@@ -266,6 +655,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TrailerFormProvider()),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey, // Add navigation key for deep linking
         debugShowCheckedModeBanner: false,
         title: 'Commercial Trader Portal',
         theme: ThemeData(
@@ -304,6 +694,7 @@ class MyApp extends StatelessWidget {
           '/adminComplaints': (context) => const AdminHomePage(initialTab: 2),
           '/adminVehicles': (context) => const AdminHomePage(initialTab: 3),
           '/adminNotificationTest': (context) => const NotificationTestPage(),
+          '/vehicleDeepLinkTest': (context) => const DeepLinkVehicleTestPage(),
           '/vehicleUpload': (context) => const VehicleUploadScreen(),
           '/in-progress': (context) => const AcceptedOffersPage(),
           '/transporterList': (context) => const VehiclesListPage(),
@@ -454,6 +845,16 @@ class _AppInitializerState extends State<AppInitializer> {
         FirebaseMessaging.onBackgroundMessage(
             _firebaseMessagingBackgroundHandler);
         // FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+
+        // Handle notification when app is launched from terminated state
+        final initialMessage =
+            await FirebaseMessaging.instance.getInitialMessage();
+        if (initialMessage != null) {
+          print(
+              'DEBUG: App launched from notification: ${initialMessage.data}');
+          // Store for handling after app is fully initialized
+          _pendingNotificationData = initialMessage.data;
+        }
       }
       // Setup auth token refresh
       final authService = AuthService();
@@ -461,6 +862,17 @@ class _AppInitializerState extends State<AppInitializer> {
       setState(() {
         _initialized = true;
       });
+
+      // Handle pending notification after initialization
+      if (_pendingNotificationData != null && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final context = navigatorKey.currentContext;
+          if (context != null) {
+            _navigateBasedOnNotification(context, _pendingNotificationData!);
+            _pendingNotificationData = null;
+          }
+        });
+      }
     } catch (e) {
       await Future.delayed(const Duration(seconds: 2));
       _initializeApp();

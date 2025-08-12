@@ -1250,19 +1250,8 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
             );
             break;
           default:
-            if (title.contains('TRUCK')) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ExternalCabEditPage(
-                    vehicleId: vehicle!.id,
-                    onProgressUpdate: () {
-                      setState(() {});
-                    },
-                  ),
-                ),
-              );
-            }
+            // For TRUCK CONDITION section, don't navigate anywhere since
+            // navigation is handled by the expandable subsections
             break;
         }
       },
@@ -1341,54 +1330,132 @@ class _EditFormNavigationState extends State<EditFormNavigation> {
     double first = double.parse(progressValues[0]);
     double second = double.parse(progressValues[1]);
     double progressValue = first / second;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 10),
-        Container(
-          width: MediaQuery.of(context).size.width / 1.6,
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.blue,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: () {
+        switch (title) {
+          case 'EXTERNAL CAB':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ExternalCabEditPage(
+                  vehicleId: widget.vehicle.id,
+                  isEditing: true,
+                  onProgressUpdate: () {
+                    setState(() {
+                      _fetchVehicleData();
+                    });
+                  },
+                ),
+              ),
+            );
+            break;
+          case 'INTERNAL CAB':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => InternalCabEditPage(
+                  vehicleId: widget.vehicle.id,
+                  isEditing: true,
+                  onProgressUpdate: () {
+                    setState(() {});
+                  },
+                ),
+              ),
+            );
+            break;
+          case 'CHASSIS':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChassisEditPage(
+                  vehicleId: widget.vehicle.id,
+                  isEditing: true,
+                  onProgressUpdate: () {
+                    setState(() {});
+                  },
+                ),
+              ),
+            );
+            break;
+          case 'DRIVE TRAIN':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DriveTrainEditPage(
+                  vehicleId: widget.vehicle.id,
+                  isEditing: true,
+                  onProgressUpdate: () {
+                    setState(() {});
+                  },
+                ),
+              ),
+            );
+            break;
+          case 'TYRES':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TyresEditPage(
+                  vehicleId: widget.vehicle.id,
+                  isEditing: true,
+                  onProgressUpdate: () {
+                    setState(() {});
+                  },
+                ),
+              ),
+            );
+            break;
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: MediaQuery.of(context).size.width / 1.6,
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.blue,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 25),
-          child: Row(
-            children: [
-              SizedBox(
-                width: MediaQuery.of(context).size.width / 2,
-                child: LinearProgressIndicator(
-                  value: progressValue,
-                  minHeight: 5,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.green),
-                  backgroundColor: Colors.grey.withOpacity(0.5),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 25),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: MediaQuery.of(context).size.width / 2,
+                  child: LinearProgressIndicator(
+                    value: progressValue,
+                    minHeight: 5,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.green),
+                    backgroundColor: Colors.grey.withOpacity(0.5),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                progress,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
+                const SizedBox(width: 10),
+                Text(
+                  progress,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
