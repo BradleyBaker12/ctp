@@ -17,7 +17,9 @@ import 'package:ctp/components/web_footer.dart'; // Add this import
 import 'package:ctp/utils/navigation.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class ProfilePage extends StatelessWidget {
+
+@RoutePage()
+class ProfilePage extends StatelessWidget {
   ProfilePage({super.key});
 
   // Add scaffold key for drawer
@@ -546,11 +548,29 @@ import 'package:auto_route/auto_route.dart';
       // Only show the bottom navigation bar if the user is NOT an admin or a sales rep.
       bottomNavigationBar: (isAdmin || isSalesRep || kIsWeb)
           ? null
-          : CustomBottomNavigation(
-              selectedIndex: 5, // Index for the profile tab
-              onItemTapped: (index) {
-                // Handle navigation
-              },
+          : SafeArea(
+              top: false,
+              bottom: true,
+              maintainBottomViewPadding: true,
+              minimum: EdgeInsets.only(
+                bottom: () {
+                  final mq = MediaQuery.of(context);
+                  final maxSystemBottom = [
+                    mq.systemGestureInsets.bottom,
+                    mq.viewPadding.bottom,
+                    mq.viewInsets.bottom,
+                  ].reduce((a, b) => a > b ? a : b);
+                  final extra = maxSystemBottom - mq.padding.bottom;
+                  final extraPad = extra > 0 ? extra : 0.0;
+                  return extraPad > 8.0 ? extraPad : 8.0;
+                }(),
+              ),
+              child: CustomBottomNavigation(
+                selectedIndex: 5, // Index for the profile tab
+                onItemTapped: (index) {
+                  // Handle navigation
+                },
+              ),
             ),
     );
   }

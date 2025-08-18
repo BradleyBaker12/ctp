@@ -1,0 +1,20 @@
+18 Aug 2025
+
+Implement vehicle deep linking feature with comprehensive testing and UI updates
+- Added deep linking support for vehicle details pages, allowing users to share direct links.
+- Implemented URL generation and routing in the app for deep links.
+- Enhanced sharing functionality to include vehicle details in the shared message.
+- Created dedicated test pages for vehicle deep linking and offer deep linking.
+- Developed loading overlay examples for better user experience during uploads.
+- Added error handling for non-existent vehicles and loading states.
+- Updated Firestore integration for fetching vehicle data based on deep links.
+- Ensured cross-platform compatibility for deep linking on web, iOS, and Android.
+- Added security rules for Firestore and storage to protect sensitive data.
+feat: Restrict document replacement options for dealers in trailer upload screens
+
+- Added conditional rendering of 'Replace Document' options based on user role in edit_trailer_upload_screen.dart.
+- Implemented notification system for admins upon completion of transporter registration in transporter_reg.dart.
+- Enhanced CustomDropdown to support a custom builder for selected items in custom_dropdown.dart.
+- Improved vehicle upload screen by removing unused variables and optimizing image upload handling in vehilce_upload_screen.dart.
+- Updated vehicle details page to dynamically build titles for trailers and vehicles based on available data in vehicle_details_page.dart.
+- Bumped version to 1.0.16+22 in pubspec.yaml.

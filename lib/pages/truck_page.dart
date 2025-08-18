@@ -40,7 +40,8 @@ class FilterCriterion {
   });
 }
 
-@RoutePage()class TruckPage extends StatefulWidget {
+@RoutePage()
+class TruckPage extends StatefulWidget {
   final String? vehicleType;
   final String? selectedBrand;
 
@@ -1598,13 +1599,31 @@ class _TruckPageState extends State<TruckPage> {
       bottomNavigationBar:
           (kIsWeb || userRole == 'admin' || userRole == 'sales representative')
               ? null
-              : CustomBottomNavigation(
-                  selectedIndex: _selectedIndex,
-                  onItemTapped: (index) {
-                    setState(() {
-                      _selectedIndex = index;
-                    });
-                  },
+              : SafeArea(
+                  top: false,
+                  bottom: true,
+                  maintainBottomViewPadding: true,
+                  minimum: EdgeInsets.only(
+                    bottom: () {
+                      final mq = MediaQuery.of(context);
+                      final maxSystemBottom = [
+                        mq.systemGestureInsets.bottom,
+                        mq.viewPadding.bottom,
+                        mq.viewInsets.bottom,
+                      ].reduce((a, b) => a > b ? a : b);
+                      final extra = maxSystemBottom - mq.padding.bottom;
+                      final extraPad = extra > 0 ? extra : 0.0;
+                      return extraPad > 8.0 ? extraPad : 8.0;
+                    }(),
+                  ),
+                  child: CustomBottomNavigation(
+                    selectedIndex: _selectedIndex,
+                    onItemTapped: (index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                    },
+                  ),
                 ),
     );
   }

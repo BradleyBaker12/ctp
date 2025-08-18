@@ -29,7 +29,8 @@ class NavigationItem {
   });
 }
 
-@RoutePage()class OffersPage extends StatefulWidget {
+@RoutePage()
+class OffersPage extends StatefulWidget {
   const OffersPage({super.key});
 
   @override
@@ -589,38 +590,56 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                       userRole == 'admin' ||
                       userRole == 'sales representative')
                   ? null
-                  : CustomBottomNavigation(
-                      selectedIndex: selectedIndex,
-                      onItemTapped: (index) async {
-                        if (userRole == 'dealer') {
-                          // Dealer navigation.
-                          if (index == 0) {
-                            await MyNavigator.pushReplacement(
-                                context, const HomePage());
-                          } else if (index == 1) {
-                            await MyNavigator.pushReplacement(
-                                context, const TruckPage());
-                          } else if (index == 2) {
-                            await MyNavigator.pushReplacement(
-                                context, const OffersPage());
+                  : SafeArea(
+                      top: false,
+                      bottom: true,
+                      maintainBottomViewPadding: true,
+                      minimum: EdgeInsets.only(
+                        bottom: () {
+                          final mq = MediaQuery.of(context);
+                          final maxSystemBottom = [
+                            mq.systemGestureInsets.bottom,
+                            mq.viewPadding.bottom,
+                            mq.viewInsets.bottom,
+                          ].reduce((a, b) => a > b ? a : b);
+                          final extra = maxSystemBottom - mq.padding.bottom;
+                          final extraPad = extra > 0 ? extra : 0.0;
+                          return extraPad > 8.0 ? extraPad : 8.0;
+                        }(),
+                      ),
+                      child: CustomBottomNavigation(
+                        selectedIndex: selectedIndex,
+                        onItemTapped: (index) async {
+                          if (userRole == 'dealer') {
+                            // Dealer navigation.
+                            if (index == 0) {
+                              await MyNavigator.pushReplacement(
+                                  context, const HomePage());
+                            } else if (index == 1) {
+                              await MyNavigator.pushReplacement(
+                                  context, const TruckPage());
+                            } else if (index == 2) {
+                              await MyNavigator.pushReplacement(
+                                  context, const OffersPage());
+                            }
+                          } else if (userRole == 'transporter') {
+                            // Transporter navigation.
+                            if (index == 0) {
+                              await MyNavigator.pushReplacement(
+                                  context, const HomePage());
+                            } else if (index == 1) {
+                              await MyNavigator.pushReplacement(
+                                  context, const VehiclesListPage());
+                            } else if (index == 2) {
+                              await MyNavigator.pushReplacement(
+                                  context, const OffersPage());
+                            } else if (index == 3) {
+                              await MyNavigator.pushReplacement(
+                                  context, ProfilePage());
+                            }
                           }
-                        } else if (userRole == 'transporter') {
-                          // Transporter navigation.
-                          if (index == 0) {
-                            await MyNavigator.pushReplacement(
-                                context, const HomePage());
-                          } else if (index == 1) {
-                            await MyNavigator.pushReplacement(
-                                context, const VehiclesListPage());
-                          } else if (index == 2) {
-                            await MyNavigator.pushReplacement(
-                                context, const OffersPage());
-                          } else if (index == 3) {
-                            await MyNavigator.pushReplacement(
-                                context, ProfilePage());
-                          }
-                        }
-                      },
+                        },
+                      ),
                     ),
             );
           }

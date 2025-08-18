@@ -31,7 +31,8 @@ class NavigationItem {
   });
 }
 
-@RoutePage()class WishlistPage extends StatefulWidget {
+@RoutePage()
+class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
 
   @override
@@ -1246,11 +1247,29 @@ class _WishlistPageState extends State<WishlistPage> {
                 userRole == 'admin' ||
                 userRole == 'sales representative')
             ? null
-            : CustomBottomNavigation(
-                selectedIndex: 3,
-                onItemTapped: (index) {
-                  // Handle bottom navigation taps.
-                },
+            : SafeArea(
+                top: false,
+                bottom: true,
+                maintainBottomViewPadding: true,
+                minimum: EdgeInsets.only(
+                  bottom: () {
+                    final mq = MediaQuery.of(context);
+                    final maxSystemBottom = [
+                      mq.systemGestureInsets.bottom,
+                      mq.viewPadding.bottom,
+                      mq.viewInsets.bottom,
+                    ].reduce((a, b) => a > b ? a : b);
+                    final extra = maxSystemBottom - mq.padding.bottom;
+                    final extraPad = extra > 0 ? extra : 0.0;
+                    return extraPad > 8.0 ? extraPad : 8.0;
+                  }(),
+                ),
+                child: CustomBottomNavigation(
+                  selectedIndex: 3,
+                  onItemTapped: (index) {
+                    // Handle bottom navigation taps.
+                  },
+                ),
               ),
       ),
     );
