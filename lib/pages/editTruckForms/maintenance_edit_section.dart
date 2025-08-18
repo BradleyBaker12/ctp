@@ -5,6 +5,7 @@ import 'package:ctp/pages/vehicles_list.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -80,6 +81,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
   // Add these state variables to track document URLs
   String? _currentMaintenanceDocUrl;
   String? _currentWarrantyDocUrl;
+  Timer? _reasonDebounce;
 
   @override
   void initState() {
@@ -99,9 +101,11 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     // Fetch fresh data
     _fetchMaintenanceData();
 
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    // final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     _oemReasonController.addListener(notifyProgress);
+    // Debounced auto-save for OEM reason when applicable
+    _oemReasonController.addListener(_autoSaveReasonIfNeeded);
   }
 
   @override
@@ -178,8 +182,38 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
 
   @override
   void dispose() {
+    _reasonDebounce?.cancel();
     _oemReasonController.dispose();
     super.dispose();
+  }
+
+  // Decide which root key to use for maintenance data based on origin
+  String get _maintenanceRootKey =>
+      widget.isFromAdmin ? 'maintenanceData' : 'maintenance';
+
+  Future<void> _mergeMaintenance(Map<String, dynamic> fields) async {
+    try {
+      final Map<String, dynamic> payload = {
+        ...fields,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'vehicleId': widget.vehicleId,
+      };
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .set({_maintenanceRootKey: payload}, SetOptions(merge: true));
+    } catch (e, st) {
+      debugPrint('DEBUG: Auto-save maintenance merge failed: $e\n$st');
+    }
+  }
+
+  void _autoSaveReasonIfNeeded() {
+    if (_oemInspectionType != 'no') return;
+    final text = _oemReasonController.text.trim();
+    _reasonDebounce?.cancel();
+    _reasonDebounce = Timer(const Duration(milliseconds: 600), () {
+      _mergeMaintenance({'oemReason': text});
+    });
   }
 
   void clearData() {
@@ -214,8 +248,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     String? oemReason =
         _oemInspectionType == 'no' ? _oemReasonController.text.trim() : null;
 
-    if (_oemInspectionType == 'no' &&
-        (oemReason!.isEmpty)) {
+    if (_oemInspectionType == 'no' && (oemReason!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please explain why OEM inspection is not possible.'),
@@ -272,6 +305,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                       _maintenanceDocFile = imageBytes;
                       _maintenanceDocFileName = "captured_maintenance.png";
                     });
+                    await _uploadAndSaveDocument(isMaintenance: true);
                   }
                 },
               ),
@@ -300,6 +334,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                       _maintenanceDocFile = bytes;
                       _maintenanceDocFileName = result.files.single.xFile.name;
                     });
+                    await _uploadAndSaveDocument(isMaintenance: true);
                   }
                 },
               ),
@@ -332,6 +367,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                       _warrantyDocFile = imageBytes;
                       _warrantyDocFileName = "captured_warranty.png";
                     });
+                    await _uploadAndSaveDocument(isMaintenance: false);
                   }
                 },
               ),
@@ -360,6 +396,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                       _warrantyDocFile = bytes;
                       _warrantyDocFileName = result.files.single.xFile.name;
                     });
+                    await _uploadAndSaveDocument(isMaintenance: false);
                   }
                 },
               ),
@@ -368,6 +405,39 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
         );
       },
     );
+  }
+
+  Future<void> _uploadAndSaveDocument({required bool isMaintenance}) async {
+    try {
+      final bytes = isMaintenance ? _maintenanceDocFile : _warrantyDocFile;
+      final filename =
+          isMaintenance ? _maintenanceDocFileName : _warrantyDocFileName;
+      if (bytes == null) return;
+      final String folder = 'vehicles/${widget.vehicleId}/maintenance';
+      final int ts = DateTime.now().millisecondsSinceEpoch;
+      final String namePrefix =
+          isMaintenance ? 'maintenance_doc_' : 'warranty_doc_';
+      final String objectName = '$namePrefix${ts}${filename ?? ''}';
+      final ref =
+          FirebaseStorage.instance.ref().child(folder).child(objectName);
+      await ref.putData(bytes);
+      final url = await ref.getDownloadURL();
+      setState(() {
+        if (isMaintenance) {
+          _currentMaintenanceDocUrl = url;
+          _maintenanceDocFile = null;
+          _maintenanceDocFileName = null;
+        } else {
+          _currentWarrantyDocUrl = url;
+          _warrantyDocFile = null;
+          _warrantyDocFileName = null;
+        }
+      });
+      await _mergeMaintenance(
+          {isMaintenance ? 'maintenanceDocUrl' : 'warrantyDocUrl': url});
+    } catch (e, st) {
+      debugPrint('DEBUG: Auto-upload document failed: $e\n$st');
+    }
   }
 
   IconData _getFileIcon(String fileName) {
@@ -516,7 +586,6 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
-    final bool isDealer = userRole == 'dealer';
     final bool isTransporter = userRole == 'transporter';
     final bool isSales = userRole == 'sales';
     final bool canEdit = isAdmin || isSales || isTransporter;
@@ -897,6 +966,11 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                               _oemReasonController.clear();
                                             }
                                           });
+                                          // Silent auto-save for OEM selection; clear reason when set to yes
+                                          _mergeMaintenance({
+                                            'oemInspectionType': 'yes',
+                                            'oemReason': null,
+                                          });
                                           notifyProgress();
                                         }
                                       }
@@ -914,6 +988,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                                           setState(() {
                                             _oemInspectionType = value;
                                           });
+                                          // Silent auto-save for OEM selection; reason will be auto-saved via debounce
+                                          _mergeMaintenance(
+                                              {'oemInspectionType': 'no'});
                                           notifyProgress();
                                         }
                                       }

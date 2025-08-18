@@ -8,6 +8,8 @@ class CustomDropdown extends StatelessWidget {
   final void Function(String?) onChanged;
   final String? Function(String?)? validator;
   final Widget Function(BuildContext, String)? itemBuilder;
+  // New: builder used for the selected (collapsed) display only
+  final Widget Function(BuildContext, String)? selectedItemBuilderSingle;
   final bool enabled;
   final bool isTransporter;
 
@@ -21,6 +23,7 @@ class CustomDropdown extends StatelessWidget {
     this.validator,
     this.itemBuilder,
     this.enabled = true,
+    this.selectedItemBuilderSingle,
   });
 
   @override
@@ -56,6 +59,11 @@ class CustomDropdown extends StatelessWidget {
           validator: validator,
           dropdownColor: Colors.grey[900],
           style: const TextStyle(color: Colors.white),
+          selectedItemBuilder: selectedItemBuilderSingle != null
+              ? (context) => items
+                  .map((item) => selectedItemBuilderSingle!(context, item))
+                  .toList()
+              : null,
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: const TextStyle(color: Colors.white),

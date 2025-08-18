@@ -30,6 +30,7 @@ import 'package:ctp/components/loading_overlay.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
 // import 'package:auto_route/auto_route.dart';
 // Import the camera helper
+import 'dart:async';
 
 // @RoutePage()
 class VehicleUploadScreen extends StatefulWidget {
@@ -50,7 +51,8 @@ class VehicleUploadScreen extends StatefulWidget {
   _VehicleUploadScreenState createState() => _VehicleUploadScreenState();
 }
 
-class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
+class _VehicleUploadScreenState extends State<VehicleUploadScreen>
+    with AutomaticKeepAliveClientMixin {
   // Controllers and Variables
   final ScrollController _scrollController = ScrollController();
   double _imageHeight = 300.0;
@@ -70,11 +72,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   final List<GlobalKey<FormState>> _formKeys =
       List.generate(1, (index) => GlobalKey<FormState>());
   bool _isLoading = false;
-  bool _isOptimisticLoading = false;
+  // Removed unused optimistic loading flag
   double _uploadProgress = 0.0;
   String _uploadStatus = '';
   String? _vehicleId;
-  DateTime? _availableDate;
+  // Removed unused _availableDate
+  // Autosave removed from this page; background upload only
 
   // Define configuration options
   final List<String> _configurationOptions = [
@@ -85,13 +88,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     '8X8',
   ];
 
-  // Add this field to your _VehicleUploadScreenState:
-  final bool _useFrontCamera = false;
+  // Removed unused _useFrontCamera
 
   late Map<String, List<String>> _makeModelOptions = {};
   List<String> _brandOptions = [];
   List<String> _variantOptions = [];
-  final Map<String, List<String>> _modelVariants = {};
+  // Removed unused _modelVariants
 
   // Variable to hold selected RC1/NATIS file
   Uint8List? _natisRc1File;
@@ -101,8 +103,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   String? _existingNatisRc1Url;
   String? _existingNatisRc1Name;
 
-  // For multi-step forms
-  int _currentStep = 0;
+  // Removed unused _currentStep
 
   // Additional controllers
   final TextEditingController _configController = TextEditingController();
@@ -117,15 +118,13 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
   // --- New: Variables for Admin Sales Rep selection ---
   String? _selectedSalesRep;
 
-  Uint8List? _selectedMainImage;
   String? _selectedMainImageFileName;
+  bool _isUploadingMainImage = false;
+  bool _isUploadingNatis = false;
 
   // Define truck type options
   String? _selectedTruckType;
-  final List<String> _truckTypeOptions = [
-    'Rigid Trucks',
-    'Tractor Trucks',
-  ];
+  // Removed unused _truckTypeOptions
 
   // Define application options for Rigid Trucks
   final List<String> _rigidTruckApplications = [
@@ -211,6 +210,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       }
       _initializeTextControllers(formData);
       _addControllerListeners(formData);
+      // Autosave removed here per request; saving occurs on Continue
     });
     _scrollController.addListener(() {
       setState(() {
@@ -330,32 +330,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _isLoading = false;
     _uploadProgress = 0.0;
     _uploadStatus = '';
-    _currentStep = 0;
+    // reset wizard state if needed
     _selectedTruckType = null;
   }
 
-  /// Shows immediate success feedback to user
-  void _showOptimisticSuccess() {
-    // Show immediate visual feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: const [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Processing your vehicle...'),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-
-    // Disable form interaction to prevent duplicate submissions
-    setState(() {
-      _isOptimisticLoading = true;
-    });
-  }
+  // Removed unused optimistic success feedback helper
 
   void _initializeTextControllers(FormDataProvider formData) {
     _vinNumberController.text = formData.vinNumber ?? '';
@@ -419,7 +398,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setEngineNumber(widget.vehicle!.engineNumber, notify: false);
     formData.setRegistrationNumber(widget.vehicle!.registrationNumber,
         notify: false);
-    formData.setSellingPrice(widget.vehicle!.adminData.settlementAmount ?? '',
+    formData.setSellingPrice(widget.vehicle!.adminData.settlementAmount,
         notify: false);
     formData.setMainImageUrl(widget.vehicle!.mainImageUrl, notify: false);
     formData.setApplication(widget.vehicle!.application as String,
@@ -432,7 +411,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     formData.setWarranty(widget.vehicle!.warrentyType, notify: false);
     formData.setWarrantyDetails(widget.vehicle!.warrantyDetails, notify: false);
     formData.setReferenceNumber(widget.vehicle!.referenceNumber, notify: false);
-    formData.setBrands(widget.vehicle!.brands ?? [], notify: false);
+    formData.setBrands(widget.vehicle!.brands, notify: false);
     formData.setVariant(widget.vehicle!.variant, notify: false);
     _variantController.text = widget.vehicle!.variant ?? '';
     _selectedTruckType = widget.vehicle?.vehicleType == 'truck'
@@ -499,8 +478,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                     setState(() {
                       _natisRc1File = imageBytes;
                       _natisRc1FileName = "captured_natisRc1.png";
+                      _isUploadingNatis = true;
                     });
                     debugPrint("Captured NATIS/RC1 image from camera.");
+                    // Start background upload
+                    unawaited(_uploadAndUpdateNatisRc1Document(
+                        imageBytes, _natisRc1FileName!));
                   }
                 },
               ),
@@ -539,8 +522,14 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                     setState(() {
                       _natisRc1File = bytes;
                       _natisRc1FileName = fileName;
+                      _isUploadingNatis = true;
                     });
                     debugPrint("Picked NATIS/RC1 file from gallery: $fileName");
+                    if (bytes != null) {
+                      // Start background upload
+                      unawaited(
+                          _uploadAndUpdateNatisRc1Document(bytes, fileName));
+                    }
                   }
                 },
               ),
@@ -668,12 +657,14 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     _applicationController.dispose();
     _countryController.dispose();
     _scrollController.dispose();
+    // No autosave listeners to clean up on this page
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final formData = Provider.of<FormDataProvider>(context);
+    // Required when using AutomaticKeepAliveClientMixin
+    super.build(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final isWebView = screenWidth > 600; // Threshold for web view
 
@@ -953,6 +944,32 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                 ),
               ),
             ),
+            if (_isUploadingMainImage)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 8),
+                      Text('Uploading image...',
+                          style: TextStyle(color: Colors.white, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1596,176 +1613,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     return null; // No matching vehicle found
   }
 
-  /// Save Section 1 Data with Sales Rep Assignment Logic and Debugging
-  Future<String?> _saveSection1Data() async {
-    try {
-      final formData = Provider.of<FormDataProvider>(context, listen: false);
-
-      // For admin uploads, ensure that a Sales Rep has been selected.
-      if (widget.isAdminUpload) {
-        if (_selectedSalesRep == null || _selectedSalesRep!.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select a Sales Rep')),
-          );
-          return null;
-        }
-      } else {
-        if (!_validateRequiredFields(formData)) {
-          return null;
-        }
-      }
-
-      debugPrint("=== _saveSection1Data START ===");
-      String? imageUrl;
-      if (formData.selectedMainImage != null) {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('vehicle_images')
-            .child('${DateTime.now().toIso8601String()}.jpg');
-        await ref.putData(formData.selectedMainImage!);
-        imageUrl = await ref.getDownloadURL();
-        debugPrint("Main image uploaded. URL: $imageUrl");
-      } else {
-        debugPrint("No main image selected.");
-      }
-
-      String? natisRc1Url;
-      if (_natisRc1File != null) {
-        final fileName = _natisRc1FileName ?? 'document';
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('vehicle_documents')
-            .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
-        await ref.putData(_natisRc1File!);
-        natisRc1Url = await ref.getDownloadURL();
-        debugPrint("NATIS/RC1 file uploaded. URL: $natisRc1Url");
-      } else {
-        debugPrint("No NATIS/RC1 file selected.");
-      }
-
-      final currentUser = FirebaseAuth.instance.currentUser;
-      debugPrint(
-          "Current Firebase user: ${currentUser?.uid ?? 'No user found'}");
-      String? assignedSalesRepId;
-      if (widget.isAdminUpload) {
-        assignedSalesRepId = _selectedSalesRep;
-        debugPrint(
-            "Admin upload selected. Using Sales Rep: $assignedSalesRepId");
-      } else {
-        assignedSalesRepId = currentUser?.uid;
-      }
-      debugPrint("Assigned Sales Rep ID to be saved: $assignedSalesRepId");
-
-      // Validate uniqueness of the VIN here
-      if (!await VinService.isVinNumberUnique(formData.vinNumber!)) {
-        // Show popup dialog informing the user the VIN is already in use.
-        final existingVehicleId =
-            await _findVehicleIdByVin(formData.vinNumber!);
-        await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text("Duplicate VIN"),
-              content: const Text(
-                  "The VIN Number is already in use. Would you like to report this issue?"),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text("Cancel"),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    if (existingVehicleId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ReportVehicleIssuePage(
-                              vehicleId: existingVehicleId),
-                        ),
-                      );
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ReportVehicleIssuePage(
-                              vehicleId: 'unknown'),
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text("Report this issue"),
-                ),
-              ],
-            );
-          },
-        );
-        return null;
-      }
-
-      final vehicleData = {
-        'year': formData.year,
-        'makeModel': formData.makeModel,
-        'variant': formData.variant,
-        'brands': formData.brands,
-        'modelDetails': {
-          'year': formData.year,
-          'manufacturer': formData.brands?.first ?? '',
-          'model': formData.makeModel,
-          'variant': formData.variant,
-        },
-        'vinNumber': formData.vinNumber,
-        'config': formData.config ??
-            _configController.text, // Updated to handle both sources
-        'mileage': formData.mileage,
-        'application': formData.application,
-        'engineNumber': formData.engineNumber,
-        'registrationNumber': formData.registrationNumber,
-        'sellingPrice': formData.sellingPrice,
-        'vehicleType': 'truck',
-        'suspensionType': formData.suspension,
-        'transmissionType': formData.transmissionType,
-        'hydraulics': formData.hydraulics,
-        'maintenance': formData.maintenance,
-        'warranty': formData.warranty,
-        'warrantyDetails': formData.warrantyDetails,
-        'requireToSettleType': formData.requireToSettleType,
-        'referenceNumber': formData.referenceNumber,
-        'mainImageUrl': imageUrl,
-        'rc1NatisFile': natisRc1Url,
-        'country': formData.country,
-        'province': formData.province,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'userId': currentUser?.uid,
-        'assignedSalesRepId': assignedSalesRepId,
-        'vehicleStatus': 'Draft',
-        'truckType': _selectedTruckType,
-      };
-
-      debugPrint("Vehicle data being saved to Firestore: $vehicleData");
-
-      final docRef = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .add(vehicleData);
-      _vehicleId = docRef.id;
-      debugPrint("Vehicle successfully created with document ID: $_vehicleId");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vehicle created successfully')),
-      );
-      debugPrint("=== _saveSection1Data END ===");
-      await VinService.storeVinNumber(formData.vinNumber!);
-      return _vehicleId;
-    } catch (e) {
-      debugPrint("Error in _saveSection1Data: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving vehicle: $e')),
-      );
-      return null;
-    }
-  }
+  // Removed unused _saveSection1Data method
 
   /// Save Section 1 Data with Optimistic Updates and Progressive Feedback
   Future<String?> _saveSection1DataOptimized() async {
@@ -2100,13 +1948,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         final imageBytes = await capturePhoto(context);
         if (imageBytes != null) {
           setState(() {
-            _selectedMainImage = imageBytes;
+            _isUploadingMainImage = true;
           });
           _selectedMainImageFileName = 'captured.png';
           formData.setSelectedMainImage(imageBytes, 'captured.png');
-          if (_vehicleId != null) {
-            _uploadAndUpdateMainImage(imageBytes);
-          }
+          // Start background upload and ensure doc exists
+          unawaited(_uploadAndUpdateMainImage(imageBytes));
         }
       } else {
         final picker = ImagePicker();
@@ -2115,13 +1962,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
         if (image != null) {
           final bytes = await image.readAsBytes();
           setState(() {
-            _selectedMainImage = bytes;
+            _isUploadingMainImage = true;
           });
           _selectedMainImageFileName = image.name;
           formData.setSelectedMainImage(bytes, image.name);
-          if (_vehicleId != null) {
-            _uploadAndUpdateMainImage(bytes);
-          }
+          // Start background upload and ensure doc exists
+          unawaited(_uploadAndUpdateMainImage(bytes));
         }
       }
     } catch (e) {
@@ -2134,8 +1980,14 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
 
   Future<void> _uploadAndUpdateMainImage(Uint8List imageBytes) async {
     try {
-      final ref = FirebaseStorage.instance.ref().child('vehicle_images').child(
-          '${DateTime.now().toIso8601String()}_${_selectedMainImageFileName ?? "image.jpg"}');
+      await _ensureVehicleDocExists();
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('vehicles')
+          .child(_vehicleId!)
+          .child('images')
+          .child(
+              '${DateTime.now().toIso8601String()}_${_selectedMainImageFileName ?? "image.jpg"}');
 
       await ref.putData(imageBytes);
       final imageUrl = await ref.getDownloadURL();
@@ -2149,10 +2001,126 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
       final formData = Provider.of<FormDataProvider>(context, listen: false);
       formData.setMainImageUrl(imageUrl);
       debugPrint("Main image URL updated: $imageUrl");
+      if (mounted) {
+        setState(() {
+          _isUploadingMainImage = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error uploading main image: $e');
+      if (mounted) {
+        setState(() {
+          _isUploadingMainImage = false;
+        });
+      }
     }
   }
+
+  Future<void> _uploadAndUpdateNatisRc1Document(
+      Uint8List bytes, String fileName) async {
+    try {
+      await _ensureVehicleDocExists();
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('vehicles')
+          .child(_vehicleId!)
+          .child('documents')
+          .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+
+      await ref.putData(bytes);
+      final url = await ref.getDownloadURL();
+
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(_vehicleId)
+          .update({'rc1NatisFile': url});
+
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+      formData.setNatisRc1Url(url);
+      setState(() {
+        _existingNatisRc1Url = url;
+        _existingNatisRc1Name = _getFileNameFromUrl(url);
+        _isUploadingNatis = false;
+      });
+      debugPrint('NATIS/RC1 uploaded and URL saved');
+    } catch (e) {
+      debugPrint('Error uploading NATIS/RC1: $e');
+      if (mounted) {
+        setState(() {
+          _isUploadingNatis = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _ensureVehicleDocExists() async {
+    if (_vehicleId != null) return;
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final baseData = _collectVehicleDraftData(formData, currentUser?.uid);
+    final docRef =
+        await FirebaseFirestore.instance.collection('vehicles').add(baseData);
+    _vehicleId = docRef.id;
+    // Propagate the newly created vehicleId to the provider for consistency
+    try {
+      formData.setVehicleId(_vehicleId!);
+    } catch (_) {}
+    debugPrint('Draft vehicle created: $_vehicleId');
+  }
+
+  Map<String, dynamic> _collectVehicleDraftData(
+      FormDataProvider formData, String? userId) {
+    final Map<String, dynamic> data = {
+      'year': formData.year,
+      'makeModel': formData.makeModel,
+      'variant': formData.variant,
+      'brands': formData.brands,
+      'modelDetails': {
+        'year': formData.year,
+        'manufacturer': formData.brands?.first ?? '',
+        'model': formData.makeModel,
+        'variant': formData.variant,
+      },
+      'vinNumber': formData.vinNumber,
+      'config': formData.config ?? _configController.text,
+      'mileage': formData.mileage,
+      'application': formData.application,
+      'engineNumber': formData.engineNumber,
+      'registrationNumber': formData.registrationNumber,
+      'sellingPrice': formData.sellingPrice,
+      'vehicleType': 'truck',
+      'suspensionType': formData.suspension,
+      'transmissionType': formData.transmissionType,
+      'hydraulics': formData.hydraulics,
+      'maintenance': formData.maintenance,
+      'warranty': formData.warranty,
+      'warrantyDetails': formData.warrantyDetails,
+      'requireToSettleType': formData.requireToSettleType,
+      'referenceNumber': formData.referenceNumber,
+      'country': formData.country,
+      'province': formData.province,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'userId': userId,
+      'assignedSalesRepId': widget.isAdminUpload ? _selectedSalesRep : userId,
+      'vehicleStatus': 'Draft',
+      'truckType': _selectedTruckType,
+    };
+
+    // Only include URLs if we have them; avoid overwriting with null on autosave
+    final String? mainImageUrl = formData.mainImageUrl;
+    if (mainImageUrl != null && mainImageUrl.isNotEmpty) {
+      data['mainImageUrl'] = mainImageUrl;
+    }
+    final String? natisUrl = formData.natisRc1Url ?? _existingNatisRc1Url;
+    if (natisUrl != null && natisUrl.isNotEmpty) {
+      data['rc1NatisFile'] = natisUrl;
+    }
+
+    return data;
+  }
+
+  // Autosave helpers removed
 
   Future<void> _loadBrandsForYear(String year) async {
     final formData = Provider.of<FormDataProvider>(context, listen: false);
@@ -2219,49 +2187,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
     }
   }
 
-  Future<void> _loadSavedFormData(FormDataProvider formData) async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(_vehicleId)
-          .get();
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        setState(() {
-          _mileageController.text = data['mileage'] ?? '';
-          _vinNumberController.text = data['vinNumber'] ?? '';
-          _engineNumberController.text = data['engineNumber'] ?? '';
-          _registrationNumberController.text = data['registrationNumber'] ?? '';
-          _sellingPriceController.text = data['sellingPrice'] ?? '';
-          _warrantyDetailsController.text = data['warrantyDetails'] ?? '';
-          _referenceNumberController.text = data['referenceNumber'] ?? '';
-          _brandsController.text =
-              (data['brands'] as List<String>?)?.first ?? '';
-          formData.setYear(data['year']);
-          formData.setMakeModel(data['makeModel']);
-          formData.setVinNumber(data['vinNumber']);
-          formData.setConfig(data['config']);
-          formData.setMileage(data['mileage']);
-          formData.setApplication(data['application']);
-          formData.setEngineNumber(data['engineNumber']);
-          formData.setRegistrationNumber(data['registrationNumber']);
-          formData.setSellingPrice(data['sellingPrice']);
-          formData.setSuspension(data['suspensionType'] ?? 'spring');
-          formData.setTransmissionType(data['transmissionType'] ?? 'automatic');
-          formData.setHydraulics(data['hydraulics'] ?? 'yes');
-          formData.setMaintenance(data['maintenance'] ?? 'yes');
-          formData.setWarranty(data['warranty'] ?? 'yes');
-          formData.setWarrantyDetails(data['warrantyDetails']);
-          formData.setRequireToSettleType(data['requireToSettleType'] ?? 'yes');
-          formData.setMainImageUrl(data['mainImageUrl']);
-          formData.setReferenceNumber(data['referenceNumber']);
-          formData.setBrands(data['brands']);
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading saved form data: $e');
-    }
-  }
+  // Removed unused _loadSavedFormData helper
 
   Widget _buildNatisRc1Section() {
     return Column(
@@ -2300,7 +2226,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
               children: [
                 if (_natisRc1File != null)
                   _buildUploadedFile(_natisRc1File,
-                      _natisRc1FileName ?? 'Document', _isLoading)
+                      _natisRc1FileName ?? 'Document', _isUploadingNatis)
                 else if (_existingNatisRc1Url != null)
                   Column(
                     children: [
@@ -2316,6 +2242,22 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen> {
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 14),
                       ),
+                      if (_isUploadingNatis) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Uploading...',
+                                style: TextStyle(color: Colors.white70))
+                          ],
+                        )
+                      ]
                     ],
                   )
                 else

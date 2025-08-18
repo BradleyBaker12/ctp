@@ -12,6 +12,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/utils/camera_helper.dart'; // Import shared camera helper
+import 'dart:async';
 
 // import 'package:auto_route/auto_route.dart';
 
@@ -74,25 +75,60 @@ class AdminEditSectionState extends State<AdminEditSection>
 
   bool _isUploading = false;
   bool _isLoading = false;
+  Timer? _settlementDebounce;
 
   @override
   void initState() {
     super.initState();
     _settlementAmountController.text = widget.settlementAmount ?? '';
-    _natisRc1Url =
-        (widget.natisRc1Url?.isNotEmpty ?? false) ? widget.natisRc1Url : null;
+    // NATIS sourcing: prefer vehicle.rc1NatisFile, fallback to adminData.natisRc1Url
+    final String? vehicleNatis = widget.vehicle.rc1NatisFile;
+    if (vehicleNatis != null && vehicleNatis.isNotEmpty) {
+      _natisRc1Url = vehicleNatis;
+    } else {
+      _natisRc1Url =
+          (widget.natisRc1Url?.isNotEmpty ?? false) ? widget.natisRc1Url : null;
+    }
     _licenseDiskUrl = (widget.licenseDiskUrl?.isNotEmpty ?? false)
         ? widget.licenseDiskUrl
         : null;
     _settlementLetterUrl = (widget.settlementLetterUrl?.isNotEmpty ?? false)
         ? widget.settlementLetterUrl
         : null;
+    // Debounced auto-save for settlement amount when applicable
+    _settlementAmountController.addListener(_autoSaveSettlementDebounced);
   }
 
   @override
   void dispose() {
+    _settlementDebounce?.cancel();
     _settlementAmountController.dispose();
     super.dispose();
+  }
+
+  Future<void> _mergeAdminData(Map<String, dynamic> fields) async {
+    try {
+      final payload = {
+        ...fields,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicle.id)
+          .set({'adminData': payload}, SetOptions(merge: true));
+    } catch (e, st) {
+      debugPrint('DEBUG: Admin auto-save merge failed: $e\n$st');
+    }
+  }
+
+  void _autoSaveSettlementDebounced() {
+    // Only auto-save amount when settlement is required
+    if (widget.requireToSettleType != 'yes') return;
+    final text = _settlementAmountController.text.trim();
+    _settlementDebounce?.cancel();
+    _settlementDebounce = Timer(const Duration(milliseconds: 600), () {
+      _mergeAdminData({'settlementAmount': text});
+    });
   }
 
   /// This updated _pickFile method now shows a dialog that lets the user choose
@@ -142,6 +178,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                           break;
                       }
                     });
+                    await _autoUploadSelectedDoc(docNumber);
                   }
                 },
               ),
@@ -189,6 +226,7 @@ class AdminEditSectionState extends State<AdminEditSection>
                           break;
                       }
                     });
+                    await _autoUploadSelectedDoc(docNumber);
                   }
                 },
               ),
@@ -197,6 +235,65 @@ class AdminEditSectionState extends State<AdminEditSection>
         );
       },
     );
+  }
+
+  Future<void> _autoUploadSelectedDoc(int docNumber) async {
+    try {
+      Uint8List? bytes;
+      String? fileName;
+      String docName;
+      String urlField;
+      switch (docNumber) {
+        case 1:
+          bytes = _natisRc1File;
+          fileName = _natisRc1FileName;
+          docName = 'NATIS_RC1';
+          urlField = 'natisRc1Url';
+          break;
+        case 2:
+          bytes = _licenseDiskFile;
+          fileName = _licenseDiskFileName;
+          docName = 'LicenseDisk';
+          urlField = 'licenseDiskUrl';
+          break;
+        case 3:
+          bytes = _settlementLetterFile;
+          fileName = _settlementLetterFileName;
+          docName = 'SettlementLetter';
+          urlField = 'settlementLetterUrl';
+          break;
+        default:
+          return;
+      }
+      if (bytes == null) return;
+      final ext = (fileName != null && fileName.contains('.'))
+          ? fileName.split('.').last
+          : 'png';
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final storagePath =
+          'admin_docs/${widget.vehicle.referenceNumber}_${docName}${ts}.$ext';
+      final ref = FirebaseStorage.instance.ref().child(storagePath);
+      await ref.putData(bytes);
+      final downloadUrl = await ref.getDownloadURL();
+      setState(() {
+        if (docNumber == 1) {
+          _natisRc1Url = downloadUrl;
+          _natisRc1File = null;
+          _natisRc1FileName = null;
+        } else if (docNumber == 2) {
+          _licenseDiskUrl = downloadUrl;
+          _licenseDiskFile = null;
+          _licenseDiskFileName = null;
+        } else if (docNumber == 3) {
+          _settlementLetterUrl = downloadUrl;
+          _settlementLetterFile = null;
+          _settlementLetterFileName = null;
+        }
+      });
+      await _mergeAdminData({urlField: downloadUrl});
+    } catch (e, st) {
+      debugPrint('DEBUG: Admin auto-upload failed: $e\n$st');
+    }
   }
 
   // Helper function to get file icon based on extension
@@ -403,7 +500,10 @@ class AdminEditSectionState extends State<AdminEditSection>
   void loadAdminData(Map<String, dynamic> adminData) {
     setState(() {
       _settlementAmountController.text = adminData['settlementAmount'] ?? '';
-      _natisRc1Url = adminData['natisRc1Url'];
+      // Prefer latest vehicle rc1NatisFile if present, else admin natisRc1Url
+      _natisRc1Url = widget.vehicle.rc1NatisFile.isNotEmpty == true
+          ? widget.vehicle.rc1NatisFile
+          : adminData['natisRc1Url'];
       _licenseDiskUrl = adminData['licenseDiskUrl'];
       _settlementLetterUrl = adminData['settlementLetterUrl'];
     });

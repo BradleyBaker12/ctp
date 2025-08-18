@@ -86,9 +86,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
   bool _isSaving = false; // Flag to indicate saving state
 
   // Upload progress tracking for external cab section
-  final bool _isUploading = false;
-  final String _uploadStatus = 'Processing...';
-  final double _uploadProgress = 0.0;
+  // Removed unused upload state fields after switching to instant auto-save
 
   @override
   void dispose() {
@@ -525,27 +523,146 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
     try {
+      final sanitized = _sanitizeSection(section);
       final fileName =
-          'external_cab/vehicleId_placeholder_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          'external_cab/${widget.vehicleId}/${sanitized}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = _storage.ref().child(fileName);
       final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: $e')),
-      );
+      debugPrint('Upload error: $e');
       return '';
     }
   }
 
-  // Method to scroll to the bottom of the page
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+  String _sanitizeSection(String input) =>
+      input.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+
+  Future<void> _setExternalCabData(Map<String, dynamic> data) async {
+    await FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(widget.vehicleId)
+        .set(
+      {
+        'truckConditions': {
+          'externalCab': data,
+        }
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  // Auto-save for the 4 main view images
+  Future<void> _autoSaveImageForView(String title, Uint8List bytes) async {
+    // Update UI immediately
+    setState(() {
+      _selectedImages[title] = ImageData(file: bytes);
+    });
+    try {
+      final url = await _uploadImageToFirebase(bytes, title);
+      if (url.isEmpty) return;
+      setState(() {
+        _selectedImages[title] = ImageData(url: url);
+      });
+      await _setExternalCabData({
+        'images': {
+          title: {'url': url}
+        }
+      });
+      if (mounted) {
+        debugPrint('Image saved');
+      }
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  Future<void> _removeImageForView(String title) async {
+    setState(() {
+      _selectedImages[title] = ImageData();
+    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .set(
+        {
+          'truckConditions': {
+            'externalCab': {
+              'images': {
+                title: FieldValue.delete(),
+              }
+            }
+          }
+        },
+        SetOptions(merge: true),
       );
+      widget.onProgressUpdate();
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to remove: $e')));
+      debugPrint('Failed to remove image for $title: $e');
+    }
+  }
+
+  Future<void> _autoSaveSingleDamage(ItemData item) async {
+    if (item.imageData.file == null) return;
+    try {
+      final url = await _uploadImageToFirebase(item.imageData.file!, 'damage');
+      if (url.isEmpty) return;
+      setState(() {
+        item.imageData = ImageData(url: url);
+      });
+      await _syncDamagesListToFirestore();
+      if (mounted) {
+        debugPrint('Damage image saved');
+      }
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  Future<void> _autoSaveSingleFeature(ItemData item) async {
+    if (item.imageData.file == null) return;
+    try {
+      final url = await _uploadImageToFirebase(item.imageData.file!, 'feature');
+      if (url.isEmpty) return;
+      setState(() {
+        item.imageData = ImageData(url: url);
+      });
+      await _syncFeaturesListToFirestore();
+      if (mounted) {
+        debugPrint('Feature image saved');
+      }
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  Future<void> _syncDamagesListToFirestore() async {
+    final serializedDamages = _damageList
+        .map((d) => {
+              'description': d.description,
+              'imageUrl': d.imageData.url ?? '',
+            })
+        .toList();
+    await _setExternalCabData({
+      'damagesCondition': _anyDamagesType,
+      'damages': serializedDamages,
+    });
+  }
+
+  Future<void> _syncFeaturesListToFirestore() async {
+    final serializedFeatures = _additionalFeaturesList
+        .map((f) => {
+              'description': f.description,
+              'imageUrl': f.imageData.url ?? '',
+            })
+        .toList();
+    await _setExternalCabData({
+      'additionalFeaturesCondition': _anyAdditionalFeaturesType,
+      'additionalFeatures': serializedFeatures,
     });
   }
 
@@ -622,11 +739,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                 child: IconButton(
                   icon: const Icon(Icons.close, color: Colors.red),
                   onPressed: () {
-                    setState(() {
-                      // Remove the image by resetting it
-                      _selectedImages[title] = ImageData();
-                    });
-                    widget.onProgressUpdate();
+                    _removeImageForView(title);
                   },
                 ),
               ),
@@ -653,9 +766,7 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                   Navigator.of(context).pop();
                   final imageBytes = await capturePhoto(context);
                   if (imageBytes != null) {
-                    setState(() {
-                      _selectedImages[title] = ImageData(file: imageBytes);
-                    });
+                    await _autoSaveImageForView(title, imageBytes);
                   }
                   widget.onProgressUpdate();
                 },
@@ -669,14 +780,9 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
-                    setState(() {
-                      _selectedImages[title] =
-                          ImageData(file: bytes, fileName: fileName);
-                    });
+                    await _autoSaveImageForView(title, bytes);
                   }
                   widget.onProgressUpdate();
-                  setState(() {});
                 },
               ),
             ],
@@ -933,10 +1039,15 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       right: 0,
                       child: IconButton(
                         icon: const Icon(Icons.close, color: Colors.red),
-                        onPressed: () {
+                        onPressed: () async {
                           setState(() {
                             item.imageData = ImageData();
                           });
+                          if (_damageList.contains(item)) {
+                            await _syncDamagesListToFirestore();
+                          } else if (_additionalFeaturesList.contains(item)) {
+                            await _syncFeaturesListToFirestore();
+                          }
                         },
                       ),
                     ),
@@ -1027,6 +1138,11 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                     setState(() {
                       item.imageData = ImageData(file: imageBytes);
                     });
+                    if (_damageList.contains(item)) {
+                      await _autoSaveSingleDamage(item);
+                    } else if (_additionalFeaturesList.contains(item)) {
+                      await _autoSaveSingleFeature(item);
+                    }
                   }
                 },
               ),
@@ -1039,11 +1155,14 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
                     setState(() {
-                      item.imageData =
-                          ImageData(file: bytes, fileName: fileName);
+                      item.imageData = ImageData(file: bytes);
                     });
+                    if (_damageList.contains(item)) {
+                      await _autoSaveSingleDamage(item);
+                    } else if (_additionalFeaturesList.contains(item)) {
+                      await _autoSaveSingleFeature(item);
+                    }
                   }
                 },
               ),
@@ -1158,15 +1277,5 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
         }
       });
     }
-  }
-
-  void _updateDamageDescription(int index, String value) {
-    _updateAndNotify(() {
-      if (index < _damageList.length) {
-        _damageList[index].description = value;
-      } else if (index < _additionalFeaturesList.length) {
-        _additionalFeaturesList[index].description = value;
-      }
-    });
   }
 }

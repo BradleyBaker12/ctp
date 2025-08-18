@@ -25,6 +25,8 @@ import 'package:ctp/pages/home_page.dart';
 import 'package:ctp/pages/house_rules_page.dart';
 import 'package:ctp/pages/individual_offer_page.dart';
 import 'package:ctp/pages/inspectionPages/inspection_details_page.dart';
+import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:ctp/pages/login.dart';
 import 'package:ctp/pages/offersPage.dart';
 import 'package:ctp/pages/otp_page.dart';
@@ -211,6 +213,21 @@ void _navigateBasedOnNotification(
         if (offerId != null) {
           _navigateToOfferDetails(
               context, offerId, vehicleId, notificationType);
+        } else {
+          Navigator.of(context).pushNamed('/offers');
+        }
+        break;
+      // New: collection setup flow
+      case 'collection_setup_needed':
+        if (offerId != null) {
+          _navigateToCollectionSetup(context, offerId);
+        } else {
+          Navigator.of(context).pushNamed('/offers');
+        }
+        break;
+      case 'collection_setup_ready':
+        if (offerId != null) {
+          _navigateToCollectionSelection(context, offerId);
         } else {
           Navigator.of(context).pushNamed('/offers');
         }
@@ -454,6 +471,24 @@ Future<void> _navigateToOfferDetails(BuildContext context, String offerId,
     print('DEBUG: Error navigating to offer details: $e');
     Navigator.of(context).pushNamed('/offers');
   }
+}
+
+// Navigate seller to setup collection availability
+void _navigateToCollectionSetup(BuildContext context, String offerId) {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => SetupCollectionPage(offerId: offerId),
+    ),
+  );
+}
+
+// Navigate buyer to choose from provided collection options
+void _navigateToCollectionSelection(BuildContext context, String offerId) {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => CollectionDetailsPage(offerId: offerId),
+    ),
+  );
 }
 
 // Store pending notification data when app context is not available

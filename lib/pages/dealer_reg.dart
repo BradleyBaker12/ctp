@@ -18,7 +18,9 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart'; // Import the services package for input formatters
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class DealerRegPage extends StatefulWidget {
+
+@RoutePage()
+class DealerRegPage extends StatefulWidget {
   const DealerRegPage({super.key});
 
   @override
@@ -312,6 +314,38 @@ class _DealerRegPageState extends State<DealerRegPage> {
           .collection('users')
           .doc(userId)
           .update(dealerData);
+
+      // Notify admins of completed dealer registration
+      try {
+        final adminsSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userRole', isEqualTo: 'admin')
+            .get();
+        for (final admin in adminsSnapshot.docs) {
+          final token = admin.data()['fcmToken'] as String?;
+          if (token != null && token.isNotEmpty) {
+            await FirebaseFirestore.instance
+                .collection('direct_push_notifications')
+                .add({
+              'title': 'Dealer Registration',
+              'body': 'A dealer has completed registration.',
+              'targetUserId': admin.id,
+              'token': token,
+              'data': {
+                'type': 'dealer_registration_complete',
+                'userId': userId,
+              },
+              'createdAt': FieldValue.serverTimestamp(),
+              'status': 'pending',
+              'sendImmediately': true,
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Admin notification failed (dealer): $e');
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

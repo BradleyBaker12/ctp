@@ -114,20 +114,7 @@ exports.notifyTransporterOnNewOffer = onDocumentCreated(
         return;
       }
 
-      // Get dealer details for a more personalized message
-      const dealerDoc = await db
-        .collection("users")
-        .doc(offerData.dealerId)
-        .get();
-
-      let dealerName = "A dealer";
-      if (dealerDoc.exists) {
-        const dealerData = dealerDoc.data();
-        dealerName =
-          `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
-          dealerData.companyName ||
-          "A dealer";
-      }
+      // Intentionally not fetching dealer details for transporter-facing notification to avoid exposing dealer identity
 
       // Format the offer amount
       const formattedAmount = new Intl.NumberFormat("en-ZA", {
@@ -269,17 +256,7 @@ exports.notifyTransporterOnOfferStatusChange = onDocumentUpdated(
         return;
       }
 
-      // Get dealer details for a more personalized message
-      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
-
-      let dealerName = "A dealer";
-      if (dealerDoc.exists) {
-        const dealerData = dealerDoc.data();
-        dealerName =
-          `${dealerData.firstName || ""} ${dealerData.lastName || ""}`.trim() ||
-          dealerData.companyName ||
-          "A dealer";
-      }
+      // Intentionally not fetching dealer details for transporter-facing notification to avoid exposing dealer identity
 
       // Format the offer amount
       const formattedAmount = new Intl.NumberFormat("en-ZA", {
@@ -1179,7 +1156,7 @@ exports.notifyAdminsOnNewUser = onDocumentCreated(
         const message = {
           notification: {
             title: `New ${userData.userRole} Registration`,
-            body: `${userFullName} from ${companyName} has registered as a ${userData.userRole}.`,
+            body: `${userFullName} has registered as a ${userData.userRole}.`,
           },
           data: {
             userId: userId,
@@ -2554,7 +2531,7 @@ exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
         }
       }
 
-      // Notify dealer (confirmation)
+      // Notify dealer (confirmation) - do not include transporter names
       if (dealerData.fcmToken) {
         try {
           const dealerMessage = {
@@ -2609,7 +2586,7 @@ exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
             const adminMessage = {
               notification: {
                 title: "📋 Inspection Scheduled",
-                body: `${dealerName} scheduled inspection for ${transporterName}'s ${vehicleName} on ${inspectionDate}`,
+                body: `${dealerName} (buyer) scheduled inspection for ${transporterName}'s (seller) ${vehicleName} on ${inspectionDate}`,
               },
               data: {
                 offerId: offerId,
@@ -2652,7 +2629,7 @@ exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #2F7FFF;">Inspection Scheduled for Your Vehicle 📅</h2>
-                  <p>Great news! A dealer has scheduled an inspection for your vehicle.</p>
+                  <p>Great news! A buyer has scheduled an inspection for your vehicle.</p>
                   
                   <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
@@ -2693,7 +2670,7 @@ exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
           }
         }
 
-        // Email to dealer (confirmation)
+        // Email to dealer (confirmation) - do not include transporter names
         if (dealerEmail) {
           try {
             await sgMail.send({
@@ -2703,12 +2680,11 @@ exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #28a745;">Inspection Booking Confirmed ✅</h2>
-                  <p>Your inspection has been successfully scheduled. Here are the details:</p>
+          <p>Your inspection has been successfully scheduled. Here are the details:</p>
                   
                   <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
                     <p><strong>Vehicle:</strong> ${vehicleName}</p>
-                    <p><strong>Transporter:</strong> ${transporterName}</p>
                     <p><strong>Date:</strong> ${inspectionDate}</p>
                     <p><strong>Time:</strong> ${inspectionTime}</p>
                     <p><strong>Location:</strong> ${inspectionLocation}</p>
@@ -2760,13 +2736,13 @@ exports.notifyPartiesOnInspectionBooked = onDocumentUpdated(
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #2F7FFF;">New Vehicle Inspection Scheduled 📋</h2>
-                  <p>A dealer has scheduled an inspection for a vehicle on the platform.</p>
+                  <p>A buyer has scheduled an inspection for a vehicle on the platform.</p>
                   
                   <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Inspection Details:</h3>
                     <p><strong>Vehicle:</strong> ${vehicleName}</p>
-                    <p><strong>Dealer:</strong> ${dealerName}</p>
-                    <p><strong>Transporter:</strong> ${transporterName}</p>
+                    <p><strong>Buyer:</strong> ${dealerName}</p>
+                    <p><strong>Seller:</strong> ${transporterName}</p>
                     <p><strong>Date:</strong> ${inspectionDate}</p>
                     <p><strong>Time:</strong> ${inspectionTime}</p>
                     <p><strong>Location:</strong> ${inspectionLocation}</p>
@@ -2832,7 +2808,7 @@ exports.notifyPartiesOnInspectionResultsUploaded = onDocumentUpdated(
       return;
     }
 
-    // Check if inspection results were just uploaded
+    // Check if inspection results were just uploaded or completion flags toggled
     // This could be inspection images, inspection notes, or inspection status
     const beforeHasResults = !!(
       before.inspectionImages ||
@@ -2865,12 +2841,22 @@ exports.notifyPartiesOnInspectionResultsUploaded = onDocumentUpdated(
       before.inspectionStatus !== "completed" &&
       after.inspectionStatus === "completed";
 
+    // Also consider boolean flags used by the app
+    const dealerCompletedChanged =
+      before.dealerInspectionComplete !== true &&
+      after.dealerInspectionComplete === true;
+    const transporterCompletedChanged =
+      before.transporterInspectionComplete !== true &&
+      after.transporterInspectionComplete === true;
+
     // Only notify if new inspection results were added
     if (
       !newImagesAdded &&
       !newNotesAdded &&
       !newReportAdded &&
-      !statusChanged
+      !statusChanged &&
+      !dealerCompletedChanged &&
+      !transporterCompletedChanged
     ) {
       console.log(
         "[notifyPartiesOnInspectionResultsUploaded] No new inspection results detected, skipping"
@@ -2973,13 +2959,13 @@ exports.notifyPartiesOnInspectionResultsUploaded = onDocumentUpdated(
         }
       }
 
-      // Notify dealer (confirmation)
+      // Notify dealer (confirmation) - do not include transporter names
       if (dealerData.fcmToken) {
         try {
           const dealerMessage = {
             notification: {
               title: "✅ Inspection Results Uploaded",
-              body: `Your inspection results for ${vehicleName} have been successfully uploaded and shared with ${transporterName}`,
+              body: `Your inspection results for ${vehicleName} have been successfully uploaded and shared with the seller`,
             },
             data: {
               offerId: offerId,
@@ -3026,7 +3012,7 @@ exports.notifyPartiesOnInspectionResultsUploaded = onDocumentUpdated(
             const adminMessage = {
               notification: {
                 title: "📊 Inspection Results Uploaded",
-                body: `${dealerName} uploaded inspection results for ${transporterName}'s ${vehicleName}`,
+                body: `${dealerName} (buyer) uploaded inspection results for ${transporterName}'s (seller) ${vehicleName}`,
               },
               data: {
                 offerId: offerId,
@@ -3183,13 +3169,13 @@ exports.notifyPartiesOnInspectionResultsUploaded = onDocumentUpdated(
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #2F7FFF;">New Inspection Results Uploaded 📊</h2>
-                  <p>A dealer has uploaded inspection results for a vehicle transaction.</p>
+                    <p>A buyer has uploaded inspection results for a vehicle transaction.</p>
                   
                   <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Inspection Summary:</h3>
                     <p><strong>Vehicle:</strong> ${vehicleName}</p>
-                    <p><strong>Dealer:</strong> ${dealerName}</p>
-                    <p><strong>Transporter:</strong> ${transporterName}</p>
+                    <p><strong>Buyer:</strong> ${dealerName}</p>
+                    <p><strong>Seller:</strong> ${transporterName}</p>
                     <p><strong>Results uploaded:</strong> ${resultText}</p>
                     <p><strong>Offer Amount:</strong> R${
                       after.offerAmount || "TBD"
@@ -3455,7 +3441,7 @@ exports.sendInvoicePaymentReminders = onSchedule(
               const adminMessage = {
                 notification: {
                   title: "💳 Payment Overdue Alert",
-                  body: `${dealerName}'s payment for ${transporterName}'s ${vehicleName} is ${daysOverdue} day(s) overdue (R${offerAmount})`,
+                  body: `${dealerName} (buyer) payment for ${transporterName}'s (seller) ${vehicleName} is ${daysOverdue} day(s) overdue (R${offerAmount})`,
                 },
                 data: {
                   offerId: offerId,
@@ -3858,7 +3844,7 @@ exports.notifyTransporterOnTruckReadyForCollection = onDocumentUpdated(
           const adminMessage = {
             notification: {
               title: "🚚 Collection Ready",
-              body: `${transporterName}'s ${vehicleName} is ready for collection by ${dealerName}. Payment confirmed, collection scheduled.`,
+              body: `${transporterName}'s (seller) ${vehicleName} is ready for collection by ${dealerName} (buyer). Payment confirmed, collection scheduled.`,
             },
             data: {
               offerId: offerId,
@@ -4215,7 +4201,7 @@ exports.notifyPartiesOnCollectionBooked = onDocumentUpdated(
             const adminMessage = {
               notification: {
                 title: "📋 Collection Scheduled",
-                body: `${dealerName} scheduled collection for ${transporterName}'s ${vehicleName} on ${collectionDate}`,
+                body: `${dealerName} (buyer) scheduled collection for ${transporterName}'s (seller) ${vehicleName} on ${collectionDate}`,
               },
               data: {
                 offerId: offerId,
@@ -4435,6 +4421,247 @@ exports.notifyPartiesOnCollectionBooked = onDocumentUpdated(
   }
 );
 
+// Notify transporter (seller) to set up collection availability when an offer is accepted
+exports.notifyTransporterToSetupCollectionOnOfferAccepted = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyTransporterToSetupCollectionOnOfferAccepted] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log(
+        "[notifyTransporterToSetupCollectionOnOfferAccepted] No before/after data"
+      );
+      return;
+    }
+
+    // Skip locked/collected/completed offers
+    const afterStatus = (after.offerStatus || "").toLowerCase();
+    if (
+      after.statusLocked === true ||
+      after.transactionComplete === true ||
+      afterStatus === "collected" ||
+      afterStatus === "completed" ||
+      afterStatus === "sold"
+    ) {
+      console.log(
+        "[notifyTransporterToSetupCollectionOnOfferAccepted] Offer locked/completed, skipping"
+      );
+      return;
+    }
+
+    const beforeStatus = (before.offerStatus || "").toLowerCase();
+    const justAccepted =
+      beforeStatus !== "accepted" && afterStatus === "accepted";
+
+    // Only prompt if collection availability hasn't been provided yet
+    const beforeLocations = before.collectionDetails?.locations || [];
+    const afterLocations = after.collectionDetails?.locations || [];
+    const collectionNotProvided =
+      !afterLocations || afterLocations.length === 0;
+
+    if (!justAccepted || !collectionNotProvided) {
+      console.log(
+        "[notifyTransporterToSetupCollectionOnOfferAccepted] Conditions not met",
+        { justAccepted, collectionNotProvided }
+      );
+      return;
+    }
+
+    try {
+      // Resolve transporterId: prefer offer.transporterId, else vehicle.userId
+      let transporterId = after.transporterId;
+      if (!transporterId && after.vehicleId) {
+        const vehicleDoc = await db
+          .collection("vehicles")
+          .doc(after.vehicleId)
+          .get();
+        if (vehicleDoc.exists) {
+          transporterId = vehicleDoc.data().userId;
+        }
+      }
+
+      if (!transporterId) {
+        console.log(
+          "[notifyTransporterToSetupCollectionOnOfferAccepted] No transporterId found"
+        );
+        return;
+      }
+
+      // Fetch transporter and vehicle for context
+      const [transporterDoc, vehicleDoc] = await Promise.all([
+        db.collection("users").doc(transporterId).get(),
+        db.collection("vehicles").doc(after.vehicleId).get(),
+      ]);
+
+      if (!transporterDoc.exists) {
+        console.log(
+          "[notifyTransporterToSetupCollectionOnOfferAccepted] Transporter not found:",
+          transporterId
+        );
+        return;
+      }
+
+      const transporterData = transporterDoc.data();
+      if (!transporterData.fcmToken) {
+        console.log(
+          "[notifyTransporterToSetupCollectionOnOfferAccepted] Transporter has no FCM token"
+        );
+        return;
+      }
+
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      const message = {
+        notification: {
+          title: "Set Up Collection Availability",
+          body: `Your offer was accepted. Provide collection dates and a location for ${vehicleName} so the buyer can select a slot.`,
+        },
+        data: {
+          offerId: offerId,
+          vehicleId: after.vehicleId,
+          dealerId: after.dealerId || "",
+          notificationType: "collection_setup_needed",
+          timestamp: new Date().toISOString(),
+        },
+        token: transporterData.fcmToken,
+      };
+
+      await admin.messaging().send(message);
+      console.log(
+        `[notifyTransporterToSetupCollectionOnOfferAccepted] Prompt sent to transporter ${transporterId}`
+      );
+    } catch (error) {
+      console.error(
+        "[notifyTransporterToSetupCollectionOnOfferAccepted] Error:",
+        error
+      );
+    }
+  }
+);
+
+// Notify dealer (buyer) when collection availability has been provided by the transporter
+exports.notifyDealerOnCollectionSetupReady = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyDealerOnCollectionSetupReady] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+
+    if (!before || !after) {
+      console.log("[notifyDealerOnCollectionSetupReady] No before/after data");
+      return;
+    }
+
+    // Skip if already booked by dealer
+    const dealerHasSelection = !!(
+      after.dealerSelectedCollectionDate &&
+      after.dealerSelectedCollectionTime &&
+      after.dealerSelectedCollectionLocation
+    );
+    if (dealerHasSelection) {
+      console.log(
+        "[notifyDealerOnCollectionSetupReady] Dealer already selected collection, skipping"
+      );
+      return;
+    }
+
+    // Detect first time collection options are provided
+    const beforeLocations = before.collectionDetails?.locations || [];
+    const afterLocations = after.collectionDetails?.locations || [];
+    const locationsBecameAvailable =
+      (!beforeLocations || beforeLocations.length === 0) &&
+      Array.isArray(afterLocations) &&
+      afterLocations.length > 0;
+
+    // Also consider collectionLocation top-level being set for the first time
+    const collectionLocationSetNow =
+      !before.collectionLocation && !!after.collectionLocation;
+
+    if (!locationsBecameAvailable && !collectionLocationSetNow) {
+      console.log(
+        "[notifyDealerOnCollectionSetupReady] No new collection availability detected"
+      );
+      return;
+    }
+
+    try {
+      // Fetch dealer and vehicle
+      const [dealerDoc, vehicleDoc] = await Promise.all([
+        db.collection("users").doc(after.dealerId).get(),
+        db.collection("vehicles").doc(after.vehicleId).get(),
+      ]);
+
+      if (!dealerDoc.exists) {
+        console.log(
+          "[notifyDealerOnCollectionSetupReady] Dealer not found:",
+          after.dealerId
+        );
+        return;
+      }
+
+      const dealerData = dealerDoc.data();
+      if (!dealerData.fcmToken) {
+        console.log(
+          "[notifyDealerOnCollectionSetupReady] Dealer has no FCM token"
+        );
+        return;
+      }
+
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      const message = {
+        notification: {
+          title: "Select Your Collection Slot",
+          body: `The seller has provided collection options for ${vehicleName}. Choose your preferred date and time.`,
+        },
+        data: {
+          offerId: offerId,
+          vehicleId: after.vehicleId,
+          transporterId: after.transporterId || "",
+          notificationType: "collection_setup_ready",
+          timestamp: new Date().toISOString(),
+        },
+        token: dealerData.fcmToken,
+      };
+
+      await admin.messaging().send(message);
+      console.log(
+        `[notifyDealerOnCollectionSetupReady] Notification sent to dealer ${after.dealerId}`
+      );
+    } catch (error) {
+      console.error("[notifyDealerOnCollectionSetupReady] Error:", error);
+    }
+  }
+);
+
 // Send daily inspection reminders to dealers and transporters for today's inspections
 exports.sendTodayInspectionReminders = onSchedule(
   {
@@ -4631,7 +4858,7 @@ exports.sendTodayInspectionReminders = onSchedule(
           if (sgMail) {
             const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
 
-            // Email to dealer
+            // Email to dealer (confirmation) - do not include transporter names
             if (dealerEmail) {
               try {
                 await sgMail.send({
@@ -4646,7 +4873,6 @@ exports.sendTodayInspectionReminders = onSchedule(
                       
                       <div style="padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
                         <p style="font-size: 18px; color: #2F7FFF; font-weight: bold;">Good morning, ${dealerName}!</p>
-                        <p style="font-size: 16px;">This is a friendly reminder that you have a vehicle inspection scheduled for <strong>today</strong>.</p>
                         
                         <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
                           <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #2F7FFF; padding-bottom: 10px;">Today's Inspection Details:</h3>
@@ -4811,6 +5037,527 @@ exports.sendTodayInspectionReminders = onSchedule(
         "[sendTodayInspectionReminders] Error in scheduled job:",
         error
       );
+    }
+  }
+);
+
+// Daily check for stalled offers: missed inspection/collection appointments -> alert admins next day
+exports.sendStalledOfferAlerts = onSchedule(
+  {
+    schedule: "30 9 * * *", // Daily at 9:30 AM
+    timeZone: "Africa/Johannesburg",
+    region: "us-central1",
+  },
+  async () => {
+    console.log("[sendStalledOfferAlerts] Starting stalled offer check");
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    try {
+      // 1) Missed inspections: inspection was scheduled before today but not completed
+      const inspSnap = await db
+        .collection("offers")
+        .where("dealerSelectedInspectionDate", "<", startOfToday)
+        .get();
+
+      // 2) Missed collections: collection was scheduled before today but not completed
+      const collSnap = await db
+        .collection("offers")
+        .where("dealerSelectedCollectionDate", "<", startOfToday)
+        .get();
+
+      let alertsSent = 0;
+
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+      const adminPushTargets = adminUsersSnapshot.docs
+        .map((d) => d.data())
+        .filter((u) => !!u.fcmToken)
+        .map((u) => u.fcmToken);
+      const adminEmails = adminUsersSnapshot.docs
+        .map((d) => d.data().email)
+        .filter((e) => !!e);
+
+      const processMissed = async (
+        offerDoc,
+        type /* 'inspection'|'collection' */
+      ) => {
+        const o = offerDoc.data();
+        const offerId = offerDoc.id;
+
+        // Skip finalized/locked offers
+        const offerStatus = (o.offerStatus || "").toLowerCase();
+        if (
+          o.statusLocked === true ||
+          o.transactionComplete === true ||
+          offerStatus === "collected" ||
+          offerStatus === "completed" ||
+          offerStatus === "sold"
+        ) {
+          return;
+        }
+
+        // Determine if this stage is incomplete
+        const isInspectionIncomplete = !(
+          o.inspectionStatus === "completed" ||
+          o.dealerInspectionComplete === true ||
+          o.transporterInspectionComplete === true
+        );
+        const isCollectionIncomplete = !(o.collectionCompleted === true);
+
+        const scheduledDate =
+          type === "inspection"
+            ? o.dealerSelectedInspectionDate
+            : o.dealerSelectedCollectionDate;
+        if (!scheduledDate) return;
+
+        // Convert Firestore Timestamp or string to Date for calculations and keying
+        const scheduledAt = scheduledDate.toDate
+          ? scheduledDate.toDate()
+          : new Date(scheduledDate);
+
+        // Must be before today to be considered missed (we queried < startOfToday, but keep for safety)
+        if (!(scheduledAt instanceof Date) || isNaN(scheduledAt.getTime()))
+          return;
+        if (scheduledAt >= startOfToday) return;
+
+        // If still incomplete, notify admins once per scheduled date
+        if (type === "inspection" && !isInspectionIncomplete) return;
+        if (type === "collection" && !isCollectionIncomplete) return;
+
+        const yyyy = scheduledAt.getFullYear();
+        const mm = String(scheduledAt.getMonth() + 1).padStart(2, "0");
+        const dd = String(scheduledAt.getDate()).padStart(2, "0");
+        const dateKey = `${yyyy}-${mm}-${dd}`;
+        const alertKey = `${type}_missed:${dateKey}`;
+
+        const priorKeys = Array.isArray(o.stalledAlertKeys)
+          ? o.stalledAlertKeys
+          : [];
+        if (priorKeys.includes(alertKey)) {
+          // Already alerted for this specific missed date
+          return;
+        }
+
+        // Fetch participants and vehicle for context
+        const [dealerDoc, transporterDoc, vehicleDoc] = await Promise.all([
+          o.dealerId ? db.collection("users").doc(o.dealerId).get() : null,
+          o.transporterId
+            ? db.collection("users").doc(o.transporterId).get()
+            : null,
+          o.vehicleId ? db.collection("vehicles").doc(o.vehicleId).get() : null,
+        ]);
+
+        const dealer = dealerDoc && dealerDoc.exists ? dealerDoc.data() : {};
+        const transporter =
+          transporterDoc && transporterDoc.exists ? transporterDoc.data() : {};
+        const vehicle =
+          vehicleDoc && vehicleDoc.exists ? vehicleDoc.data() : {};
+
+        const dealerName =
+          `${dealer.firstName || ""} ${dealer.lastName || ""}`.trim() ||
+          dealer.companyName ||
+          "Dealer";
+        const transporterName =
+          `${transporter.firstName || ""} ${
+            transporter.lastName || ""
+          }`.trim() ||
+          transporter.companyName ||
+          "Transporter";
+        const vehicleName = `${
+          vehicle.brands?.join(", ") || vehicle.brand || "Vehicle"
+        } ${vehicle.makeModel || vehicle.model || ""} ${
+          vehicle.year || ""
+        }`.trim();
+
+        const scheduledDateStr = scheduledAt.toLocaleDateString();
+        const scheduledTimeStr =
+          type === "inspection"
+            ? o.dealerSelectedInspectionTime || "Time TBD"
+            : o.dealerSelectedCollectionTime || "Time TBD";
+        const scheduledLocStr =
+          type === "inspection"
+            ? o.dealerSelectedInspectionLocation || "Location TBD"
+            : o.dealerSelectedCollectionLocation || "Location TBD";
+
+        const now = new Date();
+        const msDiff = now.getTime() - scheduledAt.getTime();
+        const daysOverdue = Math.max(
+          1,
+          Math.floor(msDiff / (1000 * 60 * 60 * 24))
+        );
+
+        // Compose push for admins
+        const title =
+          type === "inspection"
+            ? "🔔 Inspection Missed"
+            : "🔔 Collection Missed";
+        const body =
+          type === "inspection"
+            ? `${dealerName} (buyer) and ${transporterName} (seller) missed inspection for ${vehicleName} on ${scheduledDateStr} at ${scheduledTimeStr}`
+            : `${transporterName} (seller) and ${dealerName} (buyer) missed collection for ${vehicleName} on ${scheduledDateStr} at ${scheduledTimeStr}`;
+
+        // Send push to each admin
+        for (const token of adminPushTargets) {
+          try {
+            await admin.messaging().send({
+              notification: { title, body },
+              data: {
+                notificationType: "stalled_offer_admin",
+                stage: type,
+                offerId,
+                vehicleId: o.vehicleId || "",
+                dealerId: o.dealerId || "",
+                transporterId: o.transporterId || "",
+                scheduledDate: scheduledDateStr,
+                scheduledTime: scheduledTimeStr,
+                daysOverdue: String(daysOverdue),
+                timestamp: new Date().toISOString(),
+              },
+              token,
+            });
+          } catch (e) {
+            console.error(
+              "[sendStalledOfferAlerts] Error sending admin push:",
+              e
+            );
+          }
+        }
+
+        // Send email summary to admins (optional if SendGrid configured)
+        if (sgMail && adminEmails.length > 0) {
+          try {
+            const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: adminEmails,
+              subject:
+                type === "inspection"
+                  ? `🔔 Missed Inspection Alert - ${vehicleName}`
+                  : `🔔 Missed Collection Alert - ${vehicleName}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+                  <h2 style="color: #dc3545;">${title}</h2>
+                  <p><strong>Vehicle:</strong> ${vehicleName}</p>
+                  <p><strong>Buyer:</strong> ${dealerName}</p>
+                  <p><strong>Seller:</strong> ${transporterName}</p>
+                  <p><strong>Scheduled:</strong> ${scheduledDateStr} at ${scheduledTimeStr}</p>
+                  <p><strong>Location:</strong> ${scheduledLocStr}</p>
+                  <p><strong>Days overdue:</strong> ${daysOverdue}</p>
+                  <div style="text-align: center; margin: 20px 0;">
+                    <a href="${offerLink}" style="background:#2F7FFF;color:#fff;padding:10px 18px;text-decoration:none;border-radius:6px;">Open Offer</a>
+                  </div>
+                  <p style="color:#666;font-size:13px;">This alert is sent once per missed schedule to reduce noise.</p>
+                </div>
+              `,
+            });
+          } catch (e) {
+            console.error(
+              "[sendStalledOfferAlerts] Error sending admin email:",
+              e
+            );
+          }
+        }
+
+        // Mark this alert as sent to avoid duplicates
+        try {
+          await db
+            .collection("offers")
+            .doc(offerId)
+            .update({
+              stalledAlertKeys: admin.firestore.FieldValue.arrayUnion(alertKey),
+              lastStalledAlertAt: admin.firestore.FieldValue.serverTimestamp(),
+              lastStalledReason: type,
+            });
+        } catch (e) {
+          console.error(
+            "[sendStalledOfferAlerts] Error updating offer flags:",
+            e
+          );
+        }
+
+        alertsSent++;
+      };
+
+      // Process inspections
+      for (const doc of inspSnap.docs) {
+        await processMissed(doc, "inspection");
+      }
+
+      // Process collections
+      for (const doc of collSnap.docs) {
+        await processMissed(doc, "collection");
+      }
+
+      console.log(
+        `[sendStalledOfferAlerts] Completed. Alerts sent: ${alertsSent}`
+      );
+    } catch (err) {
+      console.error("[sendStalledOfferAlerts] Error in job:", err);
+    }
+  }
+);
+
+// Notify dealer that transporter has provided inspection availability (inspection needed: dealer to choose)
+exports.notifyDealerOnInspectionSetupReady = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyDealerOnInspectionSetupReady] Triggered for offerId:",
+      event.params.offerId
+    );
+
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+    if (!before || !after) return;
+
+    // Safely get locations arrays before/after
+    const beforeLocations =
+      before.inspectionDetails?.inspectionLocations?.locations || [];
+    const afterLocations =
+      after.inspectionDetails?.inspectionLocations?.locations || [];
+
+    // Detect when availability first becomes available
+    const becameAvailable =
+      beforeLocations.length === 0 && afterLocations.length > 0;
+
+    // Optionally also require a status flag from SetupInspectionPage
+    const statusBecameCompleted =
+      (before.inspectionDetails?.status || "").toString().toLowerCase() !==
+        "completed" &&
+      (after.inspectionDetails?.status || "").toString().toLowerCase() ===
+        "completed";
+
+    if (!becameAvailable && !statusBecameCompleted) {
+      console.log(
+        "[notifyDealerOnInspectionSetupReady] No new availability detected, skipping"
+      );
+      return;
+    }
+
+    try {
+      // Get dealer
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+
+      // Vehicle details for context
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      // Push to dealer – no names
+      if (dealerData?.fcmToken) {
+        await admin.messaging().send({
+          notification: {
+            title: "🔧 Inspection Availability Ready",
+            body: `Availability for ${vehicleName} has been provided. Please select a date and time.`,
+          },
+          data: {
+            notificationType: "inspection_setup_ready",
+            offerId,
+            vehicleId: after.vehicleId,
+            timestamp: new Date().toISOString(),
+          },
+          token: dealerData.fcmToken,
+        });
+        console.log(
+          `[notifyDealerOnInspectionSetupReady] Notified dealer ${after.dealerId}`
+        );
+      }
+
+      // Admin heads-up (optional)
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+      for (const adminDoc of adminUsersSnapshot.docs) {
+        const adminData = adminDoc.data();
+        if (!adminData.fcmToken) continue;
+        try {
+          await admin.messaging().send({
+            notification: {
+              title: "📋 Inspection Availability Submitted",
+              body: `Availability submitted for ${vehicleName}. Dealer prompted to choose.`,
+            },
+            data: {
+              notificationType: "inspection_setup_ready_admin",
+              offerId,
+              vehicleId: after.vehicleId,
+              timestamp: new Date().toISOString(),
+            },
+            token: adminData.fcmToken,
+          });
+        } catch (e) {
+          console.error(
+            `[notifyDealerOnInspectionSetupReady] Admin notify error for ${adminDoc.id}:`,
+            e
+          );
+        }
+      }
+    } catch (e) {
+      console.error("[notifyDealerOnInspectionSetupReady] Error:", e);
+    }
+  }
+);
+
+// Notify transporter to set up inspection availability once offer is accepted
+exports.notifyTransporterToSetupInspectionOnOfferAccepted = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyTransporterToSetupInspectionOnOfferAccepted] Triggered for offerId:",
+      event.params.offerId
+    );
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+    if (!before || !after) return;
+
+    const beforeStatus = (before.offerStatus || "").toString().toLowerCase();
+    const afterStatus = (after.offerStatus || "").toString().toLowerCase();
+
+    // Only when transitioning to accepted
+    if (beforeStatus === afterStatus || afterStatus !== "accepted") return;
+
+    try {
+      // Determine transporterId (prefer offer field, fallback to vehicle owner)
+      let transporterId = after.transporterId;
+      if (!transporterId) {
+        const vehicleDoc = await db
+          .collection("vehicles")
+          .doc(after.vehicleId)
+          .get();
+        if (vehicleDoc.exists) {
+          transporterId = vehicleDoc.data().userId;
+        }
+      }
+      if (!transporterId) {
+        console.log(
+          "[notifyTransporterToSetupInspectionOnOfferAccepted] No transporterId found"
+        );
+        return;
+      }
+
+      const transporterDoc = await db
+        .collection("users")
+        .doc(transporterId)
+        .get();
+      const transporterData = transporterDoc.exists
+        ? transporterDoc.data()
+        : {};
+
+      // Vehicle details for context
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      if (transporterData?.fcmToken) {
+        await admin.messaging().send({
+          notification: {
+            title: "🔧 Set Up Inspection Availability",
+            body: `Your offer was accepted. Please provide inspection availability for ${vehicleName}.`,
+          },
+          data: {
+            notificationType: "inspection_setup_needed",
+            offerId,
+            vehicleId: after.vehicleId,
+            timestamp: new Date().toISOString(),
+          },
+          token: transporterData.fcmToken,
+        });
+        console.log(
+          `[notifyTransporterToSetupInspectionOnOfferAccepted] Notified transporter ${transporterId}`
+        );
+      }
+    } catch (e) {
+      console.error(
+        "[notifyTransporterToSetupInspectionOnOfferAccepted] Error:",
+        e
+      );
+    }
+  }
+);
+
+// Notify dealer that inspection is needed once offer is accepted
+exports.notifyDealerInspectionNeededOnOfferAccepted = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    console.log(
+      "[notifyDealerInspectionNeededOnOfferAccepted] Triggered for offerId:",
+      event.params.offerId
+    );
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const offerId = event.params.offerId;
+    if (!before || !after) return;
+
+    const beforeStatus = (before.offerStatus || "").toString().toLowerCase();
+    const afterStatus = (after.offerStatus || "").toString().toLowerCase();
+    if (beforeStatus === afterStatus || afterStatus !== "accepted") return;
+
+    try {
+      // Fetch dealer
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealerData = dealerDoc.exists ? dealerDoc.data() : {};
+      if (!dealerData?.fcmToken) return;
+
+      // Vehicle context
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : {};
+      const vehicleName = `${
+        vehicleData.brands?.join(", ") || vehicleData.brand || "Vehicle"
+      } ${vehicleData.makeModel || vehicleData.model || ""} ${
+        vehicleData.year || ""
+      }`.trim();
+
+      await admin.messaging().send({
+        notification: {
+          title: "🔍 Inspection Needed",
+          body: `Your offer was accepted. Set up an inspection for ${vehicleName}.`,
+        },
+        data: {
+          notificationType: "inspection_needed",
+          offerId,
+          vehicleId: after.vehicleId,
+          timestamp: new Date().toISOString(),
+        },
+        token: dealerData.fcmToken,
+      });
+      console.log(
+        `[notifyDealerInspectionNeededOnOfferAccepted] Notified dealer ${after.dealerId}`
+      );
+    } catch (e) {
+      console.error("[notifyDealerInspectionNeededOnOfferAccepted] Error:", e);
     }
   }
 );

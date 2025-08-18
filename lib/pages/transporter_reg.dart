@@ -244,6 +244,36 @@ class _TransporterRegistrationPageState
         'brncUrl': brncUrl,
       });
 
+      // Notify admins of completed transporter registration
+      try {
+        final adminsSnapshot = await firestore
+            .collection('users')
+            .where('userRole', isEqualTo: 'admin')
+            .get();
+        for (final admin in adminsSnapshot.docs) {
+          final token = admin.data()['fcmToken'] as String?;
+          if (token != null && token.isNotEmpty) {
+            await firestore.collection('direct_push_notifications').add({
+              'title': 'Transporter Registration',
+              'body': 'A transporter has completed registration.',
+              'targetUserId': admin.id,
+              'token': token,
+              'data': {
+                'type': 'transporter_registration_complete',
+                'userId': userId,
+              },
+              'createdAt': FieldValue.serverTimestamp(),
+              'status': 'pending',
+              'sendImmediately': true,
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Admin notification failed (transporter): $e');
+        }
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Registration completed successfully!')),
       );

@@ -277,11 +277,14 @@ class TyresEditPageState extends State<TyresEditPage>
             label: 'Poor',
             value: 'poor',
             groupValue: _chassisConditions[pos] ?? '',
-            onChanged: (String? value) {
+            onChanged: (String? value) async {
               if (value != null) {
                 _updateAndNotify(() {
                   _chassisConditions[pos] = value;
                   print("DEBUG: Tyre $pos chassis condition set to $value");
+                });
+                await _setTyresData({
+                  tyrePosKey: {'chassisCondition': value}
                 });
               }
             },
@@ -291,12 +294,17 @@ class TyresEditPageState extends State<TyresEditPage>
             label: 'Good',
             value: 'good',
             groupValue: _chassisConditions[pos] ?? '',
-            onChanged: (String? value) {
+            onChanged: (String? value) async {
               if (value != null) {
                 _chassisConditions[pos] = value;
                 print("DEBUG: Tyre $pos chassis condition set to $value");
               }
               _updateAndNotify(() {});
+              if (value != null) {
+                await _setTyresData({
+                  tyrePosKey: {'chassisCondition': value}
+                });
+              }
             },
             enabled: !isDealer,
           ),
@@ -304,12 +312,17 @@ class TyresEditPageState extends State<TyresEditPage>
             label: 'Excellent',
             value: 'excellent',
             groupValue: _chassisConditions[pos] ?? '',
-            onChanged: (String? value) {
+            onChanged: (String? value) async {
               if (value != null) {
                 _chassisConditions[pos] = value;
                 print("DEBUG: Tyre $pos chassis condition set to $value");
               }
               _updateAndNotify(() {});
+              if (value != null) {
+                await _setTyresData({
+                  tyrePosKey: {'chassisCondition': value}
+                });
+              }
             },
             enabled: !isDealer,
           ),
@@ -331,12 +344,17 @@ class TyresEditPageState extends State<TyresEditPage>
             label: 'Virgin',
             value: 'virgin',
             groupValue: _virginOrRecaps[pos] ?? '',
-            onChanged: (String? value) {
+            onChanged: (String? value) async {
               if (value != null) {
                 _virginOrRecaps[pos] = value;
                 print("DEBUG: Tyre $pos virgin/recap set to $value");
               }
               _updateAndNotify(() {});
+              if (value != null) {
+                await _setTyresData({
+                  tyrePosKey: {'virginOrRecap': value}
+                });
+              }
             },
             enabled: !isDealer,
           ),
@@ -344,12 +362,17 @@ class TyresEditPageState extends State<TyresEditPage>
             label: 'Recap',
             value: 'recap',
             groupValue: _virginOrRecaps[pos] ?? '',
-            onChanged: (String? value) {
+            onChanged: (String? value) async {
               if (value != null) {
                 _virginOrRecaps[pos] = value;
                 print("DEBUG: Tyre $pos virgin/recap set to $value");
               }
               _updateAndNotify(() {});
+              if (value != null) {
+                await _setTyresData({
+                  tyrePosKey: {'virginOrRecap': value}
+                });
+              }
             },
             enabled: !isDealer,
           ),
@@ -371,12 +394,17 @@ class TyresEditPageState extends State<TyresEditPage>
             label: 'Aluminium',
             value: 'aluminium',
             groupValue: _rimTypes[pos] ?? '',
-            onChanged: (String? value) {
+            onChanged: (String? value) async {
               if (value != null) {
                 _rimTypes[pos] = value;
                 print("DEBUG: Tyre $pos rim type set to $value");
               }
               _updateAndNotify(() {});
+              if (value != null) {
+                await _setTyresData({
+                  tyrePosKey: {'rimType': value}
+                });
+              }
             },
             enabled: !isDealer,
           ),
@@ -384,12 +412,17 @@ class TyresEditPageState extends State<TyresEditPage>
             label: 'Steel',
             value: 'steel',
             groupValue: _rimTypes[pos] ?? '',
-            onChanged: (String? value) {
+            onChanged: (String? value) async {
               if (value != null) {
                 _rimTypes[pos] = value;
                 print("DEBUG: Tyre $pos rim type set to $value");
               }
               _updateAndNotify(() {});
+              if (value != null) {
+                await _setTyresData({
+                  tyrePosKey: {'rimType': value}
+                });
+              }
             },
             enabled: !isDealer,
           ),
@@ -478,13 +511,9 @@ class TyresEditPageState extends State<TyresEditPage>
                       top: 8,
                       right: 8,
                       child: GestureDetector(
-                        onTap: () {
+                        onTap: () async {
                           print("DEBUG: Removing image for key: $key");
-                          setState(() {
-                            _selectedImages.remove(key);
-                            _imageUrls.remove(key);
-                          });
-                          widget.onProgressUpdate();
+                          await _removeImageForKey(key);
                         },
                         child: Container(
                           decoration: const BoxDecoration(
@@ -526,10 +555,7 @@ class TyresEditPageState extends State<TyresEditPage>
                   Navigator.of(context).pop();
                   final imageBytes = await capturePhoto(context);
                   if (imageBytes != null) {
-                    setState(() {
-                      _selectedImages[key] = imageBytes;
-                      _imageUrls.remove(key);
-                    });
+                    await _autoSaveImageForKey(key, imageBytes);
                   }
                 },
               ),
@@ -542,10 +568,7 @@ class TyresEditPageState extends State<TyresEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    setState(() {
-                      _selectedImages[key] = bytes;
-                      _imageUrls.remove(key);
-                    });
+                    await _autoSaveImageForKey(key, bytes);
                   }
                 },
               ),
@@ -750,13 +773,97 @@ class TyresEditPageState extends State<TyresEditPage>
       Uint8List imageFile, String section) async {
     try {
       final fileName =
-          'tyres/vehicleId_placeholder_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          'tyres/${widget.vehicleId}_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = _storage.ref().child(fileName);
       final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
       print("DEBUG: Error uploading image: $e");
       return '';
+    }
+  }
+
+  // =======================
+  // Auto-save helpers (silent)
+  // =======================
+  String _sanitizeSection(String input) =>
+      input.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+
+  Future<void> _setTyresData(Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('vehicles').doc(widget.vehicleId).set(
+        {
+          'truckConditions': {
+            'tyres': data,
+          }
+        },
+        SetOptions(merge: true),
+      );
+    } catch (e) {
+      debugPrint('Tyres auto-save set error: $e');
+    }
+  }
+
+  Future<void> _autoSaveImageForKey(String key, Uint8List bytes) async {
+    // Key format: 'Tyre_Pos_{n} Photo'
+    final match = RegExp(r'Tyre_Pos_(\d+)').firstMatch(key);
+    if (match == null) return;
+    final pos = int.parse(match.group(1)!);
+    final posKey = 'Tyre_Pos_$pos';
+    setState(() {
+      _selectedImages[key] = bytes;
+      _imageUrls.remove(key);
+    });
+    try {
+      final url = await _uploadImageToFirebase(
+          bytes, _sanitizeSection('position_$pos'));
+      if (url.isEmpty) return;
+      setState(() {
+        _selectedImages.remove(key);
+        _imageUrls[key] = url;
+      });
+      await _setTyresData({
+        posKey: {
+          'imageUrl': url,
+          // Keep existing selections if set locally (best-effort merge)
+          if ((_chassisConditions[pos] ?? '').isNotEmpty)
+            'chassisCondition': _chassisConditions[pos],
+          if ((_virginOrRecaps[pos] ?? '').isNotEmpty)
+            'virginOrRecap': _virginOrRecaps[pos],
+          if ((_rimTypes[pos] ?? '').isNotEmpty) 'rimType': _rimTypes[pos],
+        }
+      });
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Tyres auto-save image failed for $key: $e');
+    }
+  }
+
+  Future<void> _removeImageForKey(String key) async {
+    final match = RegExp(r'Tyre_Pos_(\d+)').firstMatch(key);
+    if (match == null) return;
+    final pos = int.parse(match.group(1)!);
+    final posKey = 'Tyre_Pos_$pos';
+    setState(() {
+      _selectedImages.remove(key);
+      _imageUrls.remove(key);
+    });
+    try {
+      await _firestore.collection('vehicles').doc(widget.vehicleId).set(
+        {
+          'truckConditions': {
+            'tyres': {
+              posKey: {
+                'imageUrl': FieldValue.delete(),
+              }
+            }
+          }
+        },
+        SetOptions(merge: true),
+      );
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Tyres auto-remove image failed for $key: $e');
     }
   }
 

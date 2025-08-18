@@ -91,10 +91,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   bool _isInitialized = false; // Flag to prevent re-initialization
   bool _isSaving = false; // Flag to indicate saving state
 
-  // Upload progress tracking for internal cab section
-  final bool _isUploading = false;
-  final String _uploadStatus = 'Processing...';
-  final double _uploadProgress = 0.0;
+  // Removed unused upload state fields; auto-save is silent
 
   @override
   void initState() {
@@ -596,11 +593,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                 right: 0,
                 child: IconButton(
                   icon: const Icon(Icons.close, color: Colors.red),
-                  onPressed: () {
-                    setState(() {
-                      _selectedImages[title] = ImageData();
-                    });
-                    widget.onProgressUpdate();
+                  onPressed: () async {
+                    await _removeImageForView(title);
                   },
                 ),
               ),
@@ -749,10 +743,17 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       right: 0,
                       child: IconButton(
                         icon: const Icon(Icons.close, color: Colors.red),
-                        onPressed: () {
+                        onPressed: () async {
                           setState(() {
                             item.imageData = ImageData();
                           });
+                          if (_damageList.contains(item)) {
+                            await _syncDamagesListToFirestore();
+                          } else if (_additionalFeaturesList.contains(item)) {
+                            await _syncFeaturesListToFirestore();
+                          } else if (_faultCodesList.contains(item)) {
+                            await _syncFaultCodesListToFirestore();
+                          }
                         },
                       ),
                     ),
@@ -821,10 +822,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                   Navigator.of(context).pop();
                   final imageBytes = await capturePhoto(context);
                   if (imageBytes != null) {
-                    setState(() {
-                      _selectedImages[title] = ImageData(file: imageBytes);
-                    });
-                    widget.onProgressUpdate();
+                    await _autoSaveImageForView(title, imageBytes);
                   }
                 },
               ),
@@ -837,12 +835,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
-                    setState(() {
-                      _selectedImages[title] =
-                          ImageData(file: bytes, fileName: fileName);
-                    });
-                    widget.onProgressUpdate();
+                    await _autoSaveImageForView(title, bytes);
                   }
                 },
               ),
@@ -873,6 +866,7 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                     setState(() {
                       item.imageData = ImageData(file: imageBytes);
                     });
+                    await _autoSaveForItem(item);
                   }
                 },
               ),
@@ -885,11 +879,10 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    final fileName = pickedFile.name;
                     setState(() {
-                      item.imageData =
-                          ImageData(file: bytes, fileName: fileName);
+                      item.imageData = ImageData(file: bytes);
                     });
+                    await _autoSaveForItem(item);
                   }
                 },
               ),
@@ -1064,15 +1057,148 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
     try {
+      final sanitized = _sanitizeSection(section);
       final fileName =
-          'internal_cab/vehicleId_placeholder_${section}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          'internal_cab/${widget.vehicleId}/${sanitized}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = _storage.ref().child(fileName);
       final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      // Handle error accordingly
+      debugPrint('Upload error: $e');
     }
     return '';
+  }
+
+  String _sanitizeSection(String input) =>
+      input.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+
+  Future<void> _setInternalCabData(Map<String, dynamic> data) async {
+    await FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(widget.vehicleId)
+        .set(
+      {
+        'truckConditions': {
+          'internalCab': data,
+        }
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> _autoSaveImageForView(String title, Uint8List bytes) async {
+    setState(() {
+      _selectedImages[title] = ImageData(file: bytes);
+    });
+    try {
+      final url = await _uploadImageToFirebase(bytes, title);
+      if (url.isEmpty) return;
+      setState(() {
+        _selectedImages[title] = ImageData(url: url);
+      });
+      await _setInternalCabData({
+        'images': {
+          title: {
+            'url': url,
+          }
+        }
+      });
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  Future<void> _removeImageForView(String title) async {
+    setState(() {
+      _selectedImages[title] = ImageData();
+    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .set(
+        {
+          'truckConditions': {
+            'internalCab': {
+              'images': {
+                title: FieldValue.delete(),
+              }
+            }
+          }
+        },
+        SetOptions(merge: true),
+      );
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Failed to remove image for $title: $e');
+    }
+  }
+
+  Future<void> _autoSaveForItem(ItemData item) async {
+    if (item.imageData.file == null) return;
+    try {
+      String section = _damageList.contains(item)
+          ? 'damage'
+          : _additionalFeaturesList.contains(item)
+              ? 'feature'
+              : _faultCodesList.contains(item)
+                  ? 'fault_code'
+                  : 'internal_item';
+      final url = await _uploadImageToFirebase(item.imageData.file!, section);
+      if (url.isEmpty) return;
+      setState(() {
+        item.imageData = ImageData(url: url);
+      });
+      if (_damageList.contains(item)) {
+        await _syncDamagesListToFirestore();
+      } else if (_additionalFeaturesList.contains(item)) {
+        await _syncFeaturesListToFirestore();
+      } else if (_faultCodesList.contains(item)) {
+        await _syncFaultCodesListToFirestore();
+      }
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  Future<void> _syncDamagesListToFirestore() async {
+    final serialized = _damageList
+        .map((d) => {
+              'description': d.description,
+              'imageUrl': d.imageData.url ?? '',
+            })
+        .toList();
+    await _setInternalCabData({
+      'damagesCondition': _damagesCondition,
+      'damages': serialized,
+    });
+  }
+
+  Future<void> _syncFeaturesListToFirestore() async {
+    final serialized = _additionalFeaturesList
+        .map((f) => {
+              'description': f.description,
+              'imageUrl': f.imageData.url ?? '',
+            })
+        .toList();
+    await _setInternalCabData({
+      'additionalFeaturesCondition': _additionalFeaturesCondition,
+      'additionalFeatures': serialized,
+    });
+  }
+
+  Future<void> _syncFaultCodesListToFirestore() async {
+    final serialized = _faultCodesList
+        .map((f) => {
+              'description': f.description,
+              'imageUrl': f.imageData.url ?? '',
+            })
+        .toList();
+    await _setInternalCabData({
+      'faultCodesCondition': _faultCodesCondition,
+      'faultCodes': serialized,
+    });
   }
 
   Future<Map<String, dynamic>> getData() async {

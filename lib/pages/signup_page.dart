@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/custom_text_field.dart';
@@ -11,7 +12,9 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class SignUpPage extends StatefulWidget {
+
+@RoutePage()
+class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
   @override
@@ -26,6 +29,11 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _phoneNumberController = TextEditingController();
+  final List<String> _countryCodes = ['+27', '+1', '+44', '+61', '+91'];
+  String _selectedCountryCode = '+27';
   bool _isLoading = false;
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
@@ -62,6 +70,37 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Future<void> _signUp() async {
     FocusScope.of(context).unfocus();
+
+    // Validate name & phone inputs
+    if (_firstNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your first name.')),
+      );
+      return;
+    }
+    if (_lastNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your last name.')),
+      );
+      return;
+    }
+    final localDigits = _phoneNumberController.text.trim();
+    if (localDigits.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please enter your phone number (9 digits).')),
+      );
+      return;
+    }
+    if (!RegExp(r'^\d{9}$').hasMatch(localDigits)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Phone number must be exactly 9 digits (numbers only).')),
+      );
+      return;
+    }
+    final phoneFullNumber = '$_selectedCountryCode$localDigits';
 
     if (!_isEmailValid(_emailController.text)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -121,10 +160,10 @@ class _SignUpPageState extends State<SignUpPage> {
           'city': null,
           'state': null,
           'postalCode': null,
-          'firstName': null,
+          'firstName': _firstNameController.text.trim(),
           'middleName': null,
-          'lastName': null,
-          'phoneNumber': null,
+          'lastName': _lastNameController.text.trim(),
+          'phoneNumber': phoneFullNumber,
           'agreedToHouseRules': false,
           'bankConfirmationUrl': null,
           'brncUrl': null,
@@ -136,35 +175,7 @@ class _SignUpPageState extends State<SignUpPage> {
         await _firestore.collection('users').doc(user.uid).set(userData);
         print("DEBUG: Firestore document created");
 
-        // Notify all admins of new user signup
-        final adminsSnapshot = await _firestore
-            .collection('users')
-            .where('userRole', isEqualTo: 'admin')
-            .get();
-        final adminsQuery = adminsSnapshot.docs.where((doc) {
-          final token = doc.data()['fcmToken'] as String?;
-          return token != null && token.isNotEmpty;
-        });
-        for (final admin in adminsQuery) {
-          final adminId = admin.id;
-          final adminFcmToken = admin.data()['fcmToken'];
-          await FirebaseFirestore.instance
-              .collection('direct_push_notifications')
-              .add({
-            'title': 'New User Signup',
-            'body': 'A new user (${user.email}) has registered.',
-            'targetUserId': adminId,
-            'token': adminFcmToken,
-            'data': {
-              'type': 'new_user_signup',
-              'userEmail': user.email,
-              'userId': user.uid,
-            },
-            'createdAt': FieldValue.serverTimestamp(),
-            'status': 'pending',
-            'sendImmediately': true,
-          });
-        }
+        // (Admin notification moved to role-specific registration pages.)
 
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         userProvider.setUser(user);
@@ -339,6 +350,70 @@ class _SignUpPageState extends State<SignUpPage> {
                                   SizedBox(
                                       height: constraints.maxHeight * 0.07),
                                   CustomTextField(
+                                    hintText: 'First Name',
+                                    controller: _firstNameController,
+                                  ),
+                                  SizedBox(
+                                      height: constraints.maxHeight * 0.03),
+                                  CustomTextField(
+                                    hintText: 'Last Name',
+                                    controller: _lastNameController,
+                                  ),
+                                  SizedBox(
+                                      height: constraints.maxHeight * 0.03),
+                                  // Phone number with country code dropdown
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withOpacity(0.18),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border:
+                                              Border.all(color: Colors.white),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            value: _selectedCountryCode,
+                                            dropdownColor: Colors.black87,
+                                            iconEnabledColor: Colors.white,
+                                            style: const TextStyle(
+                                                color: Colors.white),
+                                            items: _countryCodes
+                                                .map((c) => DropdownMenuItem(
+                                                      value: c,
+                                                      child: Text(c),
+                                                    ))
+                                                .toList(),
+                                            onChanged: (val) {
+                                              if (val != null) {
+                                                setState(() =>
+                                                    _selectedCountryCode = val);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: CustomTextField(
+                                          hintText: 'Phone (9 digits)',
+                                          controller: _phoneNumberController,
+                                          keyboardType: TextInputType.number,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                            LengthLimitingTextInputFormatter(9),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(
+                                      height: constraints.maxHeight * 0.03),
+                                  CustomTextField(
                                     hintText: 'Username or Email',
                                     controller: _emailController,
                                   ),
@@ -444,5 +519,16 @@ class _SignUpPageState extends State<SignUpPage> {
         },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneNumberController.dispose();
+    super.dispose();
   }
 }

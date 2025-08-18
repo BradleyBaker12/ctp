@@ -34,6 +34,7 @@ import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:ctp/pages/editTruckForms/admin_edit_section.dart'; // Add this import
+import 'package:auto_size_text/auto_size_text.dart';
 // Update the admin navbar import to avoid conflict:
 // New import for admin navbar
 
@@ -87,7 +88,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   bool _isLoading = false;
   bool _isProcessingOffer = false;
 
-  // To check if the accepted offer belongs to the current dealer
+  // Accepted offer belongs to current dealer?
   bool _isAcceptedOfferMine = false;
 
   // Image gallery
@@ -95,22 +96,22 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   int _currentImageIndex = 0;
   late PageController _pageController;
 
-  // For admin/sales picking a dealer
+  // Admin/sales dealer selection
   Dealer? _selectedDealer;
   bool _isDealersLoading = false;
 
-  // Add new state variable
+  // Likes
   bool _isLiked = false;
 
-  // Vehicle owner information (for admins)
+  // Vehicle owner info
   String? _ownerName;
   String? _ownerEmail;
   bool _isLoadingOwnerInfo = false;
 
-  // Add these state variables
+  // Expanded state
   bool _isTruckConditionsExpanded = false;
 
-  // Add these new fields
+  // Section progress (if needed elsewhere)
   final Map<String, double> _sectionProgress = {
     'basic': 0,
     'maintenance': 0,
@@ -129,7 +130,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     if (widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
       debugPrint("DEBUG: Trailer data: ${widget.trailer.toString()}");
     }
-    // Populate _trailer from Firestore if not supplied and this is a trailer.
     if (_trailer == null &&
         widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
       FirebaseFirestore.instance
@@ -146,19 +146,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         debugPrint('Error loading trailer details: $e');
       });
     }
-    // 3. If accepted, see if that acceptedOfferId belongs to this user
     _checkIfMyOfferAccepted();
-
-    // 3.5. Check if user has already made an offer
     _checkIfOfferMade();
-
-    // 4. Admin/sales => fetch dealers
     _fetchAllDealers();
-
-    // 5. Check if inspection/collection complete
     _checkSetupStatus();
-
-    // 6. Fetch vehicle owner info for admins
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       if (userProvider.getUserRole == 'admin' ||
@@ -166,8 +157,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         _fetchVehicleOwnerInfo();
       }
     });
-
-    // 7. Prepare photos
     WidgetsBinding.instance.addPostFrameCallback((_) => _preparePhotos());
     _pageController = PageController();
   }
@@ -1457,8 +1446,12 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                 ),
               ),
               child: Center(
-                child: Text(
+                child: AutoSizeText(
                   trailerInfoText,
+                  maxLines: 1,
+                  minFontSize: 10,
+                  stepGranularity: 0.5,
+                  overflow: TextOverflow.visible,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: titleFontSize,
@@ -2806,26 +2799,100 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final safeTransmissionType = safeVehicle.transmissionType ?? 'N/A';
     final safeConfig = safeVehicle.config ?? 'N/A';
 
-    // Determine title for AppBar: use trailer details if trailer, else vehicle
-    String appBarTitle;
-    if (isTrailer && (_trailer != null)) {
-      final trailer = _trailer!;
-      final trailerBrands =
-          trailer.brands.isNotEmpty ? trailer.brands : ['N/A'];
-      String trailerYear = trailer.year;
-      String trailerMakeModel = trailer.makeModel;
-      // For Superlink, use makeA/modelA/yearA from superlinkData
-      if (trailer.trailerType == 'Superlink' && trailer.superlinkData != null) {
-        trailerYear = trailer.superlinkData?.yearA ?? trailerYear;
-        // Use both makeA and modelA if available
-        String makeA = trailer.superlinkData?.makeA ?? '';
-        String modelA = trailer.superlinkData?.modelA ?? '';
-        trailerMakeModel = [makeA, modelA].where((e) => e.isNotEmpty).join(' ');
-      }
-      appBarTitle = '${trailer.trailerType} $trailerYear $trailerMakeModel';
-    } else {
-      appBarTitle = '${safeBrands.join(', ')} $safeMakeModel $safeYear';
+    String normalize(String? v) {
+      if (v == null) return '';
+      final s = v.trim();
+      if (s.isEmpty) return '';
+      final lower = s.toLowerCase();
+      if (lower == 'n/a' || lower == 'na' || lower == 'unknown') return '';
+      return s;
     }
+
+    String buildTrailerTitle(Trailer t) {
+      // Manufacturer
+      String manufacturer = '';
+      if (t.brands.isNotEmpty) {
+        manufacturer = normalize(t.brands.first);
+      }
+      final sl = t.superlinkData;
+      if (manufacturer.isEmpty && sl != null) {
+        manufacturer = normalize(sl.makeA);
+        if (manufacturer.isEmpty) manufacturer = normalize(sl.makeB);
+      }
+      if (manufacturer.isEmpty) {
+        // Fallback: first token of makeModel
+        final token = normalize(t.makeModel.split(' ').isNotEmpty
+            ? t.makeModel.split(' ').first
+            : '');
+        manufacturer = token;
+      }
+
+      // Model
+      String model = normalize(t.makeModel);
+      if (model.isEmpty && sl != null) {
+        model = normalize(sl.modelA);
+        if (model.isEmpty) model = normalize(sl.modelB);
+      }
+      if (model.isNotEmpty &&
+          manufacturer.isNotEmpty &&
+          model.toLowerCase().startsWith(manufacturer.toLowerCase())) {
+        final trimmed = model.substring(manufacturer.length).trim();
+        if (trimmed.isNotEmpty) model = trimmed; // avoid duplicate manufacturer
+      }
+
+      // Year
+      String year = normalize(t.year);
+      if (year.isEmpty && sl != null) {
+        year = normalize(sl.yearA);
+        if (year.isEmpty) year = normalize(sl.yearB);
+      }
+
+      final parts = <String>[
+        if (manufacturer.isNotEmpty) manufacturer,
+        if (model.isNotEmpty) model,
+        if (year.isNotEmpty) year,
+      ];
+      return parts.isEmpty ? 'TRAILER' : parts.join(' ');
+    }
+
+    String buildVehicleTitle(Vehicle v) {
+      // Derive brand + model from makeModel if brands list empty
+      String brandPart = '';
+      String modelPart = '';
+      if (v.brands.isNotEmpty && v.brands.first.trim().isNotEmpty) {
+        brandPart = v.brands.first.trim();
+        modelPart = v.makeModel.trim();
+        // Remove duplicated brand at start of model
+        if (modelPart.toLowerCase().startsWith(brandPart.toLowerCase())) {
+          final trimmed = modelPart.substring(brandPart.length).trim();
+          if (trimmed.isNotEmpty) {
+            modelPart = trimmed;
+          } else {
+            modelPart = '';
+          }
+        }
+      } else {
+        final tokens = v.makeModel.trim().split(RegExp(r'\s+'));
+        if (tokens.isNotEmpty) {
+          brandPart = tokens.first;
+          if (tokens.length > 1) {
+            modelPart = tokens.sublist(1).join(' ');
+          }
+        }
+      }
+      final parts = <String>[
+        if (brandPart.isNotEmpty) brandPart,
+        if (modelPart.isNotEmpty) modelPart,
+        if (v.year.isNotEmpty) v.year,
+      ];
+      return parts.isEmpty ? 'Vehicle' : parts.join(' ');
+    }
+
+    String appBarTitle = isTrailer
+        ? (_trailer == null
+            ? buildVehicleTitle(vehicle)
+            : buildTrailerTitle(_trailer!))
+        : buildVehicleTitle(vehicle);
 
     return Scaffold(
       key: _scaffoldKey,

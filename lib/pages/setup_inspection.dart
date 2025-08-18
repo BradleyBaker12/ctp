@@ -19,7 +19,9 @@ import 'dart:developer';
 import '../services/places_data_model.dart'; // For Firebase Auth
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class SetupInspectionPage extends StatefulWidget {
+
+@RoutePage()
+class SetupInspectionPage extends StatefulWidget {
   final String offerId; // Change from vehicleId to offerId
 
   const SetupInspectionPage({super.key, required this.offerId});
@@ -931,6 +933,8 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                         lastDay: DateTime.utc(2100, 1, 1),
                                         focusedDay: _focusedDay,
                                         calendarFormat: _calendarFormat,
+                                        availableGestures:
+                                            AvailableGestures.horizontalSwipe,
                                         selectedDayPredicate: (day) {
                                           return _selectedDays.any(
                                               (selectedDay) =>

@@ -37,7 +37,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool _isVehiclesLoading = true;
-  bool _isOffersLoading = true;
   late final Stopwatch _loadStopwatch;
   late final Stopwatch _bgStopwatch;
 
@@ -99,14 +98,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _bgStopwatch = Stopwatch()..start();
       final offerProvider = Provider.of<OfferProvider>(context, listen: false);
       // Start background fetch of offers immediately
-      offerProvider
-          .fetchOffers(
+      offerProvider.fetchOffers(
         FirebaseAuth.instance.currentUser!.uid,
         Provider.of<UserProvider>(context, listen: false).getUserRole,
-      )
-          .then((_) {
-        setState(() => _isOffersLoading = false);
-      });
+      );
       _initializeData().then((_) {
         setState(() => _isVehiclesLoading = false);
       });
@@ -647,6 +642,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         bool showBottomNav = !_isLargeScreen && !kIsWeb;
         final userProvider = Provider.of<UserProvider>(context);
         final userRole = userProvider.getUserRole;
+        // Compute a robust bottom inset to avoid overlap with system navigation
+        final mq = MediaQuery.of(context);
+        final double _maxSystemBottom = [
+          mq.systemGestureInsets.bottom,
+          mq.viewPadding.bottom,
+          mq.viewInsets.bottom,
+        ].reduce((a, b) => a > b ? a : b);
+        // Only add padding beyond what SafeArea already provides
+        final double _extraBottomPadding =
+            Math.max(0.0, _maxSystemBottom - mq.padding.bottom);
 
         // Build a list of nav items depending on userRole
         List<NavigationItem> navigationItems = userRole == 'dealer'
@@ -774,14 +779,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               : SafeArea(
                   top: false,
                   bottom: true,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewPadding.bottom,
-                    ),
-                    child: CustomBottomNavigation(
-                      selectedIndex: _selectedIndex,
-                      onItemTapped: _onItemTapped,
-                    ),
+                  // Ensure at least a small spacing and respect additional system insets
+                  minimum: EdgeInsets.only(
+                      bottom: Math.max(8.0, _extraBottomPadding)),
+                  maintainBottomViewPadding: true,
+                  child: CustomBottomNavigation(
+                    selectedIndex: _selectedIndex,
+                    onItemTapped: _onItemTapped,
                   ),
                 ),
         );
@@ -1032,74 +1036,99 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
         SizedBox(height: screenHeight * 0.02),
-        if (_isOffersLoading)
-          Center(child: CircularProgressIndicator())
-        else if (recentOffers.isEmpty) ...[
-          // No offers
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            margin: const EdgeInsets.symmetric(horizontal: 16.0),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF2F7FFF), width: 1),
-            ),
-            child: Column(
+        // Offers Section with loading indicator tied to OfferProvider state
+        Consumer<OfferProvider>(
+          builder: (context, offerProv, _) {
+            // Filter out sold offers & limit to 5 recent
+            final filtered = offerProv.offers
+                .where((o) => o.offerStatus.toLowerCase() != 'sold')
+                .take(5)
+                .toList();
+
+            // Show spinner while fetching and we have nothing yet
+            if (offerProv.isFetching && filtered.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (filtered.isEmpty) {
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          Border.all(color: const Color(0xFF2F7FFF), width: 1),
+                    ),
+                    child: Column(
+                      children: [
+                        Image.asset('lib/assets/shaking_hands.png',
+                            height: 50, width: 50),
+                        const SizedBox(height: 10),
+                        Text(
+                          'NO OFFERS YET',
+                          style: _getTextStyle(
+                            fontSize: _adaptiveTextSize(context, 20, 22),
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          offerProv.isFetching
+                              ? 'Loading offers...'
+                              : 'Start trading to see your offers here',
+                          style: _getTextStyle(
+                            fontSize: _adaptiveTextSize(context, 14, 16),
+                            color: Colors.grey,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: screenHeight * 0.02),
+                ],
+              );
+            }
+
+            return Column(
               children: [
-                Image.asset('lib/assets/shaking_hands.png',
-                    height: 50, width: 50),
-                const SizedBox(height: 10),
-                Text(
-                  'NO OFFERS YET',
-                  style: _getTextStyle(
-                    fontSize: _adaptiveTextSize(context, 20, 22),
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Start trading to see your offers here',
-                  style: _getTextStyle(
-                    fontSize: _adaptiveTextSize(context, 14, 16),
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
+                SizedBox(height: screenHeight * 0.01),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    int cardsPerRow;
+                    if (constraints.maxWidth > 1400) {
+                      cardsPerRow = 4;
+                    } else if (constraints.maxWidth > 1100) {
+                      cardsPerRow = 3;
+                    } else if (constraints.maxWidth > 700) {
+                      cardsPerRow = 2;
+                    } else {
+                      cardsPerRow = 1;
+                    }
+
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      alignment: WrapAlignment.center,
+                      children: filtered.map((offer) {
+                        return SizedBox(
+                          width: (constraints.maxWidth -
+                                  (16 * (cardsPerRow - 1))) /
+                              cardsPerRow,
+                          child: OfferCard(offer: offer),
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
               ],
-            ),
-          ),
-          SizedBox(height: screenHeight * 0.02),
-        ] else ...[
-          SizedBox(height: screenHeight * 0.01),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              int cardsPerRow;
-              if (constraints.maxWidth > 1400) {
-                cardsPerRow = 4;
-              } else if (constraints.maxWidth > 1100) {
-                cardsPerRow = 3;
-              } else if (constraints.maxWidth > 700) {
-                cardsPerRow = 2;
-              } else {
-                cardsPerRow = 1;
-              }
-
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                alignment: WrapAlignment.center,
-                children: recentOffers.map((offer) {
-                  return SizedBox(
-                    width: (constraints.maxWidth - (16 * (cardsPerRow - 1))) /
-                        cardsPerRow,
-                    child: OfferCard(offer: offer),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-        ],
+            );
+          },
+        ),
         SizedBox(height: screenHeight * 0.08),
         if (kIsWeb) const WebFooter(),
       ],

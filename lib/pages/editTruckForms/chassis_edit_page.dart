@@ -73,10 +73,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
   bool _isInitialized = false;
   bool _isSaving = false;
 
-  // Upload progress tracking for chassis section
-  final bool _isUploading = false;
-  final String _uploadStatus = 'Processing...';
-  final double _uploadProgress = 0.0;
+  // Removed unused upload state fields; auto-save is silent
 
   @override
   bool get wantKeepAlive => true;
@@ -495,12 +492,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
                 right: 0,
                 child: IconButton(
                   icon: const Icon(Icons.close, color: Colors.red),
-                  onPressed: () {
-                    setState(() {
-                      _selectedImages[title] = null;
-                      _imageUrls[title] = '';
-                    });
-                    widget.onProgressUpdate();
+                  onPressed: () async {
+                    await _removeImageForView(title);
                   },
                 ),
               ),
@@ -822,10 +815,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                   Navigator.of(ctx).pop();
                   final imageBytes = await capturePhoto(context);
                   if (imageBytes != null) {
-                    setState(() {
-                      _selectedImages[title] = imageBytes;
-                      _imageUrls[title] = '';
-                    });
+                    await _autoSaveImageForView(title, imageBytes);
                   }
                 },
               ),
@@ -838,10 +828,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    setState(() {
-                      _selectedImages[title] = bytes;
-                      _imageUrls[title] = '';
-                    });
+                    await _autoSaveImageForView(title, bytes);
                   }
                 },
               ),
@@ -872,6 +859,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                       item['image'] = imageBytes;
                       item['imageUrl'] = '';
                     });
+                    await _autoSaveForItem(item);
                   }
                 },
               ),
@@ -888,6 +876,7 @@ class ChassisEditPageState extends State<ChassisEditPage>
                       item['image'] = bytes;
                       item['imageUrl'] = '';
                     });
+                    await _autoSaveForItem(item);
                   }
                 },
               ),
@@ -1000,11 +989,117 @@ class ChassisEditPageState extends State<ChassisEditPage>
       final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: $e')),
-      );
+      debugPrint('Upload error: $e');
       return '';
     }
+  }
+
+  String _sanitizeSection(String input) =>
+      input.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+
+  Future<void> _setChassisData(Map<String, dynamic> data) async {
+    await _firestore.collection('vehicles').doc(widget.vehicleId).set(
+      {
+        'truckConditions': {'chassis': data}
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> _autoSaveImageForView(String title, Uint8List bytes) async {
+    setState(() {
+      _selectedImages[title] = bytes;
+      _imageUrls[title] = '';
+    });
+    try {
+      final url = await _uploadImageToFirebase(bytes, _sanitizeSection(title));
+      if (url.isEmpty) return;
+      setState(() {
+        _selectedImages[title] = null;
+        _imageUrls[title] = url;
+      });
+      await _setChassisData({
+        'images': {
+          title: {'url': url}
+        }
+      });
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  Future<void> _removeImageForView(String title) async {
+    setState(() {
+      _selectedImages[title] = null;
+      _imageUrls[title] = '';
+    });
+    try {
+      await _firestore.collection('vehicles').doc(widget.vehicleId).set(
+        {
+          'truckConditions': {
+            'chassis': {
+              'images': {title: FieldValue.delete()},
+            }
+          }
+        },
+        SetOptions(merge: true),
+      );
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Failed to remove image for $title: $e');
+    }
+  }
+
+  Future<void> _autoSaveForItem(Map<String, dynamic> item) async {
+    final imageBytes = item['image'] as Uint8List?;
+    if (imageBytes == null) return;
+    try {
+      final section = _damageList.contains(item)
+          ? 'damage'
+          : _additionalFeaturesList.contains(item)
+              ? 'feature'
+              : 'item';
+      final url = await _uploadImageToFirebase(imageBytes, section);
+      if (url.isEmpty) return;
+      setState(() {
+        item['image'] = null;
+        item['imageUrl'] = url;
+      });
+      if (_damageList.contains(item)) {
+        await _syncDamagesListToFirestore();
+      } else if (_additionalFeaturesList.contains(item)) {
+        await _syncFeaturesListToFirestore();
+      }
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  Future<void> _syncDamagesListToFirestore() async {
+    final serializedDamages = _damageList
+        .map((d) => {
+              'description': (d['description'] ?? '').toString(),
+              'imageUrl': (d['imageUrl'] ?? '').toString(),
+            })
+        .toList();
+    await _setChassisData({
+      'damagesCondition': _damagesCondition,
+      'damages': serializedDamages,
+    });
+  }
+
+  Future<void> _syncFeaturesListToFirestore() async {
+    final serializedFeatures = _additionalFeaturesList
+        .map((f) => {
+              'description': (f['description'] ?? '').toString(),
+              'imageUrl': (f['imageUrl'] ?? '').toString(),
+            })
+        .toList();
+    await _setChassisData({
+      'additionalFeaturesCondition': _additionalFeaturesCondition,
+      'additionalFeatures': serializedFeatures,
+    });
   }
 
   // =======================

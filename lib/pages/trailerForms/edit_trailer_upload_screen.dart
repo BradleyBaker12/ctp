@@ -1017,14 +1017,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                   _viewTrailerADocument(); // Implement _viewTrailerADocument() to open _existingNatisTrailerADoc1Url
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.upload_file),
-                title: const Text('Replace Document'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickTrailerADocFile();
-                },
-              ),
+              if (Provider.of<UserProvider>(context, listen: false)
+                      .getUserRole !=
+                  'dealer')
+                ListTile(
+                  leading: const Icon(Icons.upload_file),
+                  title: const Text('Replace Document'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickTrailerADocFile();
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.cancel),
                 title: const Text('Cancel'),
@@ -1071,14 +1074,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                   _viewTrailerBDocument(); // Implement _viewTrailerBDocument() to open _existingNatisTrailerBDoc1Url
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.upload_file),
-                title: const Text('Replace Document'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickTrailerBDocFile();
-                },
-              ),
+              if (Provider.of<UserProvider>(context, listen: false)
+                      .getUserRole !=
+                  'dealer')
+                ListTile(
+                  leading: const Icon(Icons.upload_file),
+                  title: const Text('Replace Document'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickTrailerBDocFile();
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.cancel),
                 title: const Text('Cancel'),
@@ -1424,6 +1430,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final bool isDealer =
+            Provider.of<UserProvider>(context, listen: false).getUserRole ==
+                'dealer';
         return AlertDialog(
           title: const Text('Document Options'),
           content: Column(
@@ -1437,27 +1446,29 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                   _viewServiceHistory();
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.upload_file),
-                title: const Text('Replace Document'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickServiceHistoryFile();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Remove Document',
-                    style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _serviceHistoryFile = null;
-                    _existingServiceHistoryUrl = null;
-                    _serviceHistoryFileName = null;
-                  });
-                },
-              ),
+              if (!isDealer) ...[
+                ListTile(
+                  leading: const Icon(Icons.upload_file),
+                  title: const Text('Replace Document'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickServiceHistoryFile();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('Remove Document',
+                      style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _serviceHistoryFile = null;
+                      _existingServiceHistoryUrl = null;
+                      _serviceHistoryFileName = null;
+                    });
+                  },
+                ),
+              ],
             ],
           ),
           actions: [
@@ -1762,6 +1773,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final bool isDealer =
+            Provider.of<UserProvider>(context, listen: false).getUserRole ==
+                'dealer';
         return AlertDialog(
           title: const Text('Document Options'),
           content: Column(
@@ -1775,27 +1789,29 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                   _viewDocument();
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.upload_file),
-                title: const Text('Replace Document'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickNatisRc1File();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Remove Document',
-                    style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _natisRc1File = null;
-                    _existingNatisRc1Url = null;
-                    _existingNatisRc1Name = null;
-                  });
-                },
-              ),
+              if (!isDealer) ...[
+                ListTile(
+                  leading: const Icon(Icons.upload_file),
+                  title: const Text('Replace Document'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickNatisRc1File();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('Remove Document',
+                      style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _natisRc1File = null;
+                      _existingNatisRc1Url = null;
+                      _existingNatisRc1Name = null;
+                    });
+                  },
+                ),
+              ],
             ],
           ),
           actions: [
@@ -1809,6 +1825,12 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   }
 
   Future<void> _pickNatisRc1File() async {
+    if (Provider.of<UserProvider>(context, listen: false).getUserRole ==
+        'dealer') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Dealers can only view existing NATIS/RC1 document.')));
+      return;
+    }
     showDialog(
       context: context,
       builder: (BuildContext ctx) {
@@ -4317,19 +4339,20 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                         },
                         child: const Text('View'),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _pickImageOrFile(
-                            title: 'Change $title',
-                            pickImageOnly: true,
-                            callback: (file, fileName) {
-                              if (file != null) onImagePicked(file);
-                            },
-                          );
-                        },
-                        child: const Text('Replace'),
-                      ),
+                      if (!isDealer)
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _pickImageOrFile(
+                              title: 'Change $title',
+                              pickImageOnly: true,
+                              callback: (file, fileName) {
+                                if (file != null) onImagePicked(file);
+                              },
+                            );
+                          },
+                          child: const Text('Replace'),
+                        ),
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         child: const Text('Cancel'),

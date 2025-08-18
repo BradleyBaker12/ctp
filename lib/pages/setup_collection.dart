@@ -16,7 +16,9 @@ import 'package:ctp/services/places_services.dart';
 import 'package:ctp/services/places_widget.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class SetupCollectionPage extends StatefulWidget {
+
+@RoutePage()
+class SetupCollectionPage extends StatefulWidget {
   final String offerId; // Change from vehicleId to offerId
 
   const SetupCollectionPage({super.key, required this.offerId});
@@ -628,68 +630,58 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                               ),
                               const SizedBox(height: 16),
                               const SizedBox(height: 16),
-                              // _buildTextField(
-                              //   controller: _postalCodeController,
-                              //   hintText: 'Postal Code',
-                              // ),
-                              PlacesSearchField(
-                                controller: _addressLine1Controller,
-                                onSuggestionSelected: (PlacesData p) async {
-                                  log("Suggestion Selected: ${p.description}");
-                                  setState(() {
-                                    isAddressSelected = true;
-                                    _addressLine1Controller.text =
-                                        p.description ?? '';
-                                    print(
-                                        "Address1controller: ${_addressLine1Controller.text}");
-                                  });
-                                  print(
-                                      "Address1Controller: ${_addressLine1Controller.text}");
-                                  Map<String, dynamic> latLngData =
-                                      await PlacesService.getPlaceLatLng(
-                                          p.placeId!);
-                                  print("LatLngData: $latLngData");
-                                  latLng = LatLng(
-                                    latLngData['lat'],
-                                    latLngData['lng'],
-                                  );
-                                  _cityController.text = latLngData['city'];
-                                  _stateController.text = latLngData['state'];
-                                  _postalCodeController.text =
-                                      latLngData["postalCode"];
-                                },
-                              ),
-                              // Validation prompts for transporter collection setup
-                              if (_addressLine1Controller.text.isEmpty) ...[
-                                Text(
-                                  'Please select a collection location.',
-                                  style: TextStyle(
-                                      color: Colors.yellow, fontSize: 16),
+                              // Only show address search and validation while adding/editing a location
+                              if (_isAddingLocation) ...[
+                                PlacesSearchField(
+                                  controller: _addressLine1Controller,
+                                  onSuggestionSelected: (PlacesData p) async {
+                                    log("Suggestion Selected: ${p.description}");
+                                    setState(() {
+                                      isAddressSelected = true;
+                                      _addressLine1Controller.text =
+                                          p.description ?? '';
+                                    });
+                                    Map<String, dynamic> latLngData =
+                                        await PlacesService.getPlaceLatLng(
+                                            p.placeId!);
+                                    latLng = LatLng(
+                                      latLngData['lat'],
+                                      latLngData['lng'],
+                                    );
+                                    _cityController.text = latLngData['city'];
+                                    _stateController.text = latLngData['state'];
+                                    _postalCodeController.text =
+                                        latLngData["postalCode"];
+                                  },
                                 ),
-                                const SizedBox(height: 8),
-                              ] else if (_selectedDay == null) ...[
-                                Text(
-                                  'Please pick a date for collection.',
-                                  style: TextStyle(
-                                      color: Colors.yellow, fontSize: 16),
-                                ),
-                                const SizedBox(height: 8),
-                              ] else if (_selectedTimes
-                                  .any((t) => t == null)) ...[
-                                Text(
-                                  'Please select at least one time slot.',
-                                  style: TextStyle(
-                                      color: Colors.yellow, fontSize: 16),
-                                ),
-                                const SizedBox(height: 8),
+                                // Validation prompts for transporter collection setup
+                                if (_addressLine1Controller.text.isEmpty) ...[
+                                  Text(
+                                    'Please select a collection location.',
+                                    style: TextStyle(
+                                        color: Colors.yellow, fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ] else if (_selectedDay == null) ...[
+                                  Text(
+                                    'Please pick a date for collection.',
+                                    style: TextStyle(
+                                        color: Colors.yellow, fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ] else if (_selectedTimes
+                                    .any((t) => t == null)) ...[
+                                  Text(
+                                    'Please select at least one time slot.',
+                                    style: TextStyle(
+                                        color: Colors.yellow, fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
                               ],
                               const SizedBox(height: 32),
                               if (_isAddingLocation) ...[
-                                _buildTextField(
-                                  controller: _addressLine1Controller,
-                                  hintText: 'Address Line 1',
-                                ),
-                                const SizedBox(height: 16),
+                                // Removed duplicate Address Line 1 text field (handled by PlacesSearchField)
                                 _buildTextField(
                                   controller: _addressLine2Controller,
                                   hintText: 'Suburb (Optional)',
@@ -726,6 +718,10 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                     lastDay: DateTime.utc(2100, 1, 1),
                                     focusedDay: _focusedDay,
                                     calendarFormat: _calendarFormat,
+                                    // Restrict gestures to horizontal swipes so vertical drag
+                                    // events bubble up to the parent SingleChildScrollView.
+                                    availableGestures:
+                                        AvailableGestures.horizontalSwipe,
                                     selectedDayPredicate: (day) {
                                       return _selectedDays.any((selectedDay) =>
                                           _isSameDay(day, selectedDay));

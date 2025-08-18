@@ -73,10 +73,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   bool _isInitialized = false; // Flag to prevent re-initialization
   bool _isSaving = false;
 
-  // Upload progress tracking for drive train section
-  final bool _isUploading = false;
-  final String _uploadStatus = 'Processing...';
-  final double _uploadProgress = 0.0;
+  // Removed unused upload state fields; auto-save is silent
 
   @override
   bool get wantKeepAlive => true;
@@ -200,7 +197,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               // Responsive Grid for Photos (Down, Left, Up, Right)
               LayoutBuilder(
                 builder: (context, constraints) {
-                  int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
                   final keys = _selectedImages.keys
                       .where((key) =>
                           key.contains('Left') ||
@@ -240,7 +236,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               // Responsive Grid for Engine Photos (keys containing 'Engine' but not 'Leak')
               LayoutBuilder(
                 builder: (context, constraints) {
-                  int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
                   final keys = _selectedImages.keys
                       .where((key) =>
                           key.contains('Engine') && !key.contains('Leak'))
@@ -300,7 +295,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               // Responsive Grid for Gearbox Photos (keys containing 'Gearbox' but not 'Leak')
               LayoutBuilder(
                 builder: (context, constraints) {
-                  int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
                   final keys = _selectedImages.keys
                       .where((key) =>
                           key.contains('Gearbox') && !key.contains('Leak'))
@@ -352,7 +346,6 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
               // Responsive Grid for Diffs Photos (keys containing 'Diffs')
               LayoutBuilder(
                 builder: (context, constraints) {
-                  int crossAxisCount = constraints.maxWidth < 600 ? 1 : 2;
                   final keys = _selectedImages.keys
                       .where((key) => key.contains('Diffs'))
                       .toList();
@@ -488,12 +481,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                   right: 0,
                   child: IconButton(
                     icon: const Icon(Icons.close, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        _selectedImages[title] = null;
-                        _imageUrls[title] = '';
-                      });
-                      widget.onProgressUpdate();
+                    onPressed: () async {
+                      await _removeImageForView(title);
                     },
                   ),
                 ),
@@ -574,10 +563,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                   Navigator.of(ctx).pop();
                   final imageBytes = await capturePhoto(context);
                   if (imageBytes != null) {
-                    setState(() {
-                      _selectedImages[title] = imageBytes;
-                      _imageUrls[title] = '';
-                    });
+                    await _autoSaveImageForView(title, imageBytes);
                   }
                 },
               ),
@@ -591,10 +577,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
                       await _picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
-                    setState(() {
-                      _selectedImages[title] = bytes;
-                      _imageUrls[title] = '';
-                    });
+                    await _autoSaveImageForView(title, bytes);
                   }
                 },
               ),
@@ -751,14 +734,86 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error uploading image: $e')));
+      debugPrint('Upload error: $e');
       return '';
     }
   }
 
   Future<bool> saveData() async {
     return true;
+  }
+
+  // ===========================================================================
+  // 5) AUTO-SAVE HELPERS (silent)
+  // ===========================================================================
+  String _sanitizeSection(String input) =>
+      input.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+
+  Future<void> _setDriveTrainData(Map<String, dynamic> data) async {
+    await _firestore.collection('vehicles').doc(widget.vehicleId).set(
+      {
+        'truckConditions': {
+          'driveTrain': data,
+        }
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> _autoSaveImageForView(String title, Uint8List bytes) async {
+    setState(() {
+      _selectedImages[title] = bytes;
+      _imageUrls[title] = '';
+    });
+    try {
+      final url = await _uploadImageToFirebase(bytes, _sanitizeSection(title));
+      if (url.isEmpty) return;
+      setState(() {
+        _selectedImages[title] = null;
+        _imageUrls[title] = url;
+      });
+      await _setDriveTrainData({
+        'images': {
+          title: {'url': url}
+        }
+      });
+      // If this image belongs to a leak section, ensure the related condition is saved as 'yes'
+      if (title == 'Gearbox Oil Leak') {
+        _oilLeakConditionGearbox = 'yes';
+        await _setDriveTrainData({'gearboxOilLeak': 'yes'});
+      } else if (title == 'Engine Oil Leak') {
+        _oilLeakConditionEngine = 'yes';
+        await _setDriveTrainData({'engineOilLeak': 'yes'});
+      } else if (title == 'Engine Water Leak') {
+        _waterLeakConditionEngine = 'yes';
+        await _setDriveTrainData({'engineWaterLeak': 'yes'});
+      }
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  Future<void> _removeImageForView(String title) async {
+    setState(() {
+      _selectedImages[title] = null;
+      _imageUrls[title] = '';
+    });
+    try {
+      await _firestore.collection('vehicles').doc(widget.vehicleId).set(
+        {
+          'truckConditions': {
+            'driveTrain': {
+              'images': {title: FieldValue.delete()},
+            }
+          }
+        },
+        SetOptions(merge: true),
+      );
+      widget.onProgressUpdate();
+    } catch (e) {
+      debugPrint('Failed to remove image for $title: $e');
+    }
   }
 
   void initializeWithData(Map<String, dynamic> data) {
@@ -873,6 +928,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       _updateAndNotify(() {
         _selectedCondition = value;
       });
+      // Persist selection silently
+      _setDriveTrainData({'condition': value});
     }
   }
 
@@ -885,6 +942,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           _imageUrls['Engine Oil Leak'] = '';
         }
       });
+      // Persist selection silently
+      _setDriveTrainData({'engineOilLeak': value});
     }
   }
 
@@ -897,6 +956,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           _imageUrls['Engine Water Leak'] = '';
         }
       });
+      // Persist selection silently
+      _setDriveTrainData({'engineWaterLeak': value});
     }
   }
 
@@ -905,6 +966,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       _updateAndNotify(() {
         _blowbyCondition = value;
       });
+      // Persist selection silently
+      _setDriveTrainData({'blowbyCondition': value});
     }
   }
 
@@ -917,6 +980,8 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
           _imageUrls['Gearbox Oil Leak'] = '';
         }
       });
+      // Persist selection silently
+      _setDriveTrainData({'gearboxOilLeak': value});
     }
   }
 
@@ -925,13 +990,10 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
       _updateAndNotify(() {
         _retarderCondition = value;
       });
+      // Persist selection silently
+      _setDriveTrainData({'retarderCondition': value});
     }
   }
 
-  Future<void> _updateImage(String title, Uint8List imageFile) async {
-    _updateAndNotify(() {
-      _selectedImages[title] = imageFile;
-      _imageUrls[title] = '';
-    });
-  }
+  // Removed unused _updateImage helper; auto-save hooks call dedicated helpers
 }

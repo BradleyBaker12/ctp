@@ -13,7 +13,9 @@ import 'package:intl/intl.dart'; // Import for date parsing
 import 'package:ctp/components/web_navigation_bar.dart'; // Add this import
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class InspectionDetailsPage extends StatefulWidget {
+
+@RoutePage()
+class InspectionDetailsPage extends StatefulWidget {
   final String offerId;
   final String brand; // Changed from makeModel
   final String variant; // Added new property
@@ -582,20 +584,20 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 32),
-                                GestureDetector(
-                                  onTap: () {
-                                    // Handle skip action
-                                  },
-                                  child: const Text(
-                                    'SKIP >',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFFF4E00),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
+                                // GestureDetector(
+                                //   onTap: () {
+                                //     // Handle skip action
+                                //   },
+                                //   child: const Text(
+                                //     'SKIP >',
+                                //     style: TextStyle(
+                                //       fontSize: 18,
+                                //       fontWeight: FontWeight.bold,
+                                //       color: Color(0xFFFF4E00),
+                                //     ),
+                                //   ),
+                                // ),
+                                // const SizedBox(height: 5),
                                 const Text(
                                   'YOU CAN SKIP THIS STEP IF YOU TRUST THE TRANSPORTER',
                                   style: TextStyle(

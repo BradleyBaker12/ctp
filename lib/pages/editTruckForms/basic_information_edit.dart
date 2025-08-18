@@ -1,7 +1,6 @@
 // lib/pages/editTruckForms/basic_information_edit.dart
 
 import 'dart:convert'; // Added for JSON decoding
-import 'package:ctp/pages/editTruckForms/maintenance_edit_section.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/utils/navigation.dart';
@@ -24,7 +23,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart'; // Added for file picking
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:ctp/adminScreens/viewer_page.dart';
+import 'package:ctp/adminScreens/local_viewer_page.dart';
 import 'package:ctp/components/truck_info_web_nav.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/utils/camera_helper.dart'; // <-- New import for camera helper
@@ -185,6 +185,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
   // Removed unused _truckTypeOptions
 
+  // Dirty-state tracking: capture an initial snapshot of the form and compare on navigation
+  String? _initialSnapshotJson;
+
   // Replace the old _applicationOptions with a getter
   List<String> get _applicationOptions {
     if (_selectedTruckType == 'Rigid Trucks') {
@@ -229,6 +232,9 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       }
       _initializeTextControllers(formData, skipVariantIfDB: false);
       _addControllerListeners(formData);
+      // Capture initial snapshot after data is loaded and listeners are attached
+      _initialSnapshotJson = jsonEncode(_buildSnapshot(formData));
+      debugPrint('Initial form snapshot captured');
     });
 
     _scrollController.addListener(() {
@@ -874,9 +880,17 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       setState(() {
         _salesRepUsers = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
+          final firstName = (data['firstName'] ?? '').toString();
+          final lastName = (data['lastName'] ?? '').toString();
+          final tradingName = (data['tradingName'] ?? '').toString();
+          String composedName = tradingName.isNotEmpty
+              ? tradingName
+              : ('$firstName $lastName').trim();
+          if (composedName.isEmpty) composedName = data['email'] ?? 'Unknown';
           return {
             'id': doc.id,
             'email': data['email'] ?? 'No Email',
+            'name': composedName,
           };
         }).toList();
       });
@@ -934,9 +948,17 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       setState(() {
         _transporterUsers = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
+          final firstName = (data['firstName'] ?? '').toString();
+          final lastName = (data['lastName'] ?? '').toString();
+          final tradingName = (data['tradingName'] ?? '').toString();
+          String composedName = tradingName.isNotEmpty
+              ? tradingName
+              : ('$firstName $lastName').trim();
+          if (composedName.isEmpty) composedName = data['email'] ?? 'Unknown';
           return {
             'id': doc.id,
             'email': data['email'] ?? 'No Email',
+            'name': composedName,
           };
         }).toList();
       });
@@ -979,15 +1001,65 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Currently Assigned Sales Rep: ${_selectedSalesRepEmail ?? "None"}",
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-        ),
+        Builder(builder: (context) {
+          String? displayName;
+          if (_selectedSalesRepEmail != null) {
+            try {
+              final match = _salesRepUsers.firstWhere(
+                  (u) => u['email'] == _selectedSalesRepEmail,
+                  orElse: () => {});
+              displayName = match['name'] ?? _selectedSalesRepEmail;
+            } catch (_) {
+              displayName = _selectedSalesRepEmail;
+            }
+          }
+          return Text(
+            "Currently Assigned Sales Rep: ${displayName ?? "None"}",
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          );
+        }),
         const SizedBox(height: 8),
         CustomDropdown(
           hintText: 'Assigned Sales Rep',
           value: _selectedSalesRepEmail,
           items: salesRepEmails,
+          itemBuilder: (context, email) {
+            final matching = _salesRepUsers.firstWhere(
+              (user) => user['email'] == email,
+              orElse: () => {'name': 'Unknown', 'email': email},
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  (matching['name'] ?? 'Unknown'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  email,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            );
+          },
+          selectedItemBuilderSingle: (context, email) {
+            final matching = _salesRepUsers.firstWhere(
+              (user) => user['email'] == email,
+              orElse: () => {'name': 'Unknown', 'email': email},
+            );
+            return Text(
+              matching['name'] ?? 'Unknown',
+              style: const TextStyle(color: Colors.white),
+            );
+          },
           onChanged: (value) {
             setState(() {
               _selectedSalesRepEmail = value;
@@ -1025,15 +1097,65 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Currently Assigned Transporter: ${_selectedTransporterEmail ?? "None"}",
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-        ),
+        Builder(builder: (context) {
+          String? displayName;
+          if (_selectedTransporterEmail != null) {
+            try {
+              final match = _transporterUsers.firstWhere(
+                  (u) => u['email'] == _selectedTransporterEmail,
+                  orElse: () => {});
+              displayName = match['name'] ?? _selectedTransporterEmail;
+            } catch (_) {
+              displayName = _selectedTransporterEmail;
+            }
+          }
+          return Text(
+            "Currently Assigned Transporter: ${displayName ?? "None"}",
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          );
+        }),
         const SizedBox(height: 8),
         CustomDropdown(
           hintText: 'Truck Belongs To',
           value: _selectedTransporterEmail,
           items: ownerEmails,
+          itemBuilder: (context, email) {
+            final matching = _transporterUsers.firstWhere(
+              (user) => user['email'] == email,
+              orElse: () => {'name': 'Unknown', 'email': email},
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  matching['name'] ?? 'Unknown',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  email,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            );
+          },
+          selectedItemBuilderSingle: (context, email) {
+            final matching = _transporterUsers.firstWhere(
+              (user) => user['email'] == email,
+              orElse: () => {'name': 'Unknown', 'email': email},
+            );
+            return Text(
+              matching['name'] ?? 'Unknown',
+              style: const TextStyle(color: Colors.white),
+            );
+          },
           onChanged: (value) {
             setState(() {
               _selectedTransporterEmail = value;
@@ -1070,7 +1192,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final bool isCompactNavigation = screenWidth < 800;
 
     return WillPopScope(
-      onWillPop: () => _confirmSaveBeforeExit(),
+      onWillPop: () => _maybeConfirmBeforeExit(),
       child: Stack(
         children: [
           Scaffold(
@@ -1122,71 +1244,45 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     preferredSize: const Size.fromHeight(70),
                     child: TruckInfoWebNavBar(
                       scaffoldKey: _scaffoldKey,
-                      selectedTab: "Basic Information",
+                      selectedTab: 'Basic Information',
                       vehicleId: widget.vehicle?.id ?? '',
                       onHomePressed: () =>
-                          Navigator.pushNamed(context, '/home'),
-                      onBasicInfoPressed: () =>
-                          Navigator.pushNamed(context, '/basic_information'),
+                          _navigateIfCleanOrConfirmed(() async {
+                        await Navigator.pushNamed(
+                            context,
+                            Provider.of<UserProvider>(context, listen: false)
+                                        .getUserRole ==
+                                    'admin'
+                                ? '/admin-home'
+                                : '/home');
+                      }),
+                      onBasicInfoPressed: () => _navigateIfCleanOrConfirmed(
+                          () async => Navigator.pushNamed(
+                              context, '/basic_information')),
                       onTruckConditionsPressed: () =>
-                          Navigator.pushNamed(context, '/truck_conditions'),
-                      onExternalCabPressed: () =>
-                          Navigator.pushNamed(context, '/external_cab'),
-                      onInternalCabPressed: () =>
-                          Navigator.pushNamed(context, '/internal_cab'),
-                      onChassisPressed: () =>
-                          Navigator.pushNamed(context, '/chassis'),
-                      onDriveTrainPressed: () =>
-                          Navigator.pushNamed(context, '/drive_train'),
-                      onTyresPressed: () =>
-                          Navigator.pushNamed(context, '/tyres'),
+                          _navigateIfCleanOrConfirmed(() async =>
+                              Navigator.pushNamed(
+                                  context, '/truck_conditions')),
+                      onExternalCabPressed: () => _navigateIfCleanOrConfirmed(
+                          () async =>
+                              Navigator.pushNamed(context, '/external_cab')),
+                      onInternalCabPressed: () => _navigateIfCleanOrConfirmed(
+                          () async =>
+                              Navigator.pushNamed(context, '/internal_cab')),
+                      onChassisPressed: () => _navigateIfCleanOrConfirmed(
+                          () async => Navigator.pushNamed(context, '/chassis')),
+                      onDriveTrainPressed: () => _navigateIfCleanOrConfirmed(
+                          () async =>
+                              Navigator.pushNamed(context, '/drive_train')),
+                      onTyresPressed: () => _navigateIfCleanOrConfirmed(
+                          () async => Navigator.pushNamed(context, '/tyres')),
                       onMaintenanceWarrantyPressed: () async {
-                        // Add error handling and proper data passing
                         try {
                           if (widget.vehicle?.id != null) {
-                            DocumentSnapshot doc = await FirebaseFirestore
-                                .instance
-                                .collection('vehicles')
-                                .doc(widget.vehicle!.id)
-                                .get();
-
-                            Map<String, dynamic> data =
-                                doc.data() as Map<String, dynamic>;
-                            Map<String, dynamic> maintenanceData =
-                                data['maintenanceData']
-                                        as Map<String, dynamic>? ??
-                                    {};
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MaintenanceEditSection(
-                                  vehicleId: widget.vehicle!.id,
-                                  isUploading: false,
-                                  isEditing: true,
-                                  isFromAdmin: true,
-                                  onMaintenanceFileSelected: (file) {},
-                                  onWarrantyFileSelected: (file) {},
-                                  oemInspectionType:
-                                      maintenanceData['oemInspectionType'] ??
-                                          'yes',
-                                  oemInspectionExplanation:
-                                      maintenanceData['oemReason'] ?? '',
-                                  onProgressUpdate: () {},
-                                  maintenanceSelection:
-                                      maintenanceData['maintenanceSelection'] ??
-                                          'yes',
-                                  warrantySelection:
-                                      maintenanceData['warrantySelection'] ??
-                                          'yes',
-                                  maintenanceDocUrl:
-                                      maintenanceData['maintenanceDocUrl'],
-                                  warrantyDocUrl:
-                                      maintenanceData['warrantyDocUrl'],
-                                  isFromTransporter: true,
-                                ),
-                              ),
-                            );
+                            await _navigateIfCleanOrConfirmed(() async {
+                              Navigator.pushNamed(
+                                  context, '/maintenance_warranty');
+                            });
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -1201,7 +1297,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                           );
                         }
                       },
-                      // ... rest of the nav bar callbacks ...
                     ),
                   ),
             body: GradientBackground(
@@ -2073,6 +2168,69 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     }
   }
 
+  // ---------- Dirty tracking helpers ----------
+  Map<String, dynamic> _buildSnapshot(FormDataProvider formData) {
+    return {
+      'year': formData.year ?? '',
+      'brands': (formData.brands ?? const <String>[]).toList(),
+      'makeModel': formData.makeModel ?? '',
+      'variant': formData.variant ?? '',
+      'vinNumber': formData.vinNumber ?? '',
+      'mileage': formData.mileage ?? '',
+      'config': formData.config ?? '',
+      'application': formData.application ?? '',
+      'engineNumber': formData.engineNumber ?? '',
+      'registrationNumber': formData.registrationNumber ?? '',
+      'sellingPrice': formData.sellingPrice ?? '',
+      'suspension': formData.suspension,
+      'transmissionType': formData.transmissionType,
+      'hydraulics': formData.hydraulics,
+      'maintenance': formData.maintenance,
+      'warranty': formData.warranty,
+      'warrantyDetails': formData.warrantyDetails ?? '',
+      'requireToSettleType': formData.requireToSettleType,
+      'referenceNumber': formData.referenceNumber ?? '',
+      'mainImageUrl': formData.mainImageUrl ?? '',
+      'hasSelectedMainImage': formData.selectedMainImage != null,
+      'natisUrl': _existingNatisRc1Url ?? '',
+      'hasNatisFile': _natisRc1File != null,
+      'vehicleStatus': _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
+      'country': formData.country ?? '',
+      'province': formData.province ?? '',
+      'truckType': _selectedTruckType ?? '',
+      'ownerId': _selectedTransporterId ?? '',
+      'salesRepId': _selectedSalesRepId ?? '',
+    };
+  }
+
+  bool _isFormDirty(FormDataProvider formData) {
+    final current = jsonEncode(_buildSnapshot(formData));
+    final isDirty = current != _initialSnapshotJson;
+    debugPrint('Dirty check -> $isDirty');
+    return isDirty;
+  }
+
+  Future<bool> _maybeConfirmBeforeExit() async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    if (_initialSnapshotJson == null) return true; // Nothing to compare yet
+    if (!_isFormDirty(formData)) return true;
+    return _confirmSaveBeforeExit();
+  }
+
+  Future<void> _navigateIfCleanOrConfirmed(
+      Future<void> Function() navigate) async {
+    final formData = Provider.of<FormDataProvider>(context, listen: false);
+    if (_initialSnapshotJson == null || !_isFormDirty(formData)) {
+      await navigate();
+      return;
+    }
+    final shouldProceed = await _confirmSaveBeforeExit();
+    if (shouldProceed) {
+      await navigate();
+    }
+  }
+  // --------------------------------------------
+
   bool _validateRequiredFields(FormDataProvider formData) {
     if (formData.selectedMainImage == null &&
         (formData.mainImageUrl == null || formData.mainImageUrl!.isEmpty)) {
@@ -2292,28 +2450,24 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   void _viewDocument() async {
     final url = _natisRc1FileName != null ? null : _existingNatisRc1Url;
     if (url != null && url.isNotEmpty) {
-      debugPrint('Attempting to view document at URL: $url');
-      try {
-        final Uri uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          debugPrint('Document opened successfully.');
-        } else {
-          debugPrint('Could not open document URL.');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Could not open document')));
-          }
-        }
-      } catch (e) {
-        debugPrint('Error opening document: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error opening document: $e')));
-        }
-      }
+      debugPrint('Opening NATIS/RC1 in ViewerPage: $url');
+      // Prefer in-app viewer for better UX and reliability
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ViewerPage(url: url)),
+      );
     } else if (_natisRc1File != null) {
-      debugPrint('Viewing local NATIS/RC1 file: $_natisRc1FileName');
+      debugPrint(
+          'Viewing local NATIS/RC1 file in LocalViewerPage: $_natisRc1FileName');
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LocalViewerPage(
+            file: _natisRc1File!,
+            title: _natisRc1FileName ?? 'NATIS/RC1 Document',
+          ),
+        ),
+      );
     }
   }
 
