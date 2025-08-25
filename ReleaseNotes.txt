@@ -18,3 +18,4 @@ feat: Restrict document replacement options for dealers in trailer upload screen
 - Improved vehicle upload screen by removing unused variables and optimizing image upload handling in vehilce_upload_screen.dart.
 - Updated vehicle details page to dynamically build titles for trailers and vehicles based on available data in vehicle_details_page.dart.
 - Bumped version to 1.0.16+22 in pubspec.yaml.
+- Refactor navigation and enhance bottom navigation bar across multiple pages

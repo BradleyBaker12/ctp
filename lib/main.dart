@@ -491,6 +491,24 @@ void _navigateToCollectionSelection(BuildContext context, String offerId) {
   );
 }
 
+// === Deep link helpers ===
+bool _isAuthenticated() {
+  try {
+    return FirebaseAuth.instance.currentUser != null;
+  } catch (_) {
+    return false;
+  }
+}
+
+Route<dynamic> _guarded(WidgetBuilder builder) {
+  return MaterialPageRoute(builder: (context) {
+    if (!_isAuthenticated()) {
+      return const LoginPage();
+    }
+    return builder(context);
+  });
+}
+
 // Store pending notification data when app context is not available
 Map<String, dynamic>? _pendingNotificationData;
 
@@ -696,12 +714,14 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
         ),
-        home: const AppInitializer(),
+        // Don't use `home` so the initial browser URL deep link is honored.
         routes: {
+          '/': (context) => const AppInitializer(),
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignUpPage(),
           '/signin': (context) => const SignInPage(),
-          '/home': (context) => const HomePage(),
+          // Route '/home' through the initializer so refreshes always land on the correct home
+          '/home': (context) => const AppInitializer(),
           '/phoneNumber': (context) => const PhoneNumberPage(),
           '/otp': (context) => const OTPScreen(),
           '/firstNamePage': (context) => const FirstNamePage(),
@@ -805,51 +825,243 @@ class MyApp extends StatelessWidget {
           },
         },
         onGenerateRoute: (settings) {
-          // Handle deep link: /vehicle/:vehicleId
-          if (settings.name != null && settings.name!.startsWith('/vehicle/')) {
+          // Handle deep links for vehicle details in multiple URL shapes to be resilient:
+          //  - /vehicle/:vehicleId
+          //  - /vehicle?id=:vehicleId
+          //  - /public/vehicle/:vehicleId
+          //  - /v/:vehicleId
+          if (settings.name != null) {
+            final uri = Uri.parse(settings.name!);
+
+            String? vehicleId;
+            // /vehicle/:id
+            if (uri.pathSegments.length >= 2 &&
+                uri.pathSegments.first == 'vehicle') {
+              vehicleId = uri.pathSegments[1];
+            }
+            // /vehicle?id=:id
+            vehicleId ??= uri.pathSegments.length == 1 &&
+                    uri.pathSegments.first == 'vehicle'
+                ? (uri.queryParameters['id'] ??
+                    uri.queryParameters['vehicleId'])
+                : null;
+            // /public/vehicle/:id
+            if (vehicleId == null &&
+                uri.pathSegments.length >= 3 &&
+                uri.pathSegments[0] == 'public' &&
+                uri.pathSegments[1] == 'vehicle') {
+              vehicleId = uri.pathSegments[2];
+            }
+            // /v/:id (short form)
+            if (vehicleId == null &&
+                uri.pathSegments.length >= 2 &&
+                uri.pathSegments.first == 'v') {
+              vehicleId = uri.pathSegments[1];
+            }
+
+            if (vehicleId != null && vehicleId.isNotEmpty) {
+              return _guarded((context) => FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('vehicles')
+                        .doc(vehicleId)
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      if (!snapshot.hasData || !snapshot.data!.exists) {
+                        return const ErrorPage();
+                      }
+                      final vehicle = Vehicle.fromDocument(snapshot.data!);
+                      return VehicleDetailsPage(vehicle: vehicle);
+                    },
+                  ));
+            }
+
+            // Deep link: /basic_information/:vehicleId (existing block below kept for args)
+            if (uri.pathSegments.length >= 2 &&
+                uri.pathSegments.first == 'basic_information') {
+              final id = uri.pathSegments[1];
+              if (id.isNotEmpty) {
+                return _guarded((context) => FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('vehicles')
+                          .doc(id)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Scaffold(
+                            body: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        if (!snapshot.hasData || !snapshot.data!.exists) {
+                          return const ErrorPage();
+                        }
+                        final vehicle = Vehicle.fromDocument(snapshot.data!);
+                        return BasicInformationEdit(vehicle: vehicle);
+                      },
+                    ));
+              }
+            }
+
+            if (uri.pathSegments.isNotEmpty) {
+              switch (uri.pathSegments.first) {
+                case 'external_cab':
+                  if (uri.pathSegments.length >= 2) {
+                    final id = uri.pathSegments[1];
+                    return _guarded((context) => ExternalCabEditPage(
+                          vehicleId: id,
+                          onProgressUpdate: () {},
+                          inTabsPage: false,
+                        ));
+                  }
+                  break;
+                case 'internal_cab':
+                  if (uri.pathSegments.length >= 2) {
+                    final id = uri.pathSegments[1];
+                    return _guarded((context) => InternalCabEditPage(
+                          vehicleId: id,
+                          onProgressUpdate: () {},
+                          inTabsPage: false,
+                        ));
+                  }
+                  break;
+                case 'chassis':
+                  if (uri.pathSegments.length >= 2) {
+                    final id = uri.pathSegments[1];
+                    return _guarded((context) => ChassisEditPage(
+                          vehicleId: id,
+                          onProgressUpdate: () {},
+                          inTabsPage: false,
+                        ));
+                  }
+                  break;
+                case 'drive_train':
+                  if (uri.pathSegments.length >= 2) {
+                    final id = uri.pathSegments[1];
+                    return _guarded((context) => DriveTrainEditPage(
+                          vehicleId: id,
+                          onProgressUpdate: () {},
+                          inTabsPage: false,
+                        ));
+                  }
+                  break;
+                case 'tyres':
+                  if (uri.pathSegments.length >= 2) {
+                    final id = uri.pathSegments[1];
+                    return _guarded((context) => TyresEditPage(
+                          vehicleId: id,
+                          onProgressUpdate: () {},
+                          inTabsPage: false,
+                        ));
+                  }
+                  break;
+                case 'maintenance_warranty':
+                  if (uri.pathSegments.length >= 2) {
+                    final id = uri.pathSegments[1];
+                    return _guarded((context) => MaintenanceEditSection(
+                          vehicleId: id,
+                          isUploading: false,
+                          onMaintenanceFileSelected: (file) {},
+                          onWarrantyFileSelected: (file) {},
+                          oemInspectionType: '',
+                          oemInspectionExplanation: '',
+                          onProgressUpdate: () {},
+                          maintenanceSelection: '',
+                          warrantySelection: '',
+                          isFromAdmin: false,
+                          isFromTransporter: true,
+                        ));
+                  }
+                  break;
+                case 'inspectionDetails':
+                  // Support query params: /inspectionDetails?offerId=...&vehicleId=...&brands=...&variant=...&offerAmount=...
+                  final q = uri.queryParameters;
+                  if (q['offerId'] != null) {
+                    final args = {
+                      'offerId': q['offerId']!,
+                      'offerAmount': q['offerAmount'] ?? '',
+                      'vehicleId': q['vehicleId'] ?? '',
+                      'brands': q['brands'] ?? '',
+                      'variant': q['variant'] ?? '',
+                    };
+                    return _guarded((context) => InspectionDetailsPage(
+                          offerId: args['offerId'] as String,
+                          offerAmount: args['offerAmount'] as String,
+                          vehicleId: args['vehicleId'] as String,
+                          brand: args['brands'] as String,
+                          variant: args['variant'] as String,
+                        ));
+                  }
+                  break;
+              }
+            }
+          }
+          // Handle deep link: /basic_information/:vehicleId
+          if (settings.name != null &&
+              settings.name!.startsWith('/basic_information/')) {
             final uri = Uri.parse(settings.name!);
             final vehicleId =
                 uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
             if (vehicleId != null && vehicleId.isNotEmpty) {
-              return MaterialPageRoute(
-                builder: (context) => FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance
-                      .collection('vehicles')
-                      .doc(vehicleId)
-                      .get(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Scaffold(
-                        body: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    if (!snapshot.hasData || !snapshot.data!.exists) {
-                      return const ErrorPage();
-                    }
-                    final vehicle = Vehicle.fromDocument(snapshot.data!);
-                    return VehicleDetailsPage(vehicle: vehicle);
-                  },
-                ),
-              );
+              return _guarded((context) => FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('vehicles')
+                        .doc(vehicleId)
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      if (!snapshot.hasData || !snapshot.data!.exists) {
+                        return const ErrorPage();
+                      }
+                      final vehicle = Vehicle.fromDocument(snapshot.data!);
+                      return BasicInformationEdit(vehicle: vehicle);
+                    },
+                  ));
             }
+          }
+          // Guard common protected named routes when entered directly (not exhaustive)
+          final protected = <String>{
+            '/offers',
+            '/profile',
+            '/wishlist',
+            '/adminHome',
+            '/adminUsers',
+            '/adminOffers',
+            '/adminComplaints',
+            '/adminVehicles',
+            '/adminFleets',
+            '/truckPage',
+            '/vehicleUpload',
+            '/in-progress',
+            '/transporterList',
+          };
+          if (settings.name != null && protected.contains(settings.name)) {
+            return _guarded((context) => routes[settings.name!]!(context));
           }
           if (settings.name == '/inspectionDetails') {
             final args = settings.arguments as Map<String, dynamic>;
-            return MaterialPageRoute(
-              builder: (context) => InspectionDetailsPage(
-                offerId: args['offerId'] as String,
-                offerAmount: args['offerAmount'] as String,
-                vehicleId: args['vehicleId'] as String,
-                brand: args['brands'] as String,
-                variant: args['variant'] as String,
-              ),
-            );
+            return _guarded((context) => InspectionDetailsPage(
+                  offerId: args['offerId'] as String,
+                  offerAmount: args['offerAmount'] as String,
+                  vehicleId: args['vehicleId'] as String,
+                  brand: args['brands'] as String,
+                  variant: args['variant'] as String,
+                ));
           }
           return null;
         },
         onUnknownRoute: (settings) {
+          // Route any unknown paths through the initializer to compute the correct destination
           return MaterialPageRoute(
-            builder: (context) => const AuthWrapper(),
+            builder: (context) => const AppInitializer(),
           );
         },
       ),
@@ -921,6 +1133,7 @@ class _AppInitializerState extends State<AppInitializer> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    // Always return a widget synchronously; avoid eager navigation before first frame
     return const AuthWrapper();
   }
 }

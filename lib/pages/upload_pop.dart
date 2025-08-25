@@ -1,6 +1,7 @@
 // File: upload_proof_of_payment_page.dart
 
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -10,9 +11,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class UploadProofOfPaymentPage extends StatefulWidget {
+
+@RoutePage()
+class UploadProofOfPaymentPage extends StatefulWidget {
   final String offerId;
 
   const UploadProofOfPaymentPage({super.key, required this.offerId});
@@ -30,7 +34,83 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
   String? _selectedFileName;
   final FirebaseStorage storage = FirebaseStorage.instance;
 
+  // Gating: only allow POP when an admin invoice exists on the offer
+  StreamSubscription<DocumentSnapshot>? _offerSub;
+  bool _invoiceReady = false;
+  bool _checkingInvoice = true;
+  String? _invoiceUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _offerSub = FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .snapshots()
+        .listen((snap) {
+      final data = snap.data();
+      final ready = _extractInvoiceInfo(data);
+      setState(() {
+        _invoiceReady = ready;
+        _checkingInvoice = false;
+      });
+    }, onError: (_) {
+      setState(() {
+        _invoiceReady = false;
+        _checkingInvoice = false;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _offerSub?.cancel();
+    super.dispose();
+  }
+
+  bool _extractInvoiceInfo(Map<String, dynamic>? data) {
+    if (data == null) return false;
+    final keys = [
+      'externalInvoiceUrl',
+      'externalInvoice',
+      'invoiceUrl',
+      'sageInvoiceUrl',
+      'invoicePdfUrl',
+      'invoiceDownloadUrl',
+    ];
+    String? url;
+    for (final k in keys) {
+      final v = data[k];
+      if (v is String && v.trim().isNotEmpty) {
+        url = v.trim();
+        break;
+      }
+    }
+    _invoiceUrl = url;
+    return url != null && url.isNotEmpty;
+  }
+
+  Future<void> _openInvoice() async {
+    if (_invoiceUrl == null) return;
+    final uri = Uri.tryParse(_invoiceUrl!);
+    if (uri == null) return;
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open invoice')),
+      );
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
+    if (!_invoiceReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Invoice not available yet. Please wait for admin to upload the invoice.')),
+      );
+      return;
+    }
     try {
       final pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
@@ -50,6 +130,14 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
   }
 
   Future<void> _pickFile() async {
+    if (!_invoiceReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Invoice not available yet. Please wait for admin to upload the invoice.')),
+      );
+      return;
+    }
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -82,6 +170,26 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
     });
 
     try {
+      // Double-check invoice to avoid race conditions
+      final snap = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .get();
+      final data = snap.data();
+      if (!_extractInvoiceInfo(data)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Invoice not available yet. Please wait for admin to upload the invoice.')),
+          );
+        }
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
       String fileName =
           'proof_of_payment/${widget.offerId}/${DateTime.now().millisecondsSinceEpoch}_$_selectedFileName';
       Reference storageReference =
@@ -104,8 +212,8 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
       });
 
       setState(() {
-        _isLoading = false;
         _isUploaded = true;
+        _isLoading = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,6 +241,14 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
   }
 
   void _showPickerDialog() {
+    if (!_invoiceReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Invoice not available yet. Please wait for admin to upload the invoice.')),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -172,6 +288,7 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDisabled = !_invoiceReady || _checkingInvoice;
     return Scaffold(
       body: GradientBackground(
         child: Container(
@@ -194,6 +311,36 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                   const SizedBox(height: 16),
                   Image.asset('lib/assets/CTPLogo.png'),
                   const SizedBox(height: 32),
+                  if (_checkingInvoice)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  if (!_checkingInvoice && !_invoiceReady)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.orange),
+                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.orange.withOpacity(0.1),
+                      ),
+                      child: const Text(
+                        'Awaiting admin invoice. You can upload your proof of payment once the invoice is available.',
+                        style: TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  if (_invoiceUrl != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: CustomButton(
+                        text: 'View Invoice',
+                        onPressed: _openInvoice,
+                        borderColor: const Color(0xFFFF4E00),
+                      ),
+                    ),
                   if (_isUploaded)
                     Container(
                       width: double.infinity,
@@ -220,29 +367,42 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
                     )
                   else
                     GestureDetector(
-                      onTap: _showPickerDialog,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.blue),
-                          borderRadius: BorderRadius.circular(10),
-                          color: Colors.blue.withOpacity(0.1),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.folder_open,
-                                color: Colors.blue, size: 60),
-                            SizedBox(height: 10),
-                            Text(
-                              'Upload Proof of Payment',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                      onTap: isDisabled
+                          ? () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Invoice not available yet. Please wait for admin to upload the invoice.')),
+                              );
+                            }
+                          : _showPickerDialog,
+                      child: Opacity(
+                        opacity: isDisabled ? 0.5 : 1.0,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                                color: isDisabled ? Colors.grey : Colors.blue),
+                            borderRadius: BorderRadius.circular(10),
+                            color: (isDisabled ? Colors.grey : Colors.blue)
+                                .withOpacity(0.1),
+                          ),
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.folder_open,
+                                  color: Colors.blue, size: 60),
+                              SizedBox(height: 10),
+                              Text(
+                                'Upload Proof of Payment',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

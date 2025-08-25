@@ -58,7 +58,6 @@ class TruckPage extends StatefulWidget {
 class _TruckPageState extends State<TruckPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
   bool _isCompactNavigation(BuildContext context) =>
       MediaQuery.of(context).size.width <= 1100;
 
@@ -184,10 +183,7 @@ class _TruckPageState extends State<TruckPage> {
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
 
-    // Initialize vehicle type filter if provided
-    if (widget.vehicleType != null) {
-      _selectedVehicleType.add(widget.vehicleType!);
-    }
+    // Default to showing all vehicle types (trucks and trailers) unless user applies a filter.
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialVehicles();
@@ -483,7 +479,7 @@ class _TruckPageState extends State<TruckPage> {
           return false;
         }
       }
-      // Apply vehicle type filter based on user selection
+      // Apply vehicle type filter only if the user selected it; otherwise respect explicit widget.vehicleType
       if (_selectedVehicleType.isNotEmpty &&
           !_selectedVehicleType.contains('All')) {
         if (!_selectedVehicleType.contains(vehicle.vehicleType.toLowerCase())) {
@@ -540,12 +536,6 @@ class _TruckPageState extends State<TruckPage> {
       if (_selectedConfigs.isNotEmpty && !_selectedConfigs.contains('All')) {
         if (!_selectedConfigs.contains(vehicle.config)) return false;
       }
-      // Only apply selected vehicle type filter if widget.vehicleType is null
-      if (widget.vehicleType == null &&
-          _selectedVehicleType.isNotEmpty &&
-          !_selectedVehicleType.contains('All')) {
-        if (!_selectedVehicleType.contains(vehicle.vehicleType)) return false;
-      }
       return true;
     });
   }
@@ -561,21 +551,8 @@ class _TruckPageState extends State<TruckPage> {
     });
   }
 
-  Future<void> _loadFleetOptions() async {
-    final firestore = FirebaseFirestore.instance;
-    final fleetsSnapshot = await firestore
-        .collection('fleets')
-        .where('fleetStatus', isEqualTo: 'Live')
-        .get();
-    final fleetNames = fleetsSnapshot.docs
-        .map((doc) => (doc.data()['fleetName'] as String?) ?? 'Unnamed')
-        .toSet()
-        .toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    setState(() {
-      _companyOptions = ['All', ...fleetNames];
-    });
-  }
+  // Fleet options loader removed (unused)
+  // Note: _loadFleetOptions is currently unused; keeping for future Fleet tab work.
 
   // --------------------------------------------------------------------
   // 6) Filter Dialog
@@ -1004,26 +981,8 @@ class _TruckPageState extends State<TruckPage> {
   // --------------------------------------------------------------------
   // 7) Clear Liked and Disliked Vehicles (For Testing)
   // --------------------------------------------------------------------
-  void _clearLikedAndDislikedVehicles() async {
-    try {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.clearDislikedVehicles();
-      await userProvider.clearLikedVehicles();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Liked and disliked vehicles have been cleared.'),
-        ),
-      );
-      _loadInitialVehicles();
-    } catch (e) {
-      print('Error in _clearLikedAndDislikedVehicles: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to clear vehicles. Please try again.'),
-        ),
-      );
-    }
-  }
+  // Testing util removed (unused)
+  // Note: _clearLikedAndDislikedVehicles is currently unused; leaving for testing utilities.
 
   // --------------------------------------------------------------------
   // 8) UI Helpers and Build Methods
@@ -1107,7 +1066,6 @@ class _TruckPageState extends State<TruckPage> {
   // --------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    final bool showBottomNav = !_isLargeScreen && !kIsWeb;
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
 
@@ -1522,11 +1480,6 @@ class _TruckPageState extends State<TruckPage> {
                                           final vehicle =
                                               displayedVehicles[index];
                                           // Always pass trailer for trailers
-                                          final trailerObj = vehicle.vehicleType
-                                                      .toLowerCase() ==
-                                                  'trailer'
-                                              ? vehicle.trailer
-                                              : null;
                                           return TruckCard(
                                             vehicle: vehicle,
                                             onInterested: _markAsInterested,

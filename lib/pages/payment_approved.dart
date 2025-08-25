@@ -79,7 +79,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
     FirebaseFirestore.instance
         .collection('offers')
         .doc(widget.offerId)
-        .update({'offerStatus': 'Payment Approved'});
+        .update({'offerStatus': 'paid', 'paymentStatus': 'approved'});
 
     return Scaffold(
       key: _scaffoldKey,
@@ -323,7 +323,7 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                           onPressed: () async {
                             await MyNavigator.push(
                               context,
-                             CollectVehiclePage(offerId: widget.offerId),
+                              CollectVehiclePage(offerId: widget.offerId),
                             );
                           },
                         ),
@@ -333,10 +333,10 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                           borderColor: const Color(0xFFFF4E00),
                           onPressed: () async {
                             await MyNavigator.push(
-                              context,
-                              ReportIssuePage(
-                                offerId: widget.offerId,
-                            ));
+                                context,
+                                ReportIssuePage(
+                                  offerId: widget.offerId,
+                                ));
                           },
                         ),
                       ],

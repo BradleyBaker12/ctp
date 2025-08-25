@@ -15,12 +15,9 @@ import 'package:provider/provider.dart'; // Import CustomButton
 import 'package:ctp/utils/navigation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-// Web blob support (use universal_html for cross-platform compatibility)
-import 'package:universal_html/html.dart' as html;
+// Removed unused imports for url launching and web blobs
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:intl/intl.dart';
 
 // import 'package:auto_route/auto_route.dart';
 
@@ -97,6 +94,50 @@ class _TransporterOfferDetailsPageState
     );
   }
 
+  String _formatRand(num amount) {
+    final formatted = NumberFormat.currency(
+      locale: 'en_ZA',
+      symbol: 'R',
+      decimalDigits: 0,
+    ).format(amount);
+    final withSpaces = formatted.replaceAll(',', ' ');
+    // Ensure exactly one normal space after 'R' at the start (handles cases like 'R411 000' or 'R\u00A0411 000')
+    return withSpaces.replaceFirst(RegExp(r'^R\s*'), 'R ');
+  }
+
+  Widget _breakdownTable(List<MapEntry<String, String>> rows) {
+    return Table(
+      columnWidths: const {
+        0: FlexColumnWidth(),
+        1: IntrinsicColumnWidth(),
+      },
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: rows
+          .map(
+            (r) => TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6.0),
+                  child: Text(r.key,
+                      style: customFont(16, FontWeight.w500, Colors.grey)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      r.value,
+                      style: customFont(16, FontWeight.bold, Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+          .toList(),
+    );
+  }
+
   Future<void> _pickInvoiceFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -165,67 +206,7 @@ class _TransporterOfferDetailsPageState
     );
   }
 
-  Future<void> _openInvoiceUrl(String url) async {
-    print('DEBUG: _openInvoiceUrl called with url=$url');
-    if (kIsWeb) {
-      html.window.open(url, '_blank');
-    } else {
-      final uri = Uri.parse(url);
-      // Try launching directly
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return;
-      }
-      // Fallback: download and open as local file
-      try {
-        final httpClient = HttpClient();
-        final request = await httpClient.getUrl(uri);
-        final response = await request.close();
-        final bytes = await consolidateHttpClientResponseBytes(response);
-        final tempDir = await getTemporaryDirectory();
-        final filePath = '${tempDir.path}/${uri.pathSegments.last}';
-        final file = File(filePath);
-        // Ensure directory exists
-        await file.parent.create(recursive: true);
-        await file.writeAsBytes(bytes);
-        print('DEBUG: downloaded invoice to ${file.path}');
-        final fileUri = Uri.file(file.path);
-        if (await canLaunchUrl(fileUri)) {
-          await launchUrl(fileUri, mode: LaunchMode.externalApplication);
-        } else {
-          print('DEBUG: cannot launch file URI: $fileUri');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cannot open downloaded invoice')),
-          );
-        }
-      } catch (e) {
-        print('DEBUG: error downloading/opening invoice: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening invoice: $e')),
-        );
-      }
-    }
-  }
-
-  void _viewInvoice() async {
-    print('DEBUG: _viewInvoice called with _selectedInvoice=$_selectedInvoice');
-    if (_selectedInvoice == null) return;
-    final name = _selectedInvoice!.name;
-    if (kIsWeb) {
-      final bytes = _selectedInvoice!.bytes;
-      if (bytes != null) {
-        final blob = html.Blob([bytes], _getMimeType(name));
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        print('DEBUG: opening URL: $url');
-        html.window.open(url, '_blank');
-      }
-    } else {
-      final path = _selectedInvoice!.path;
-      if (path != null && await canLaunchUrl(Uri.file(path))) {
-        await launchUrl(Uri.file(path), mode: LaunchMode.externalApplication);
-      }
-    }
-  }
+  // Removed unused _openInvoiceUrl and _viewInvoice helpers
 
   IconData _getFileIcon(String extension) {
     switch (extension.toLowerCase()) {
@@ -344,8 +325,6 @@ class _TransporterOfferDetailsPageState
 
   Future<void> _handleAccept() async {
     try {
-      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
-
       // Use transaction to ensure atomic updates
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         // Get all offers for this vehicle
@@ -477,22 +456,7 @@ class _TransporterOfferDetailsPageState
     );
   }
 
-  // Helper method to parse List<dynamic> to List<Map<String, dynamic>> safely
-  List<Map<String, dynamic>> _parseLocations(List<dynamic>? rawList) {
-    if (rawList == null || rawList.isEmpty) {
-      return [];
-    }
-    try {
-      return rawList
-          .where((e) => e != null)
-          .map((e) => Map<String, dynamic>.from(e))
-          .where((e) => e.isNotEmpty)
-          .toList();
-    } catch (e) {
-      print('Error parsing locations: $e');
-      return [];
-    }
-  }
+  // Removed unused _parseLocations helper
 
   String _safeCapitalize(String? text) {
     if (text == null || text.isEmpty) return 'N/A';
@@ -507,6 +471,7 @@ class _TransporterOfferDetailsPageState
     // For demonstration, you may want to fetch or pass this in properly
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.userRole;
+    final role = userRole.toLowerCase().trim();
 
     return Scaffold(
       appBar: AppBar(
@@ -630,13 +595,37 @@ class _TransporterOfferDetailsPageState
                               },
                             ),
                     ),
+                    // Page indicator dots
+                    if (allPhotos.length > 1)
+                      Positioned(
+                        bottom: 8,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            allPhotos.length,
+                            (i) => Container(
+                              width: 8,
+                              height: 8,
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: i == _currentImageIndex
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
 
                 // Show inspection/collection setup/status only if NOT dealer and offer is not in-progress or rejected
-                if ((userRole == 'transporter' ||
-                        userRole == 'admin' ||
-                        userRole == 'sales representative') &&
+                if ((role == 'transporter' ||
+                        role == 'admin' ||
+                        role == 'sales representative') &&
                     offerStatus != 'in-progress' &&
                     offerStatus != 'rejected')
                   Padding(
@@ -698,7 +687,7 @@ class _TransporterOfferDetailsPageState
                 ),
 
                 // Admins and transporters see invoice section only when offerStatus is 'paymentOptions'
-                if ((userRole == 'transporter' || userRole == 'admin') &&
+                if ((role == 'transporter' || role == 'admin') &&
                     offerStatus == 'payment options') ...[
                   // Invoice addressing instructions
                   Padding(
@@ -840,7 +829,7 @@ class _TransporterOfferDetailsPageState
                   ],
                 ],
 
-                // Offer Details Section
+                // Offer Details Section (role-based)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -852,7 +841,7 @@ class _TransporterOfferDetailsPageState
                         style: customFont(20, FontWeight.bold, Colors.white),
                       ),
                       const SizedBox(height: 10),
-                      // Financial breakdown
+                      // Financial breakdown (role-based)
                       Builder(builder: (context) {
                         // Retrieve the offer data
                         final dataMap =
@@ -863,45 +852,59 @@ class _TransporterOfferDetailsPageState
                             (dataMap['typedOfferAmount'] as num?)?.toDouble() ??
                                 0.0;
 
-                        // Fixed commission amount
                         const double commission = 12500.0;
 
-                        // Calculate amount after commission is deducted
-                        final amountAfterCommission =
-                            typedOfferAmount - commission;
+                        if (role == 'dealer') {
+                          // Dealer view: VAT applied on (base + commission); dealer pays total
+                          final subtotal = typedOfferAmount + commission;
+                          final vatAmount = subtotal * 0.15;
+                          final totalToPay = subtotal + vatAmount;
 
-                        // Calculate VAT (15% of amount after commission)
-                        final vat = amountAfterCommission * 0.15;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _breakdownTable([
+                                MapEntry('Offer (Excl. VAT & commission)',
+                                    _formatRand(typedOfferAmount)),
+                                MapEntry('Commission', _formatRand(commission)),
+                                MapEntry('Subtotal', _formatRand(subtotal)),
+                                MapEntry('VAT (15%)', _formatRand(vatAmount)),
+                                MapEntry(
+                                    'Total To Pay', _formatRand(totalToPay)),
+                              ]),
+                              const SizedBox(height: 8),
+                              Text(
+                                'As a dealer, you need to pay the total amount above.',
+                                style: customFont(
+                                    14, FontWeight.w500, Colors.white70),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+                          );
+                        } else {
+                          // Transporter/admin/sales rep view: payout after commission, VAT on the remainder
+                          final amountAfterCommission =
+                              typedOfferAmount - commission;
+                          final vat = amountAfterCommission * 0.15;
+                          final transporterPayout = amountAfterCommission + vat;
 
-                        // Calculate transporter payout (amount after commission + VAT)
-                        final transporterPayout = amountAfterCommission + vat;
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInfoRow(
-                              'Typed Offer Amount',
-                              'R ${typedOfferAmount.toStringAsFixed(2)}',
-                            ),
-                            _buildInfoRow(
-                              'Commission',
-                              'R ${commission.toStringAsFixed(2)}',
-                            ),
-                            _buildInfoRow(
-                              'Amount After Commission',
-                              'R ${amountAfterCommission.toStringAsFixed(2)}',
-                            ),
-                            _buildInfoRow(
-                              'VAT (15%)',
-                              'R ${vat.toStringAsFixed(2)}',
-                            ),
-                            _buildInfoRow(
-                              'Your Payout',
-                              'R ${transporterPayout.toStringAsFixed(2)}',
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                        );
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _breakdownTable([
+                                MapEntry('Typed Offer Amount',
+                                    _formatRand(typedOfferAmount)),
+                                MapEntry('Commission', _formatRand(commission)),
+                                MapEntry('Amount After Commission',
+                                    _formatRand(amountAfterCommission)),
+                                MapEntry('VAT (15%)', _formatRand(vat)),
+                                MapEntry('Your Payout',
+                                    _formatRand(transporterPayout)),
+                              ]),
+                              const SizedBox(height: 20),
+                            ],
+                          );
+                        }
                       }),
                       // Vehicle Details Section
                       Text(
@@ -929,8 +932,12 @@ class _TransporterOfferDetailsPageState
                   ),
                 ),
 
-                // Accept and Reject Buttons
-                if (offerStatus == 'in-progress' && !_hasResponded)
+                // Accept and Reject Buttons (not shown to dealers)
+                if ((role == 'transporter' ||
+                        role == 'admin' ||
+                        role == 'sales representative') &&
+                    offerStatus == 'in-progress' &&
+                    !_hasResponded)
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 16.0),

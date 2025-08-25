@@ -62,191 +62,172 @@ class TruckInfoWebNavBar extends StatelessWidget {
     final userRole = userProvider.getUserRole;
     final isCompact = _isCompactNavigation(context);
 
-    // Get the screen width and determine logo width.
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isTabletOrLarger = screenWidth >= 600;
-    // For tablet or larger, use a fixed width of 150; otherwise 10% of the screen width.
     final logoWidth = isTabletOrLarger ? 200.0 : screenWidth * 0.3;
 
-    // Check if we're on a truck condition page
     final bool isOnTruckConditionPage = [
-      "External Cab",
-      "Internal Cab",
-      "Chassis",
-      "Drive Train",
-      "Tyres"
+      'External Cab',
+      'Internal Cab',
+      'Chassis',
+      'Drive Train',
+      'Tyres',
     ].contains(selectedTab);
 
-    return Container(
-      height: 70,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Colors.black, Color(0xFF2F7FFD)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: Container(
+        height: 70,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Colors.black, Color(0xFF2F7FFD)],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Left section with hamburger menu and back button (only in compact mode)
-            Row(
-              children: [
-                if (isCompact) ...[
-                  IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-                    onPressed: () => _showNavigationDrawer(context),
-                    tooltip: 'Open menu',
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back,
-                        color: Colors.white, size: 24),
-                    onPressed: () => Navigator.pop(context),
-                    tooltip: 'Go back',
-                  ),
-                ],
-              ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 10,
             ),
-
-            // Logo section
-            Expanded(
-              child: Row(
-                mainAxisAlignment: isCompact
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.start,
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      userRole == 'admin' ? '/admin-home' : '/home',
+                  if (isCompact) ...[
+                    IconButton(
+                      icon:
+                          const Icon(Icons.menu, color: Colors.white, size: 24),
+                      onPressed: () => _showNavigationDrawer(context),
+                      tooltip: 'Open menu',
                     ),
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: SizedBox(
-                        width: logoWidth,
-                        child: Image.network(
-                          'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: logoWidth,
-                              height: logoWidth,
-                              color: Colors.grey[900],
-                              child: const Icon(
-                                Icons.local_shipping,
-                                color: Colors.white,
-                              ),
-                            );
-                          },
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 24),
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Go back',
+                    ),
+                  ],
+                ],
+              ),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: isCompact
+                      ? MainAxisAlignment.center
+                      : MainAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        userRole == 'admin' ? '/admin-home' : '/home',
+                      ),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: SizedBox(
+                          width: logoWidth,
+                          child: Image.network(
+                            'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/CTPLOGOWeb.png?alt=media&token=d85ec0b5-f2ba-4772-aa08-e9ac6d4c2253',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: logoWidth,
+                                height: logoWidth,
+                                color: Colors.grey[900],
+                                child: const Icon(Icons.local_shipping,
+                                    color: Colors.white),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // Navigation items only shown in full mode
-                  if (!isCompact) ...[
-                    const SizedBox(width: 60),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Home is always shown
-                          _buildNavItem(context, "Home", selectedTab == "Home",
-                              () {
-                            if (userRole == 'admin') {
-                              Navigator.pushNamed(context, '/admin-home');
-                            } else {
-                              onHomePressed();
-                            }
-                          }),
-                          // Show either truck condition pages OR main navigation
-                          if (isOnTruckConditionPage) ...[
+                    if (!isCompact) ...[
+                      const SizedBox(width: 60),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
                             _buildNavItem(
-                              context,
-                              "External Cab",
-                              selectedTab == "External Cab",
-                              () => Navigator.pushReplacementNamed(
-                                  context, '/external_cab',
-                                  arguments: vehicleId),
-                            ),
-                            _buildNavItem(
-                              context,
-                              "Internal Cab",
-                              selectedTab == "Internal Cab",
-                              () => Navigator.pushReplacementNamed(
-                                  context, '/internal_cab',
-                                  arguments: vehicleId),
-                            ),
-                            _buildNavItem(
-                              context,
-                              "Chassis",
-                              selectedTab == "Chassis",
-                              () => Navigator.pushReplacementNamed(
-                                  context, '/chassis',
-                                  arguments: vehicleId),
-                            ),
-                            _buildNavItem(
-                              context,
-                              "Drive Train",
-                              selectedTab == "Drive Train",
-                              () => Navigator.pushReplacementNamed(
-                                  context, '/drive_train',
-                                  arguments: vehicleId),
-                            ),
-                            _buildNavItem(
-                              context,
-                              "Tyres",
-                              selectedTab == "Tyres",
-                              () => Navigator.pushReplacementNamed(
-                                  context, '/tyres',
-                                  arguments: vehicleId),
-                            ),
-                          ] else ...[
-                            _buildNavItem(
-                              context,
-                              "Basic Information",
-                              selectedTab == "Basic Information",
-                              () => Navigator.pushReplacementNamed(
-                                context,
-                                '/basic_information',
-                                arguments: vehicleId,
-                              ),
-                            ),
-                            _buildNavItem(
-                              context,
-                              "Truck Conditions",
-                              selectedTab == "Truck Conditions",
-                              () {
+                                context, 'Home', selectedTab == 'Home', () {
+                              if (userRole == 'admin') {
+                                Navigator.pushNamed(context, '/admin-home');
+                              } else {
+                                onHomePressed();
+                              }
+                            }),
+                            if (isOnTruckConditionPage) ...[
+                              _buildNavItem(
+                                  context,
+                                  'External Cab',
+                                  selectedTab == 'External Cab',
+                                  () => Navigator.pushReplacementNamed(
+                                      context, '/external_cab',
+                                      arguments: vehicleId)),
+                              _buildNavItem(
+                                  context,
+                                  'Internal Cab',
+                                  selectedTab == 'Internal Cab',
+                                  () => Navigator.pushReplacementNamed(
+                                      context, '/internal_cab',
+                                      arguments: vehicleId)),
+                              _buildNavItem(
+                                  context,
+                                  'Chassis',
+                                  selectedTab == 'Chassis',
+                                  () => Navigator.pushReplacementNamed(
+                                      context, '/chassis',
+                                      arguments: vehicleId)),
+                              _buildNavItem(
+                                  context,
+                                  'Drive Train',
+                                  selectedTab == 'Drive Train',
+                                  () => Navigator.pushReplacementNamed(
+                                      context, '/drive_train',
+                                      arguments: vehicleId)),
+                              _buildNavItem(
+                                  context,
+                                  'Tyres',
+                                  selectedTab == 'Tyres',
+                                  () => Navigator.pushReplacementNamed(
+                                      context, '/tyres',
+                                      arguments: vehicleId)),
+                            ] else ...[
+                              _buildNavItem(
+                                  context,
+                                  'Basic Information',
+                                  selectedTab == 'Basic Information',
+                                  () => Navigator.pushReplacementNamed(context,
+                                      '/basic_information/$vehicleId')),
+                              _buildNavItem(context, 'Truck Conditions',
+                                  selectedTab == 'Truck Conditions', () {
                                 switch (selectedTab) {
-                                  case "External Cab":
+                                  case 'External Cab':
                                     Navigator.pushReplacementNamed(
                                         context, '/external_cab',
                                         arguments: vehicleId);
                                     break;
-                                  case "Internal Cab":
+                                  case 'Internal Cab':
                                     Navigator.pushReplacementNamed(
                                         context, '/internal_cab',
                                         arguments: vehicleId);
                                     break;
-                                  case "Chassis":
+                                  case 'Chassis':
                                     Navigator.pushReplacementNamed(
                                         context, '/chassis',
                                         arguments: vehicleId);
                                     break;
-                                  case "Drive Train":
+                                  case 'Drive Train':
                                     Navigator.pushReplacementNamed(
                                         context, '/drive_train',
                                         arguments: vehicleId);
                                     break;
-                                  case "Tyres":
+                                  case 'Tyres':
                                     Navigator.pushReplacementNamed(
                                         context, '/tyres',
                                         arguments: vehicleId);
@@ -256,39 +237,36 @@ class TruckInfoWebNavBar extends StatelessWidget {
                                         context, '/external_cab',
                                         arguments: vehicleId);
                                 }
-                              },
-                            ),
-                            _buildNavItem(
-                              context,
-                              "Maintenance and Warranty",
-                              selectedTab == "Maintenance and Warranty",
-                              () => Navigator.pushReplacementNamed(
-                                context,
-                                '/maintenance_warranty',
-                                arguments: vehicleId,
-                              ),
-                            ),
+                              }),
+                              _buildNavItem(
+                                  context,
+                                  'Maintenance and Warranty',
+                                  selectedTab == 'Maintenance and Warranty',
+                                  () => Navigator.pushReplacementNamed(
+                                      context, '/maintenance_warranty',
+                                      arguments: vehicleId)),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-
-            // Right section - Profile icon
-            GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/profile'),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundImage: userProvider.getProfileImageUrl != null
-                    ? NetworkImage(userProvider.getProfileImageUrl)
-                    : const AssetImage('lib/assets/default_profile.png')
-                        as ImageProvider,
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/profile'),
+                child: Builder(
+                  builder: (context) {
+                    final String profileUrl = userProvider.getProfileImageUrl;
+                    final ImageProvider avatar = profileUrl.isNotEmpty
+                        ? NetworkImage(profileUrl)
+                        : const AssetImage('lib/assets/default_profile.png');
+                    return CircleAvatar(radius: 18, backgroundImage: avatar);
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -298,6 +276,9 @@ class TruckInfoWebNavBar extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isTabletOrLarger = screenWidth >= 600;
     final logoWidth = isTabletOrLarger ? screenWidth * 0.15 : screenWidth * 0.1;
+    final userRole =
+        Provider.of<UserProvider>(context, listen: false).getUserRole;
+    final navContext = scaffoldKey.currentContext ?? context;
 
     // Check if we're on a truck condition page
     final bool isOnTruckConditionPage = [
@@ -307,6 +288,35 @@ class TruckInfoWebNavBar extends StatelessWidget {
       "Drive Train",
       "Tyres"
     ].contains(selectedTab);
+
+    Future<void> confirmAndNavigate(Future<void> Function() navigate) async {
+      final shouldConfirm = userRole == 'admin' || userRole == 'transporter';
+      if (shouldConfirm) {
+        await showDialog<int>(
+          context: navContext,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Save Changes?'),
+            content: const Text(
+                'You may have unsaved edits. Do you want to save before leaving?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(0),
+                child: const Text('Discard'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(1),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+        // Note: Most edit sections auto-save on change. Proceed either way.
+        // You can wire actual save callbacks into this component in the future.
+        await navigate();
+      } else {
+        await navigate();
+      }
+    }
 
     showDialog(
       context: context,
@@ -394,32 +404,63 @@ class TruckInfoWebNavBar extends StatelessWidget {
                         ),
                         onTap: () {
                           Navigator.pop(context);
-                          onHomePressed();
+                          confirmAndNavigate(() async {
+                            onHomePressed();
+                          });
                         },
                       ),
                       if (isOnTruckConditionPage) ...[
                         _buildDrawerItem(context, "External Cab", () {
-                          Navigator.pushReplacementNamed(
-                              context, '/external_cab',
-                              arguments: vehicleId);
+                          confirmAndNavigate(() async {
+                            Navigator.pushReplacementNamed(
+                                navContext, '/external_cab',
+                                arguments: vehicleId);
+                          });
                         }),
                         _buildDrawerItem(context, "Internal Cab", () {
-                          Navigator.pushReplacementNamed(
-                              context, '/internal_cab',
-                              arguments: vehicleId);
+                          confirmAndNavigate(() async {
+                            Navigator.pushReplacementNamed(
+                                navContext, '/internal_cab',
+                                arguments: vehicleId);
+                          });
                         }),
                         _buildDrawerItem(context, "Chassis", () {
-                          Navigator.pushReplacementNamed(context, '/chassis',
-                              arguments: vehicleId);
+                          confirmAndNavigate(() async {
+                            Navigator.pushReplacementNamed(
+                                navContext, '/chassis',
+                                arguments: vehicleId);
+                          });
                         }),
                         _buildDrawerItem(context, "Drive Train", () {
-                          Navigator.pushReplacementNamed(
-                              context, '/drive_train',
-                              arguments: vehicleId);
+                          confirmAndNavigate(() async {
+                            Navigator.pushReplacementNamed(
+                                navContext, '/drive_train',
+                                arguments: vehicleId);
+                          });
                         }),
                         _buildDrawerItem(context, "Tyres", () {
-                          Navigator.pushReplacementNamed(context, '/tyres',
-                              arguments: vehicleId);
+                          confirmAndNavigate(() async {
+                            Navigator.pushReplacementNamed(navContext, '/tyres',
+                                arguments: vehicleId);
+                          });
+                        }),
+                        const Divider(color: Colors.white24),
+                        // New: Access to Basic Information from condition pages
+                        _buildDrawerItem(context, "Basic Information", () {
+                          confirmAndNavigate(() async {
+                            Navigator.pushReplacementNamed(
+                                navContext, '/basic_information/$vehicleId');
+                          });
+                        }),
+                        // New: Access to Vehicle Details page
+                        _buildDrawerItem(context, "Vehicle Details", () {
+                          confirmAndNavigate(() async {
+                            Navigator.pushNamedAndRemoveUntil(
+                              navContext,
+                              '/vehicle/$vehicleId',
+                              (route) => false,
+                            );
+                          });
                         }),
                       ] else ...[
                         _buildDrawerItem(
@@ -455,22 +496,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
       ),
       onTap: () {
         Navigator.pop(context);
-        switch (title) {
-          case "Basic Information":
-            Navigator.pushReplacementNamed(context, '/basic_information',
-                arguments: vehicleId);
-            break;
-          case "Truck Conditions":
-            Navigator.pushReplacementNamed(context, '/external_cab',
-                arguments: vehicleId);
-            break;
-          case "Maintenance and Warranty":
-            Navigator.pushReplacementNamed(context, '/maintenance_warranty',
-                arguments: vehicleId);
-            break;
-          default:
-            onPressed();
-        }
+        onPressed();
       },
     );
   }

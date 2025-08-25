@@ -67,11 +67,7 @@
     {
       "target": "staging",
       "public": "build/web",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ],
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "headers": [
         {
           "source": "/index.html",
@@ -90,12 +86,20 @@
               "value": "no-cache"
             }
           ]
+        },
+        {
+          "source": "/flutter_service_worker.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "source": "/manifest.json",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
         }
       ],
       "rewrites": [
         {
           "source": "/vehicle/**",
-          "function": "app"
+          "destination": "/index.html"
         },
         {
           "source": "**",
@@ -106,11 +110,7 @@
     {
       "target": "production",
       "public": "build/web",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ],
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "headers": [
         {
           "source": "/index.html",
@@ -129,12 +129,20 @@
               "value": "no-cache"
             }
           ]
+        },
+        {
+          "source": "/flutter_service_worker.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "source": "/manifest.json",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
         }
       ],
       "rewrites": [
         {
           "source": "/vehicle/**",
-          "function": "app"
+          "destination": "/index.html"
         },
         {
           "source": "**",

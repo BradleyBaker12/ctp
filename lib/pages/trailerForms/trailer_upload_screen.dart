@@ -58,7 +58,6 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   }
 }
 
-
 // @RoutePage()
 class TrailerUploadScreen extends StatefulWidget {
   final bool isDuplicating;
@@ -113,24 +112,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   final TextEditingController _makeTrailerBController = TextEditingController();
   final TextEditingController _modelTrailerBController =
       TextEditingController();
-  final TextEditingController _yearTrailerBController = TextEditingController();
-  final TextEditingController _licenceDiskExpTrailerBController =
-      TextEditingController();
-
-  final TextEditingController _modelController = TextEditingController();
-  final TextEditingController _licenseExpController = TextEditingController();
-  final TextEditingController _numbAxelController = TextEditingController();
-
-  // Tri-Axle specific radio button state variables
-  String _suspensionTriAxle = 'steel';
-  String _absTriAxle = 'no';
-
 // Tri-Axle specific image fields
   Uint8List? _hookpinImage;
   Uint8List? _roofImage;
   Uint8List? _tailboardImage;
   Uint8List? _spareWheelImage;
-  Uint8List? _landingLegsImage;
   Uint8List? _hoseAndElctricCableImage;
   Uint8List? _brakeAxel1Image; // Note: retains original spelling to match usage
   Uint8List? _brakeAxel2Image;
@@ -145,7 +131,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _roofImageA;
   Uint8List? _tailBoardImageA;
   Uint8List? _spareWheelImageA;
-  Uint8List? _landingLegImageA;
   Uint8List? _hoseAndElecticalCableImageA;
   Uint8List? _brakesAxle1ImageA;
   Uint8List? _brakesAxle2ImageA;
@@ -178,11 +163,14 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       TextEditingController();
   Uint8List? _frontImageA;
   Uint8List? _sideImageA;
-  Uint8List? _tyresImageA;
   Uint8List? _chassisImageA;
   Uint8List? _deckImageA;
+  Uint8List? _tyresImageA;
   Uint8List? _makersPlateImageA;
+  Uint8List? _landingLegImageA;
   final List<Map<String, dynamic>> _additionalImagesListTrailerA = [];
+  // Multiple Tyres for Trailer A
+  List<Uint8List?> _tyreImagesA = [];
 
   // New fields for Trailer A: Axles and two NATIS document uploads
   final TextEditingController _axlesTrailerAController =
@@ -198,6 +186,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   final TextEditingController _vinBController = TextEditingController();
   final TextEditingController _registrationBController =
       TextEditingController();
+  final TextEditingController _yearTrailerBController = TextEditingController();
+  final TextEditingController _licenceDiskExpTrailerBController =
+      TextEditingController();
   Uint8List? _frontImageB;
   Uint8List? _sideImageB;
   Uint8List? _tyresImageB;
@@ -205,6 +196,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _deckImageB;
   Uint8List? _makersPlateImageB;
   final List<Map<String, dynamic>> _additionalImagesListTrailerB = [];
+  // Multiple Tyres for Trailer B
+  List<Uint8List?> _tyreImagesB = [];
 
   // New fields for Trailer B: Axles and two NATIS document uploads
   final TextEditingController _axlesTrailerBController =
@@ -221,13 +214,22 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       TextEditingController();
   final TextEditingController _vinController = TextEditingController();
   final TextEditingController _registrationController = TextEditingController();
+  // Tri-Axle extra controllers/state
+  final TextEditingController _modelController = TextEditingController();
+  final TextEditingController _licenseExpController = TextEditingController();
+  final TextEditingController _numbAxelController = TextEditingController();
+  String _suspensionTriAxle = 'steel';
+  String _absTriAxle = 'no';
   Uint8List? _frontImage;
   Uint8List? _sideImage;
   Uint8List? _tyresImage;
   Uint8List? _chassisImage;
   Uint8List? _deckImage;
   Uint8List? _makersPlateImage;
+  Uint8List? _landingLegsImage;
   final List<Map<String, dynamic>> _additionalImagesList = [];
+  // Multiple Tyres for Tri-Axle / default
+  List<Uint8List?> _tyreImages = [];
 
   // Documents
   Uint8List? _natisRc1File;
@@ -326,6 +328,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _licenseDiskDoubleAxleImage;
   Uint8List? _makersPlateDblAxleImage;
   Uint8List? _tyresDoubleAxleImage;
+  // Multiple Tyres for Double Axle
+  List<Uint8List?> _tyreImagesDoubleAxle = [];
 
   // Other trailer type specific controllers
   final TextEditingController _makeOtherController = TextEditingController();
@@ -362,6 +366,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   List<Uint8List?> _axleOtherImages = [];
   Uint8List? _natisOtherDocFile;
   String? _natisOtherDocFileName;
+  // Multiple Tyres for Other
+  List<Uint8List?> _tyreImagesOther = [];
 
   @override
   void initState() {
@@ -1152,8 +1158,21 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   _roofOtherImage,
                   (img) => setState(() => _roofOtherImage = img)),
               const SizedBox(height: 15),
-              _buildImageSectionWithTitle('Tyres Image', _tyresOtherImage,
-                  (img) => setState(() => _tyresOtherImage = img)),
+              _buildTyreImagesSection(
+                'Tyres',
+                _tyreImagesOther,
+                (index, img) {
+                  setState(() {
+                    if (index >= 0 && index < _tyreImagesOther.length) {
+                      _tyreImagesOther[index] = img;
+                    }
+                    // Keep legacy single field synced
+                    _tyresOtherImage = _tyreImagesOther.isNotEmpty
+                        ? _tyreImagesOther.first
+                        : null;
+                  });
+                },
+              ),
               const SizedBox(height: 15),
               _buildImageSectionWithTitle(
                   'Tail Board Image',
@@ -1457,10 +1476,19 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   _buildImageSectionWithTitle('Trailer A - Side Image',
                       _sideImageA, (img) => setState(() => _sideImageA = img)),
                   const SizedBox(height: 15),
-                  _buildImageSectionWithTitle(
-                      'Trailer A - Tyres Image',
-                      _tyresImageA,
-                      (img) => setState(() => _tyresImageA = img)),
+                  _buildTyreImagesSection(
+                    'Trailer A - Tyres',
+                    _tyreImagesA,
+                    (index, img) {
+                      setState(() {
+                        if (index >= 0 && index < _tyreImagesA.length) {
+                          _tyreImagesA[index] = img;
+                        }
+                        _tyresImageA =
+                            _tyreImagesA.isNotEmpty ? _tyreImagesA.first : null;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 15),
                   _buildImageSectionWithTitle(
                       'Trailer A - Chassis Image',
@@ -1698,10 +1726,19 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                   _buildImageSectionWithTitle('Trailer B - Side Image',
                       _sideImageB, (img) => setState(() => _sideImageB = img)),
                   const SizedBox(height: 15),
-                  _buildImageSectionWithTitle(
-                      'Trailer B - Tyres Image',
-                      _tyresImageB,
-                      (img) => setState(() => _tyresImageB = img)),
+                  _buildTyreImagesSection(
+                    'Trailer B - Tyres',
+                    _tyreImagesB,
+                    (index, img) {
+                      setState(() {
+                        if (index >= 0 && index < _tyreImagesB.length) {
+                          _tyreImagesB[index] = img;
+                        }
+                        _tyresImageB =
+                            _tyreImagesB.isNotEmpty ? _tyreImagesB.first : null;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 15),
                   _buildImageSectionWithTitle(
                       'Trailer B - Chassis Image',
@@ -2028,8 +2065,19 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       (img) => setState(() => _axel2Image = img)),
                   _buildImageSectionWithTitle(' Axel 3 Image', _axel3Image,
                       (img) => setState(() => _axel3Image = img)),
-                  _buildImageSectionWithTitle('Tyres Image', _tyresImage,
-                      (img) => setState(() => _tyresImage = img)),
+                  _buildTyreImagesSection(
+                    'Tyres',
+                    _tyreImages,
+                    (index, img) {
+                      setState(() {
+                        if (index >= 0 && index < _tyreImages.length) {
+                          _tyreImages[index] = img;
+                        }
+                        _tyresImage =
+                            _tyreImages.isNotEmpty ? _tyreImages.first : null;
+                      });
+                    },
+                  ),
                   _buildImageSectionWithTitle(
                       'Makers Plate Image',
                       _makersPlateImage,
@@ -2279,10 +2327,21 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                       _roofDoubleAxleImage,
                       (img) => setState(() => _roofDoubleAxleImage = img)),
                   const SizedBox(height: 15),
-                  _buildImageSectionWithTitle(
-                      'Tyres Image',
-                      _tyresDoubleAxleImage,
-                      (img) => setState(() => _tyresDoubleAxleImage = img)),
+                  _buildTyreImagesSection(
+                    'Tyres',
+                    _tyreImagesDoubleAxle,
+                    (index, img) {
+                      setState(() {
+                        if (index >= 0 &&
+                            index < _tyreImagesDoubleAxle.length) {
+                          _tyreImagesDoubleAxle[index] = img;
+                        }
+                        _tyresDoubleAxleImage = _tyreImagesDoubleAxle.isNotEmpty
+                            ? _tyreImagesDoubleAxle.first
+                            : null;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 15),
                   _buildImageSectionWithTitle(
                       'Tail Board Image',
@@ -2611,6 +2670,140 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                           textAlign: TextAlign.center),
                     ],
                   ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Dynamic Tyres section with position labels and add/remove controls
+  Widget _buildTyreImagesSection(
+    String title,
+    List<Uint8List?> tyreImages,
+    void Function(int index, Uint8List? image) onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+              fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        // Always render at least one position (Position 1)
+        for (int i = 0;
+            i < (tyreImages.isEmpty ? 1 : tyreImages.length);
+            i++) ...[
+          Text('Position ${i + 1}',
+              style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: () {
+              if (i < tyreImages.length && tyreImages[i] != null) {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Tyre Image'),
+                    content: const Text(
+                        'What would you like to do with this image?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _pickImageOrFile(
+                            title: 'Change Tyre Image',
+                            pickImageOnly: true,
+                            callback: (file, fileName) {
+                              if (file != null) onChanged(i, file);
+                            },
+                          );
+                        },
+                        child: const Text('Change Image'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          onChanged(i, null);
+                        },
+                        child: const Text('Remove Image',
+                            style: TextStyle(color: Colors.red)),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                _pickImageOrFile(
+                  title: 'Tyre Image (Position ${i + 1})',
+                  pickImageOnly: true,
+                  callback: (file, fileName) {
+                    if (file != null) onChanged(i, file);
+                  },
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(10.0),
+            child: _buildStyledContainer(
+              child: (i < tyreImages.length && tyreImages[i] != null)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.memory(tyreImages[i]!,
+                          fit: BoxFit.cover,
+                          height: 150,
+                          width: double.infinity),
+                    )
+                  : const Column(
+                      children: [
+                        Icon(Icons.camera_alt, color: Colors.white, size: 50.0),
+                        SizedBox(height: 10),
+                        Text('Tap to upload tyre image',
+                            style:
+                                TextStyle(fontSize: 14, color: Colors.white70),
+                            textAlign: TextAlign.center),
+                      ],
+                    ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  if (i < tyreImages.length) {
+                    tyreImages.removeAt(i);
+                  }
+                });
+              },
+              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              label: const Text('Remove', style: TextStyle(color: Colors.red)),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 8),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                tyreImages.add(null);
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text('Add another tyre',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
           ),
         ),
       ],
@@ -3255,6 +3448,19 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
 
     switch (_selectedTrailerType) {
       case 'Superlink':
+        // Upload tyre images for Trailer A and B
+        List<String> tyreUrlsA = await _uploadTyreImages(_tyreImagesA);
+        List<String> tyreUrlsB = await _uploadTyreImages(_tyreImagesB);
+        if (tyreUrlsA.isEmpty && _tyresImageA != null) {
+          final url = await _uploadFileToFirebaseStorage(
+              _tyresImageA!, 'vehicle_images');
+          if (url != null) tyreUrlsA = [url];
+        }
+        if (tyreUrlsB.isEmpty && _tyresImageB != null) {
+          final url = await _uploadFileToFirebaseStorage(
+              _tyresImageB!, 'vehicle_images');
+          if (url != null) tyreUrlsB = [url];
+        }
         return {
           'trailerA': {
             'make': _makeTrailerAController.text,
@@ -3264,10 +3470,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             'vin': _vinAController.text,
             'registration': _registrationAController.text,
             'axles': _axlesTrailerAController.text,
-            'suspension': formData.suspensionA ??
-                'air', // Changed to use FormDataProvider
+            'suspension': formData.suspensionA,
             'licenseExp': _licenceDiskExpTrailerAController.text,
-            'abs': formData.absA ?? 'no', // Changed to use FormDataProvider
+            'abs': formData.absA,
             'natisDoc1Url': _natisTrailerADoc1File != null
                 ? await _uploadFileToFirebaseStorage(
                     _natisTrailerADoc1File!, 'vehicle_documents')
@@ -3280,10 +3485,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageA!, 'vehicle_images')
                 : '',
-            'tyresImageUrl': _tyresImageA != null
-                ? await _uploadFileToFirebaseStorage(
-                    _tyresImageA!, 'vehicle_images')
-                : '',
+            // Keep first URL for backward compatibility
+            'tyresImageUrl': tyreUrlsA.isNotEmpty ? tyreUrlsA.first : '',
+            'tyreImageUrls': tyreUrlsA,
             'chassisImageUrl': _chassisImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageA!, 'vehicle_images')
@@ -3348,10 +3552,9 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
             'vin': _vinBController.text,
             'registration': _registrationBController.text,
             'axles': _axlesTrailerBController.text,
-            'suspension': formData.suspensionB ??
-                'air', // Changed to use FormDataProvider
+            'suspension': formData.suspensionB,
             'licenseExp': _licenceDiskExpTrailerBController.text,
-            'abs': formData.absB ?? 'no', // Changed to use FormDataProvider
+            'abs': formData.absB,
             'natisDoc1Url': _natisTrailerBDoc1File != null
                 ? await _uploadFileToFirebaseStorage(
                     _natisTrailerBDoc1File!, 'vehicle_documents')
@@ -3364,10 +3567,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageB!, 'vehicle_images')
                 : '',
-            'tyresImageUrl': _tyresImageB != null
-                ? await _uploadFileToFirebaseStorage(
-                    _tyresImageB!, 'vehicle_images')
-                : '',
+            'tyresImageUrl': tyreUrlsB.isNotEmpty ? tyreUrlsB.first : '',
+            'tyreImageUrls': tyreUrlsB,
             'chassisImageUrl': _chassisImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageB!, 'vehicle_images')
@@ -3426,6 +3627,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           },
         };
       case 'Tri-Axle':
+        List<String> tyreUrls = await _uploadTyreImages(_tyreImages);
+        if (tyreUrls.isEmpty && _tyresImage != null) {
+          final url = await _uploadFileToFirebaseStorage(
+              _tyresImage!, 'vehicle_images');
+          if (url != null) tyreUrls = [url];
+        }
         return {
           'lengthTrailer': _lengthTrailerController.text,
           'length': _lengthTrailerController.text, // Add for compatibility
@@ -3440,8 +3647,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           'numbAxel': _numbAxelController.text,
           'axles':
               _axlesController.text, // For compatibility with both field names
-          'suspension': formData.suspensionA ?? _suspensionTriAxle,
-          'abs': formData.absA ?? _absTriAxle,
+          'suspension': _suspensionTriAxle,
+          'abs': _absTriAxle,
 
           'natisDocUrl': _natisTriAxleDocFile != null
               ? await _uploadFileToFirebaseStorage(
@@ -3455,10 +3662,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               ? await _uploadFileToFirebaseStorage(
                   _sideImage!, 'vehicle_images')
               : '',
-          'tyresImageUrl': _tyresImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _tyresImage!, 'vehicle_images')
-              : '',
+          'tyresImageUrl': tyreUrls.isNotEmpty ? tyreUrls.first : '',
+          'tyreImageUrls': tyreUrls,
           'chassisImageUrl': _chassisImage != null
               ? await _uploadFileToFirebaseStorage(
                   _chassisImage!, 'vehicle_images')
@@ -3529,6 +3734,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           'additionalImages': await _uploadListItems(_additionalImagesList),
         };
       case 'Double Axle':
+        List<String> tyreUrls = await _uploadTyreImages(_tyreImagesDoubleAxle);
+        if (tyreUrls.isEmpty && _tyresDoubleAxleImage != null) {
+          final url = await _uploadFileToFirebaseStorage(
+              _tyresDoubleAxleImage!, 'vehicle_images');
+          if (url != null) tyreUrls = [url];
+        }
         return {
           'make': _makeDoubleAxleController.text,
           'model': _modelDoubleAxleController.text,
@@ -3568,10 +3779,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               ? await _uploadFileToFirebaseStorage(
                   _makersPlateDblAxleImage!, 'vehicle_images')
               : '',
-          'tyresImageUrl': _tyresDoubleAxleImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _tyresDoubleAxleImage!, 'vehicle_images')
-              : '',
+          'tyresImageUrl': tyreUrls.isNotEmpty ? tyreUrls.first : '',
+          'tyreImageUrls': tyreUrls,
 
           // Double Axle specific image URLs
           'hookingPinImageUrl': _hookingPinDoubleAxleImage != null
@@ -3624,6 +3833,12 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         };
       case 'Other':
         int axleCount = 0;
+        List<String> tyreUrls = await _uploadTyreImages(_tyreImagesOther);
+        if (tyreUrls.isEmpty && _tyresOtherImage != null) {
+          final url = await _uploadFileToFirebaseStorage(
+              _tyresOtherImage!, 'vehicle_images');
+          if (url != null) tyreUrls = [url];
+        }
         try {
           axleCount = int.parse(_numbAxelOtherController.text);
         } catch (e) {
@@ -3693,10 +3908,8 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
               ? await _uploadFileToFirebaseStorage(
                   _roofOtherImage!, 'vehicle_images')
               : '',
-          'tyresImageUrl': _tyresOtherImage != null
-              ? await _uploadFileToFirebaseStorage(
-                  _tyresOtherImage!, 'vehicle_images')
-              : '',
+          'tyresImageUrl': tyreUrls.isNotEmpty ? tyreUrls.first : '',
+          'tyreImageUrls': tyreUrls,
           'tailBoardImageUrl': _tailBoardOtherImage != null
               ? await _uploadFileToFirebaseStorage(
                   _tailBoardOtherImage!, 'vehicle_images')
@@ -3731,6 +3944,23 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       default:
         return {};
     }
+  }
+
+  Future<List<String>> _uploadTyreImages(List<Uint8List?> images) async {
+    List<String> urls = [];
+    for (final img in images) {
+      if (img != null) {
+        final url = await _uploadFileToFirebaseStorage(img, 'vehicle_images');
+        urls.add(url ?? '');
+      } else {
+        urls.add('');
+      }
+    }
+    // Trim trailing empty strings to keep payload lean
+    while (urls.isNotEmpty && urls.last.isEmpty) {
+      urls.removeLast();
+    }
+    return urls;
   }
 
   Future<Map<String, String?>> _uploadCommonFiles() async {
@@ -4227,7 +4457,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           notify: false);
       formData.setReferenceNumber(widget.vehicle!.referenceNumber,
           notify: false);
-      formData.setBrands(widget.vehicle!.brands ?? [], notify: false);
+      formData.setBrands(widget.vehicle!.brands, notify: false);
       _selectedTrailerType = widget.vehicle!.trailerType;
 
       // Separate population logic for each trailer type
@@ -4360,14 +4590,6 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         formData.setYear(_yearDoubleAxleController.text);
       }
     });
-  }
-
-  void _clearTriAxleData() {
-    _lengthTrailerController.clear();
-    _vinController.clear();
-    _registrationController.clear();
-    _makeController.clear();
-    Provider.of<FormDataProvider>(context, listen: false).setMake('');
   }
 
   String? _getFileNameFromUrl(String? url) {

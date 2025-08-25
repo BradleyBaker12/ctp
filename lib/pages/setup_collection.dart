@@ -488,31 +488,16 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       _postalCodeController.text =
           addressParts.length > 4 ? addressParts[4] : '';
 
-      // Process dates and times
-      List<String> dates = List<String>.from(location['dates']);
-      _selectedDays = dates.map((d) => _parseDateString(d)).toList();
-
-      _dateTimeSlots.clear();
-      List<Map<String, dynamic>> timeSlots =
-          List<Map<String, dynamic>>.from(location['timeSlots']);
-
-      for (var slot in timeSlots) {
-        DateTime date = _parseDateString(slot['date']);
-        List<String> times = List<String>.from(slot['times']);
-        _dateTimeSlots[date] = times
-            .map((t) => _parseTimeOfDay(t))
-            .whereType<TimeOfDay>()
-            .toList();
-      }
-
+      // Do NOT import dates/times from inspection. Only copy the address.
+      // Clear any existing date/time selections so the transporter must choose fresh ones.
       setState(() {
-        if (_selectedDays.isNotEmpty) {
-          _selectedDay = _selectedDays.first;
-          _selectedTimes =
-              _dateTimeSlots[_selectedDay!]?.map((e) => e).toList() ?? [null];
-        }
+        _selectedDays.clear();
+        _dateTimeSlots.clear();
+        _selectedDay = null;
+        _selectedTimes = [null];
         _isAddingLocation = true;
-        _showBackToFormButton = true;
+        _showBackToFormButton =
+            true; // keep user on form; they still need to add dates/times
       });
     } catch (e) {
       print('Error in _populateFromInspectionDetails: $e');

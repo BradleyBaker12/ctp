@@ -52,11 +52,12 @@ class ChassisEditPageState extends State<ChassisEditPage>
     'Front Axel': null,
     'Suspension': null,
     'Fuel Tank': null,
+    'Fuel Tank 2': null,
     'Battery': null,
+    'Battery Cover': null,
+    'Battery Cover 2': null,
     'Cat Walk': null,
     'Electrical Cable Black': null,
-    'Air Cable Yellow': null,
-    'Air Cable Red': null,
     'Tail Board': null,
     '5th Wheel': null,
     'Left Brake Rear Axel': null,
@@ -75,6 +76,11 @@ class ChassisEditPageState extends State<ChassisEditPage>
 
   // Removed unused upload state fields; auto-save is silent
 
+  // Fuel tanks count (1 or 2), default to 1 for legacy vehicles
+  int _fuelTanksCount = 1;
+  // Battery covers count (1 or 2), default to 1 for legacy vehicles
+  int _batteryCoversCount = 1;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -90,7 +96,6 @@ class ChassisEditPageState extends State<ChassisEditPage>
     try {
       final doc =
           await _firestore.collection('vehicles').doc(widget.vehicleId).get();
-      if (!doc.exists) return;
 
       final data = doc.data();
       if (data == null || data['truckConditions'] == null) return;
@@ -211,14 +216,98 @@ class ChassisEditPageState extends State<ChassisEditPage>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16.0),
-            _buildPhotoGrid([
-              'Fuel Tank',
-              'Battery',
-              'Cat Walk',
-              'Electrical Cable Black',
-              'Air Cable Yellow',
-              'Air Cable Red',
-            ]),
+            // Fuel tanks count selector
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CustomRadioButton(
+                  label: '1 Fuel Tank',
+                  value: '1',
+                  groupValue: _fuelTanksCount.toString(),
+                  onChanged: isDealer
+                      ? (_) {}
+                      : (val) {
+                          _updateAndNotify(() {
+                            _fuelTanksCount = 1;
+                            // Clear optional second tank locally
+                            _selectedImages['Fuel Tank 2'] = null;
+                            _imageUrls['Fuel Tank 2'] = '';
+                          });
+                          // Persist count and remove image from Firestore if present
+                          _setChassisData({'fuelTanksCount': _fuelTanksCount});
+                          _removeImageForView('Fuel Tank 2');
+                        },
+                ),
+                const SizedBox(width: 15),
+                CustomRadioButton(
+                  label: '2 Fuel Tanks',
+                  value: '2',
+                  groupValue: _fuelTanksCount.toString(),
+                  onChanged: isDealer
+                      ? (_) {}
+                      : (val) {
+                          _updateAndNotify(() {
+                            _fuelTanksCount = 2;
+                          });
+                          _setChassisData({'fuelTanksCount': _fuelTanksCount});
+                        },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            // Battery covers count selector
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CustomRadioButton(
+                  label: '1 Battery Cover',
+                  value: '1',
+                  groupValue: _batteryCoversCount.toString(),
+                  onChanged: isDealer
+                      ? (_) {}
+                      : (val) {
+                          _updateAndNotify(() {
+                            _batteryCoversCount = 1;
+                            _selectedImages['Battery 2'] = null;
+                            _imageUrls['Battery 2'] = '';
+                          });
+                          _setChassisData(
+                              {'batteryCoversCount': _batteryCoversCount});
+                          _removeImageForView('Battery 2');
+                        },
+                ),
+                const SizedBox(width: 15),
+                CustomRadioButton(
+                  label: '2 Battery Covers',
+                  value: '2',
+                  groupValue: _batteryCoversCount.toString(),
+                  onChanged: isDealer
+                      ? (_) {}
+                      : (val) {
+                          _updateAndNotify(() {
+                            _batteryCoversCount = 2;
+                          });
+                          _setChassisData(
+                              {'batteryCoversCount': _batteryCoversCount});
+                        },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            Builder(
+              builder: (context) {
+                final titles = <String>['Fuel Tank'];
+                if (_fuelTanksCount == 2) titles.add('Fuel Tank 2');
+                titles.add('Battery');
+                titles.add('Battery Cover');
+                if (_batteryCoversCount == 2) titles.add('Battery Cover 2');
+                titles.addAll([
+                  'Cat Walk',
+                  'Electrical Cable Black',
+                ]);
+                return _buildPhotoGrid(titles);
+              },
+            ),
             const SizedBox(height: 70.0),
 
             // --- REAR AXLE SECTION ---
@@ -972,6 +1061,8 @@ class ChassisEditPageState extends State<ChassisEditPage>
 
     return {
       'condition': _selectedCondition,
+      'fuelTanksCount': _fuelTanksCount,
+      'batteryCoversCount': _batteryCoversCount,
       'images': serializedImages,
       'damagesCondition': _damagesCondition,
       'damages': serializedDamages,
@@ -1109,6 +1200,11 @@ class ChassisEditPageState extends State<ChassisEditPage>
     if (data.isEmpty) return;
     setState(() {
       _selectedCondition = data['condition'] ?? 'good';
+      _fuelTanksCount =
+          (data['fuelTanksCount'] is int) ? (data['fuelTanksCount'] as int) : 1;
+      _batteryCoversCount = (data['batteryCoversCount'] is int)
+          ? (data['batteryCoversCount'] as int)
+          : 1;
       _damagesCondition = data['damagesCondition'] ?? 'no';
       _additionalFeaturesCondition =
           data['additionalFeaturesCondition'] ?? 'no';
@@ -1123,8 +1219,32 @@ class ChassisEditPageState extends State<ChassisEditPage>
               _imageUrls[key] = url;
               _selectedImages[key] = null;
             }
+          } else if (value is String) {
+            final url = value.toString();
+            if (url.isNotEmpty) {
+              _imageUrls[key] = url;
+              _selectedImages[key] = null;
+            }
           }
         });
+        // Infer tanks count for legacy entries if not set
+        if (data['fuelTanksCount'] == null) {
+          final second = images['Fuel Tank 2'];
+          final hasSecond = second != null &&
+              ((second is Map &&
+                      ((second['url'] ?? '').toString().isNotEmpty)) ||
+                  (second is String && second.isNotEmpty));
+          _fuelTanksCount = hasSecond ? 2 : 1;
+        }
+        // Infer battery covers count for legacy entries if not set
+        if (data['batteryCoversCount'] == null) {
+          final secondBatt = images['Battery 2'];
+          final hasSecondBatt = secondBatt != null &&
+              ((secondBatt is Map &&
+                      ((secondBatt['url'] ?? '').toString().isNotEmpty)) ||
+                  (secondBatt is String && secondBatt.isNotEmpty));
+          _batteryCoversCount = hasSecondBatt ? 2 : 1;
+        }
       }
 
       // Initialize damages
@@ -1173,7 +1293,10 @@ class ChassisEditPageState extends State<ChassisEditPage>
   }
 
   double getCompletionPercentage() {
-    int totalFields = 17; // 1 condition + 14 images + 2 sections
+    int baseTotal = 15; // 1 condition + 12 images + 2 sections
+    int totalFields = baseTotal +
+        (_fuelTanksCount == 2 ? 1 : 0) +
+        (_batteryCoversCount == 2 ? 1 : 0);
     int filledFields = 0;
 
     if (_selectedCondition.isNotEmpty) filledFields++;

@@ -38,6 +38,8 @@ class VehicleUploadScreen extends StatefulWidget {
   final Vehicle? vehicle;
   final bool isNewUpload;
   final bool isAdminUpload;
+  // When admins start an upload from Admin > Vehicles, they pick a transporter; pass that id here.
+  final String? transporterId;
   // transporterId removed because admins now select Sales Rep from a dropdown.
   const VehicleUploadScreen({
     super.key,
@@ -45,6 +47,7 @@ class VehicleUploadScreen extends StatefulWidget {
     this.isAdminUpload = false,
     this.isDuplicating = false,
     this.isNewUpload = false,
+    this.transporterId,
   });
 
   @override
@@ -1701,12 +1704,14 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
       });
 
       final currentUser = FirebaseAuth.instance.currentUser;
-      String? assignedSalesRepId;
-      if (widget.isAdminUpload) {
-        assignedSalesRepId = _selectedSalesRep;
-      } else {
-        assignedSalesRepId = currentUser?.uid;
-      }
+      // Determine assignment targets
+      // - Owner/transporter is the selected transporter when admin uploads
+      // - Sales rep is chosen separately by admin via _selectedSalesRep
+      final String? ownerUserId = widget.isAdminUpload
+          ? (widget.transporterId ?? currentUser?.uid)
+          : currentUser?.uid;
+      final String? assignedSalesRepId =
+          widget.isAdminUpload ? _selectedSalesRep : currentUser?.uid;
 
       // Create basic vehicle data without images first
       final vehicleData = {
@@ -1740,7 +1745,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
         'province': formData.province,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'userId': currentUser?.uid,
+        'userId': ownerUserId,
         'assignedSalesRepId': assignedSalesRepId,
         'vehicleStatus': 'Draft',
         'truckType': _selectedTruckType,
@@ -2070,6 +2075,11 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
 
   Map<String, dynamic> _collectVehicleDraftData(
       FormDataProvider formData, String? userId) {
+    // Resolve owner/transporter and assignedSalesRep for drafts as well
+    final String? resolvedOwner =
+        widget.isAdminUpload ? (widget.transporterId ?? userId) : userId;
+    final String? resolvedAssigned =
+        widget.isAdminUpload ? _selectedSalesRep : userId;
     final Map<String, dynamic> data = {
       'year': formData.year,
       'makeModel': formData.makeModel,
@@ -2101,8 +2111,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
       'province': formData.province,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-      'userId': userId,
-      'assignedSalesRepId': widget.isAdminUpload ? _selectedSalesRep : userId,
+      'userId': resolvedOwner,
+      'assignedSalesRepId': resolvedAssigned,
       'vehicleStatus': 'Draft',
       'truckType': _selectedTruckType,
     };

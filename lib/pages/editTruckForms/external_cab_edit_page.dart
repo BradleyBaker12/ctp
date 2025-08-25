@@ -16,6 +16,7 @@ import 'package:provider/provider.dart'; // Ensure this import path is correct
 
 // Added for platformViewRegistry
 import 'package:ctp/utils/camera_helper.dart'; // Added camera helper import
+import 'package:ctp/providers/form_data_provider.dart';
 
 /// Class to handle both local files and network URLs for images
 class ImageData {
@@ -107,16 +108,38 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
     }
   }
 
-  Future<void> _loadExistingData() async {
-    print('ExternalCab: Loading existing data for vehicle ${widget.vehicleId}');
+  // Safely resolve a usable vehicleId from multiple sources
+  String? _resolveVehicleId() {
+    // 1) Use the widget parameter if present and not empty
+    if (widget.vehicleId.isNotEmpty) return widget.vehicleId;
+    // 2) Try FormDataProvider (set during initial upload flow)
     try {
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+      final id = formData.vehicleId;
+      if (id != null && id.isNotEmpty) return id;
+    } catch (_) {}
+    // 3) Route arguments as a last resort
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String && args.isNotEmpty) return args;
+    return null;
+  }
+
+  Future<void> _loadExistingData() async {
+    final effectiveId = _resolveVehicleId();
+    print(
+        'ExternalCab: Loading existing data for vehicle ${effectiveId ?? '(missing)'}');
+    try {
+      if (effectiveId == null || effectiveId.isEmpty) {
+        print('ExternalCab: Missing vehicleId. Skipping initial load.');
+        return;
+      }
       final doc = await FirebaseFirestore.instance
           .collection('vehicles')
-          .doc(widget.vehicleId)
+          .doc(effectiveId)
           .get();
 
       if (!doc.exists) {
-        print('ExternalCab: No document found for vehicle ${widget.vehicleId}');
+        print('ExternalCab: No document found for vehicle $effectiveId');
         return;
       }
 
@@ -257,10 +280,19 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
                 onPressed: () async {
                   setState(() => _isSaving = true);
                   try {
+                    final effectiveId = _resolveVehicleId();
+                    if (effectiveId == null || effectiveId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                'Missing vehicle ID. Please reopen this page from a vehicle.')),
+                      );
+                      return;
+                    }
                     final data = await getData();
                     await FirebaseFirestore.instance
                         .collection('vehicles')
-                        .doc(widget.vehicleId)
+                        .doc(effectiveId)
                         .update({
                       'truckConditions.externalCab': data,
                     });
@@ -523,9 +555,13 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
   Future<String> _uploadImageToFirebase(
       Uint8List imageFile, String section) async {
     try {
+      final effectiveId = _resolveVehicleId();
+      if (effectiveId == null || effectiveId.isEmpty) {
+        throw Exception('Missing vehicle ID');
+      }
       final sanitized = _sanitizeSection(section);
       final fileName =
-          'external_cab/${widget.vehicleId}/${sanitized}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          'external_cab/$effectiveId/${sanitized}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = _storage.ref().child(fileName);
       final snapshot = await storageRef.putData(imageFile);
       return await snapshot.ref.getDownloadURL();
@@ -539,9 +575,15 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
       input.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
 
   Future<void> _setExternalCabData(Map<String, dynamic> data) async {
+    final effectiveId = _resolveVehicleId();
+    if (effectiveId == null || effectiveId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Missing vehicle ID. Cannot save changes.')));
+      return;
+    }
     await FirebaseFirestore.instance
         .collection('vehicles')
-        .doc(widget.vehicleId)
+        .doc(effectiveId)
         .set(
       {
         'truckConditions': {
@@ -583,9 +625,15 @@ class ExternalCabEditPageState extends State<ExternalCabEditPage>
       _selectedImages[title] = ImageData();
     });
     try {
+      final effectiveId = _resolveVehicleId();
+      if (effectiveId == null || effectiveId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Missing vehicle ID. Cannot remove image.')));
+        return;
+      }
       await FirebaseFirestore.instance
           .collection('vehicles')
-          .doc(widget.vehicleId)
+          .doc(effectiveId)
           .set(
         {
           'truckConditions': {

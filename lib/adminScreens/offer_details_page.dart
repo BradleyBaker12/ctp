@@ -195,8 +195,8 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                               onPressed: _uploadTransporterInvoice),
                         const SizedBox(height: 20),
 
-                        // External Invoice
-                        Text('External Invoice',
+                        // Admin Invoice
+                        Text('Admin Invoice',
                             style: GoogleFonts.montserrat(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -223,7 +223,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                                       color: Colors.orange, size: 40),
                                   const SizedBox(width: 10),
                                   Expanded(
-                                      child: Text('View External Invoice (PDF)',
+                                      child: Text('View Admin Invoice (PDF)',
                                           style: GoogleFonts.montserrat(
                                               color: Colors.white,
                                               decoration:
@@ -1411,7 +1411,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
         children: [
           const SizedBox(height: 20),
           Text(
-            'Upload External Invoice',
+            'Upload Admin Invoice',
             style: GoogleFonts.montserrat(
               fontSize: 18,
               fontWeight: FontWeight.bold,

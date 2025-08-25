@@ -43,7 +43,8 @@ class CustomBottomNavigation extends StatelessWidget {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => const TruckPage(vehicleType: 'truck')),
+                builder: (context) => const TruckPage(),
+              ),
             );
           }
         } else if (index == 2 && userRole == 'transporter') {

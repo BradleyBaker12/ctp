@@ -680,6 +680,26 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         debugPrint("No variant data in vehicle");
       }
 
+      // 1.1 Country and Province: get from DB, load provinces for country, then select saved province
+      final savedCountry = widget.vehicle?.country;
+      final savedProvince = widget.vehicle?.province;
+      if (savedCountry != null && savedCountry.isNotEmpty) {
+        debugPrint("Setting country from DB: $savedCountry");
+        formData.setCountry(savedCountry);
+        // Ensure province options list matches the selected country
+        await _updateProvinceOptions(savedCountry);
+        // If a province is saved, set it now (and ensure it exists in options so it displays)
+        if (savedProvince != null && savedProvince.isNotEmpty) {
+          if (!_provinceOptions.contains(savedProvince)) {
+            setState(() {
+              _provinceOptions = [..._provinceOptions, savedProvince];
+            });
+          }
+          debugPrint("Setting province from DB: $savedProvince");
+          formData.setProvince(savedProvince);
+        }
+      }
+
       // 2. Prepopulate Image and Document Fields
       if (widget.vehicle?.mainImageUrl != null &&
           widget.vehicle!.mainImageUrl!.isNotEmpty) {
@@ -727,6 +747,27 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       }
       formData.setSellingPrice(sellingPrice);
       formData.setWarrantyDetails(widget.vehicle?.warrantyDetails);
+      // Prepopulate Warranty selection from vehicle data for correct admin display
+      try {
+        final rawWarranty = widget.vehicle?.warrentyType.trim().toLowerCase();
+        if (rawWarranty != null && rawWarranty.isNotEmpty) {
+          String normalizedWarranty = rawWarranty;
+          // Accept various truthy/falsey forms
+          if (normalizedWarranty == 'true' ||
+              normalizedWarranty == 'y' ||
+              normalizedWarranty == 'yes') {
+            normalizedWarranty = 'yes';
+          } else if (normalizedWarranty == 'false' ||
+              normalizedWarranty == 'n' ||
+              normalizedWarranty == 'no') {
+            normalizedWarranty = 'no';
+          }
+          formData.setWarranty(normalizedWarranty);
+          debugPrint('Prepopulated warranty: $normalizedWarranty');
+        }
+      } catch (e) {
+        debugPrint('Error prepopulating warranty: $e');
+      }
       formData.setReferenceNumber(widget.vehicle?.referenceNumber);
 
       // *** NEW: Prepopulate Configuration, Application, and Province ***
@@ -740,10 +781,44 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       debugPrint("Vehicle config: ${widget.vehicle!.config}");
       debugPrint("Vehicle application: ${widget.vehicle!.application}");
 
-      if (widget.vehicle?.province != null &&
-          widget.vehicle!.province.isNotEmpty) {
-        formData.setProvince(widget.vehicle!.province);
+      // Prepopulate Suspension and Transmission so dealer view shows correct selection
+      try {
+        final rawSusp = widget.vehicle?.suspensionType.trim().toLowerCase();
+        if (rawSusp != null && rawSusp.isNotEmpty) {
+          // Normalize common variants to match UI values
+          String normalizedSusp = rawSusp;
+          if (normalizedSusp == 'steel' ||
+              normalizedSusp == 'leaf' ||
+              normalizedSusp == 'leaf spring') {
+            normalizedSusp = 'spring';
+          }
+          if (normalizedSusp == 'air suspension') {
+            normalizedSusp = 'air';
+          }
+          formData.setSuspension(normalizedSusp);
+          debugPrint('Prepopulated suspension: $normalizedSusp');
+        }
+      } catch (e) {
+        debugPrint('Error prepopulating suspension: $e');
       }
+
+      try {
+        final rawTrans = widget.vehicle?.transmissionType.trim().toLowerCase();
+        if (rawTrans != null && rawTrans.isNotEmpty) {
+          String normalizedTrans = rawTrans;
+          if (normalizedTrans.startsWith('auto')) {
+            normalizedTrans = 'automatic';
+          } else if (normalizedTrans.startsWith('man')) {
+            normalizedTrans = 'manual';
+          }
+          formData.setTransmissionType(normalizedTrans);
+          debugPrint('Prepopulated transmission: $normalizedTrans');
+        }
+      } catch (e) {
+        debugPrint('Error prepopulating transmission: $e');
+      }
+
+      // Province is already handled above after loading province options
 
       // Set truck type based on vehicle data
       setState(() {
@@ -2112,9 +2187,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         'province': formData.province,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        // Use the selected transporter id if available; otherwise use the current user id.
-        'userId':
-            _selectedTransporterId ?? FirebaseAuth.instance.currentUser?.uid,
+        // NOTE: Do NOT set userId here unconditionally; for updates, only set when explicitly changed.
         'vehicleStatus': _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
         if (_selectedTransporterId != null)
           'assignedTransporterId': _selectedTransporterId,
@@ -2131,6 +2204,11 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       };
       debugPrint('Vehicle Data to Save: $vehicleData');
       if (_vehicleId != null && !widget.isDuplicating) {
+        // For updates, only modify userId if admin explicitly selected a transporter.
+        if (_selectedTransporterId != null &&
+            _selectedTransporterId!.isNotEmpty) {
+          vehicleData['userId'] = _selectedTransporterId;
+        }
         debugPrint('Updating existing vehicle with ID: $_vehicleId');
         await FirebaseFirestore.instance
             .collection('vehicles')
@@ -2149,6 +2227,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             await FirebaseFirestore.instance.collection('vehicles').add({
           ...vehicleData,
           'createdAt': FieldValue.serverTimestamp(),
+          // For creation, default to selected transporter if provided; otherwise current user.
           'userId':
               _selectedTransporterId ?? FirebaseAuth.instance.currentUser?.uid,
           'vehicleStatus': _vehicleStatus ?? 'Draft',

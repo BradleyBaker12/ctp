@@ -43,6 +43,301 @@ const express = require("express");
 const app = express();
 
 // Notify transporter when a dealer makes an offer on their vehicle
+// 3) Notify admins when transporter invoice uploaded
+exports.notifyAdminsOnTransporterInvoiceUpload = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    if (!before || !after) return;
+
+    const had = !!(
+      before.transporterInvoice &&
+      String(before.transporterInvoice).trim() !== ""
+    );
+    const has = !!(
+      after.transporterInvoice && String(after.transporterInvoice).trim() !== ""
+    );
+    if (had || !has) return;
+
+    const offerId = event.params.offerId;
+
+    try {
+      await db
+        .collection("offers")
+        .doc(offerId)
+        .set({ offerStatus: "payment options" }, { merge: true });
+
+      const adminUsersSnapshot = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      for (const adminDoc of adminUsersSnapshot.docs) {
+        const a = adminDoc.data();
+        if (!a.fcmToken) continue;
+        await admin.messaging().send({
+          notification: {
+            title: "Transporter Invoice Uploaded",
+            body: "A transporter invoice has been uploaded. Review and generate the external invoice.",
+          },
+          data: {
+            notificationType: "transporter_invoice_uploaded",
+            offerId,
+            vehicleId: after.vehicleId || "",
+            timestamp: new Date().toISOString(),
+          },
+          token: a.fcmToken,
+        });
+      }
+
+      if (sgMail) {
+        const adminEmails = adminUsersSnapshot.docs
+          .map((d) => d.data().email)
+          .filter(Boolean);
+        if (adminEmails.length) {
+          await sgMail.send({
+            from: "admin@ctpapp.co.za",
+            to: adminEmails,
+            subject: "Transporter Invoice Uploaded",
+            html: `<p>A transporter invoice has been uploaded for offer ${offerId}. Please review and generate/send the buyer invoice.</p>`,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[notifyAdminsOnTransporterInvoiceUpload] Error:", e);
+    }
+  }
+);
+
+// Immediate: when an offer is accepted and no transporter invoice exists, ask transporter to upload invoice
+exports.notifyTransporterToUploadInvoiceOnAcceptance = onDocumentUpdated(
+  { document: "offers/{offerId}", region: "us-central1" },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    if (!before || !after) return;
+
+    // Only run when offer transitions to accepted
+    const beforeStatus = (before.offerStatus || "").toLowerCase();
+    const afterStatus = (after.offerStatus || "").toLowerCase();
+    if (beforeStatus === afterStatus || afterStatus !== "accepted") return;
+
+    // If invoice already exists, skip
+    const hasInvoice = !!(
+      after.transporterInvoice && String(after.transporterInvoice).trim() !== ""
+    );
+    if (hasInvoice) return;
+
+    try {
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      if (!vehicleDoc.exists) return;
+      const transporterId = vehicleDoc.data().userId;
+      if (!transporterId) return;
+      const transporterDoc = await db
+        .collection("users")
+        .doc(transporterId)
+        .get();
+      if (!transporterDoc.exists) return;
+      const t = transporterDoc.data();
+      if (!t.fcmToken) return;
+
+      await admin.messaging().send({
+        notification: {
+          title: "Upload Your Invoice",
+          body: "Please upload your inspection/transport invoice to proceed with the sale.",
+        },
+        data: {
+          notificationType: "transporter_invoice_request",
+          offerId: event.params.offerId,
+          vehicleId: after.vehicleId || "",
+          timestamp: new Date().toISOString(),
+        },
+        token: t.fcmToken,
+      });
+    } catch (e) {
+      console.error("[notifyTransporterToUploadInvoiceOnAcceptance] Error:", e);
+    }
+  }
+);
+
+// 5) Notify dealer when external invoice uploaded/available
+exports.notifyDealerOnExternalInvoiceAvailable = onDocumentUpdated(
+  {
+    document: "offers/{offerId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    if (!before || !after) return;
+
+    const had = !!(
+      before.externalInvoice && String(before.externalInvoice).trim() !== ""
+    );
+    const has = !!(
+      after.externalInvoice && String(after.externalInvoice).trim() !== ""
+    );
+    // Be permissive: consider externalInvoiceUrl too
+    const hadUrl = !!(
+      before.externalInvoiceUrl &&
+      String(before.externalInvoiceUrl).trim() !== ""
+    );
+    const hasUrl = !!(
+      after.externalInvoiceUrl && String(after.externalInvoiceUrl).trim() !== ""
+    );
+
+    if (had || hadUrl || !(has || hasUrl)) return;
+
+    const offerId = event.params.offerId;
+    try {
+      await db
+        .collection("offers")
+        .doc(offerId)
+        .set({ offerStatus: "payment pending" }, { merge: true });
+
+      const dealerDoc = await db.collection("users").doc(after.dealerId).get();
+      const dealer = dealerDoc.exists ? dealerDoc.data() : {};
+      if (dealer?.fcmToken) {
+        await admin.messaging().send({
+          notification: {
+            title: "Invoice Ready",
+            body: "Your invoice is ready. Please complete payment.",
+          },
+          data: {
+            notificationType: "invoice_ready",
+            offerId,
+            vehicleId: after.vehicleId || "",
+            timestamp: new Date().toISOString(),
+          },
+          token: dealer.fcmToken,
+        });
+      }
+      if (sgMail && dealer?.email) {
+        await sgMail.send({
+          from: "admin@ctpapp.co.za",
+          to: dealer.email,
+          subject: "Invoice Ready",
+          html: `<p>Your invoice is ready for offer ${offerId}. Please complete payment to proceed to collection.</p>`,
+        });
+      }
+    } catch (e) {
+      console.error("[notifyDealerOnExternalInvoiceAvailable] Error:", e);
+    }
+  }
+);
+
+// 8/9) Remind admins of today’s collections at 07:00 SAST
+exports.sendTodayCollectionReminders = onSchedule(
+  {
+    schedule: "0 7 * * *",
+    timeZone: "Africa/Johannesburg",
+    region: "us-central1",
+  },
+  async () => {
+    const today = new Date();
+    const start = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const end = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + 1
+    );
+
+    try {
+      const offersSnap = await db
+        .collection("offers")
+        .where("dealerSelectedCollectionDate", ">=", start)
+        .where("dealerSelectedCollectionDate", "<", end)
+        .get();
+
+      if (offersSnap.empty) return;
+
+      const admins = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+
+      for (const doc of offersSnap.docs) {
+        const o = doc.data();
+        const offerId = doc.id;
+        for (const a of admins.docs) {
+          const adminData = a.data();
+          if (!adminData.fcmToken) continue;
+          await admin.messaging().send({
+            notification: {
+              title: "Collections Today",
+              body: "There is a collection scheduled today that may need oversight.",
+            },
+            data: {
+              notificationType: "collection_today_admin",
+              offerId,
+              vehicleId: o.vehicleId || "",
+              timestamp: new Date().toISOString(),
+            },
+            token: adminData.fcmToken,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[sendTodayCollectionReminders] Error:", e);
+    }
+  }
+);
+
+// 10/11) Notify transporter when payout marked as paid
+exports.notifyTransporterOnPayoutPaid = onDocumentUpdated(
+  { document: "offers/{offerId}", region: "us-central1" },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    if (!before || !after) return;
+
+    const had = (before.transporterPayoutStatus || "").toLowerCase();
+    const has = (after.transporterPayoutStatus || "").toLowerCase();
+    if (had === has || has !== "paid") return;
+
+    try {
+      const vehicleDoc = await db
+        .collection("vehicles")
+        .doc(after.vehicleId)
+        .get();
+      if (!vehicleDoc.exists) return;
+      const transporterId = vehicleDoc.data().userId;
+      if (!transporterId) return;
+      const transporterDoc = await db
+        .collection("users")
+        .doc(transporterId)
+        .get();
+      const t = transporterDoc.exists ? transporterDoc.data() : {};
+      if (!t?.fcmToken) return;
+      await admin.messaging().send({
+        notification: {
+          title: "Payout Completed",
+          body: "Your transporter payout has been made.",
+        },
+        data: {
+          notificationType: "transporter_payout_paid",
+          offerId: event.params.offerId,
+          vehicleId: after.vehicleId || "",
+          timestamp: new Date().toISOString(),
+        },
+        token: t.fcmToken,
+      });
+    } catch (e) {
+      console.error("[notifyTransporterOnPayoutPaid] Error:", e);
+    }
+  }
+);
 exports.notifyTransporterOnNewOffer = onDocumentCreated(
   {
     document: "offers/{offerId}",
@@ -153,6 +448,69 @@ exports.notifyTransporterOnNewOffer = onDocumentCreated(
       );
     } catch (error) {
       console.error("[notifyTransporterOnNewOffer] Error:", error);
+    }
+  }
+);
+
+// 2) Daily reminder for transporter to upload invoice if missing
+exports.sendTransporterInvoiceReminders = onSchedule(
+  {
+    schedule: "0 9 * * *",
+    timeZone: "Africa/Johannesburg",
+    region: "us-central1",
+  },
+  async () => {
+    try {
+      const offersSnap = await db
+        .collection("offers")
+        .where("offerStatus", "in", [
+          "accepted",
+          "payment options",
+          "payment pending",
+        ]) // workflow stages before payment
+        .get();
+
+      if (offersSnap.empty) return;
+
+      for (const doc of offersSnap.docs) {
+        const o = doc.data();
+        const missing = !(
+          o.transporterInvoice && String(o.transporterInvoice).trim() !== ""
+        );
+        if (!missing) continue;
+
+        // Find transporter via vehicle
+        const vehicleDoc = await db
+          .collection("vehicles")
+          .doc(o.vehicleId)
+          .get();
+        if (!vehicleDoc.exists) continue;
+        const transporterId = vehicleDoc.data().userId;
+        if (!transporterId) continue;
+        const transporterDoc = await db
+          .collection("users")
+          .doc(transporterId)
+          .get();
+        if (!transporterDoc.exists) continue;
+        const t = transporterDoc.data();
+        if (!t.fcmToken) continue;
+
+        await admin.messaging().send({
+          notification: {
+            title: "Invoice Needed",
+            body: "Please upload your inspection/transport invoice to proceed.",
+          },
+          data: {
+            notificationType: "transporter_invoice_reminder",
+            offerId: doc.id,
+            vehicleId: o.vehicleId || "",
+            timestamp: new Date().toISOString(),
+          },
+          token: t.fcmToken,
+        });
+      }
+    } catch (e) {
+      console.error("[sendTransporterInvoiceReminders] Error:", e);
     }
   }
 );

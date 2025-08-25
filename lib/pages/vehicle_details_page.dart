@@ -1389,10 +1389,34 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       debugPrint(
           "DEBUG: Building Trailer Info Section - Type: ${_trailer!.trailerType}, Axles: ${_trailer!.axles}, Length: ${_trailer!.length}");
     }
+    // Build a more descriptive title:
+    // - Superlink: show brand and year only
+    // - Others: show brand, year, make & model
     String trailerInfoText = 'TRAILER INFORMATION';
-    if (_trailer != null && _trailer!.trailerType.trim().isNotEmpty) {
-      trailerInfoText =
-          '${_trailer!.trailerType.toUpperCase()} TRAILER INFORMATION';
+    if (_trailer != null) {
+      final type = _trailer!.trailerType.trim().toLowerCase();
+      final brands =
+          (_trailer!.brands.isNotEmpty ? _trailer!.brands : vehicle.brands)
+              .where((b) => (b).toString().trim().isNotEmpty)
+              .toList();
+      final brandText = brands.isNotEmpty ? brands.join(', ') : '';
+      final yearText = _trailer!.year.trim();
+      final makeModelText = _trailer!.makeModel.trim();
+
+      if (type == 'superlink') {
+        // Only brand and year
+        final pieces =
+            [brandText, yearText].where((p) => p.isNotEmpty).join(' ');
+        trailerInfoText =
+            (pieces.isNotEmpty ? pieces : 'TRAILER INFORMATION').toUpperCase();
+      } else {
+        // Brand, year, and make & model
+        final pieces = [brandText, yearText, makeModelText]
+            .where((p) => p.isNotEmpty)
+            .join(' ');
+        trailerInfoText =
+            (pieces.isNotEmpty ? pieces : 'TRAILER INFORMATION').toUpperCase();
+      }
     }
 
     final size = MediaQuery.of(context).size;
@@ -2419,6 +2443,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     // Build offer–related widgets into a separate list
     List<Widget> offerWidgets = [];
+    // Determine auth status once and reuse
+    final bool isAuthenticated = FirebaseAuth.instance.currentUser != null;
     if (vehicle.isAccepted) {
       if (_isAcceptedOfferMine) {
         offerWidgets.add(
@@ -2470,14 +2496,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         ),
       );
     } else {
-      // Only dealers should see the make offer section.
-      if (userProvider.getUserRole == 'dealer' ||
-          userProvider.getUserRole == 'admin' ||
-          userProvider.getUserRole == 'sales representative') {
+      // Only authenticated users with appropriate roles should see the make-offer section.
+      if (isAuthenticated &&
+          (userProvider.getUserRole == 'dealer' ||
+              userProvider.getUserRole == 'admin' ||
+              userProvider.getUserRole == 'sales representative')) {
         // For dealers who can make a new offer
         List<Widget> makeOfferWidgets = [];
-        if (!(userProvider.getUserRole == 'admin' ||
-            userProvider.getUserRole == 'sales representative')) {
+        if (userProvider.getUserRole == 'dealer') {
           makeOfferWidgets.add(
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -2667,38 +2693,46 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
           ),
         );
         makeOfferWidgets.add(const SizedBox(height: 16));
-        makeOfferWidgets.add(
-          StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(userProvider.userId)
-                .snapshots(),
-            builder: (ctx, snapshot) {
-              if (snapshot.hasData && userProvider.getUserRole == 'dealer') {
-                Map<String, dynamic> userData =
-                    snapshot.data!.data() as Map<String, dynamic>;
-                bool hasDocuments =
-                    userData['cipcCertificateUrl']?.isNotEmpty == true &&
-                        userData['brncUrl']?.isNotEmpty == true &&
-                        userData['bankConfirmationUrl']?.isNotEmpty == true &&
-                        userData['proxyUrl']?.isNotEmpty == true;
-                bool isVerified = userData['isVerified'] ?? false;
-                bool isApproved = isVerified;
-                if (!hasDocuments || !isApproved) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      'Please upload all required documents (CIPC, BRNC, Bank Confirmation, Proxy) and wait for account approval before making offers.',
-                      style: _customFont(16, FontWeight.normal, Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
+        // Dealer document checks only when authenticated dealer
+        if (isAuthenticated && userProvider.getUserRole == 'dealer') {
+          makeOfferWidgets.add(
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(userProvider.userId)
+                  .snapshots(),
+              builder: (ctx, snapshot) {
+                if (snapshot.hasData &&
+                    snapshot.data != null &&
+                    snapshot.data!.exists) {
+                  final raw = snapshot.data!.data();
+                  if (raw is Map<String, dynamic>) {
+                    final userData = raw;
+                    final bool hasDocuments =
+                        userData['cipcCertificateUrl']?.isNotEmpty == true &&
+                            userData['brncUrl']?.isNotEmpty == true &&
+                            userData['bankConfirmationUrl']?.isNotEmpty ==
+                                true &&
+                            userData['proxyUrl']?.isNotEmpty == true;
+                    final bool isVerified = userData['isVerified'] ?? false;
+                    final bool isApproved = isVerified;
+                    if (!hasDocuments || !isApproved) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'Please upload all required documents (CIPC, BRNC, Bank Confirmation, Proxy) and wait for account approval before making offers.',
+                          style: _customFont(16, FontWeight.normal, Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+                  }
                 }
-              }
-              return Container();
-            },
-          ),
-        );
+                return const SizedBox.shrink();
+              },
+            ),
+          );
+        }
         makeOfferWidgets.add(
           SizedBox(
             width: double.infinity,
@@ -2788,6 +2822,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         );
         offerWidgets.addAll(makeOfferWidgets);
       }
+      // If not authenticated, do not render any offer widgets (public view)
     }
 
     final safeVehicle = vehicle;
@@ -3438,7 +3473,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                               // Truck Conditions block
                                               if (isDealer ||
                                                   isAdmin ||
-                                                  isSalesRep)
+                                                  isSalesRep ||
+                                                  isTransporter)
                                                 _buildSection(
                                                   context,
                                                   'TRUCK CONDITIONS',
@@ -3447,7 +3483,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                               // Maintenance & Warranty
                                               if (isDealer ||
                                                   isAdmin ||
-                                                  isSalesRep)
+                                                  isSalesRep ||
+                                                  isTransporter)
                                                 _buildSection(
                                                   context,
                                                   'MAINTENANCE AND WARRANTY',

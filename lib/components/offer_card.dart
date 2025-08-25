@@ -39,9 +39,6 @@ class OfferCard extends StatefulWidget {
 }
 
 class _OfferCardState extends State<OfferCard> {
-  final TextEditingController _editController = TextEditingController();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   // State variables for transmission, config, mileage, and vehicleYear.
   String? transmissionType;
   String? vehicleConfig;
@@ -242,7 +239,7 @@ class _OfferCardState extends State<OfferCard> {
 
   void navigateBasedOnStatus(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userRole = userProvider.getUserRole ?? '';
+    final userRole = userProvider.getUserRole;
 
     // If offer is marked as done or sold, always go to TransporterOfferDetailsPage
     if (widget.offer.offerStatus.toLowerCase() == 'done' ||
@@ -496,7 +493,30 @@ class _OfferCardState extends State<OfferCard> {
         );
         break;
       default:
-        debugPrint("Dealer - unhandled status: ${widget.offer.offerStatus}");
+        // Default for dealers: show Transporter Offer Details page
+        _getVehicle().then((vehicle) async {
+          if (vehicle != null) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TransporterOfferDetailsPage(
+                  offer: widget.offer,
+                  vehicle: vehicle,
+                ),
+              ),
+            );
+            if (widget.onPop != null) {
+              widget.onPop!();
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Vehicle details could not be loaded.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
         break;
     }
   }
@@ -860,8 +880,7 @@ class _OfferCardState extends State<OfferCard> {
                                       children: [
                                         ...(() {
                                           final refs = _bulkVehicles!
-                                              .map((v) =>
-                                                  v.referenceNumber ?? '')
+                                              .map((v) => v.referenceNumber)
                                               .where((r) => r.isNotEmpty)
                                               .toList();
                                           final displayCount =

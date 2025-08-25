@@ -32,11 +32,43 @@ service cloud.firestore {
     match /offers/{offerId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && (
-        // Dealer, transporter, or admin
-        request.auth.uid == resource.data.dealerId ||
-        request.auth.uid == resource.data.transporterId ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userRole in ['admin', 'sales representative']
+        (
+          // Dealer, transporter, or admin
+          request.auth.uid == resource.data.dealerId ||
+          request.auth.uid == resource.data.transporterId ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userRole in ['admin', 'sales representative']
+        )
+        && (
+          // If updating POP fields, require an admin invoice to exist
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['proofOfPaymentUrl', 'proofOfPaymentFileName', 'uploadTimestamp'])
+          || (
+            (resource.data.externalInvoice is string && resource.data.externalInvoice.size() > 0) ||
+            (resource.data.externalInvoiceUrl is string && resource.data.externalInvoiceUrl.size() > 0) ||
+            (resource.data.invoiceUrl is string && resource.data.invoiceUrl.size() > 0) ||
+            (resource.data.sageInvoiceUrl is string && resource.data.sageInvoiceUrl.size() > 0) ||
+            (resource.data.invoicePdfUrl is string && resource.data.invoicePdfUrl.size() > 0) ||
+            (resource.data.invoiceDownloadUrl is string && resource.data.invoiceDownloadUrl.size() > 0)
+          )
+        )
       );
+
+      // Backstop: Only allow dealer to upload POP when an admin invoice exists on the offer
+      allow update: if request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasAny(['proofOfPaymentUrl', 'proofOfPaymentFileName', 'uploadTimestamp'])
+        && (
+          // Must be dealer
+          request.auth.uid == resource.data.dealerId
+        )
+        && (
+          // Require one of the known invoice fields to exist and be non-empty
+          (
+            (resource.data.externalInvoice is string && resource.data.externalInvoice.size() > 0) ||
+            (resource.data.externalInvoiceUrl is string && resource.data.externalInvoiceUrl.size() > 0) ||
+            (resource.data.invoiceUrl is string && resource.data.invoiceUrl.size() > 0) ||
+            (resource.data.sageInvoiceUrl is string && resource.data.sageInvoiceUrl.size() > 0) ||
+            (resource.data.invoicePdfUrl is string && resource.data.invoicePdfUrl.size() > 0) ||
+            (resource.data.invoiceDownloadUrl is string && resource.data.invoiceDownloadUrl.size() > 0)
+          )
+        );
     }
 
     // Notifications (written by app, processed by backend)

@@ -79,6 +79,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _frontImage;
   Uint8List? _sideImage;
   Uint8List? _tyresImage;
+  // Dynamic tyres (Tri-Axle)
+  List<Uint8List?> _tyreImages = [];
+  List<String> _tyreImageUrls = [];
   Uint8List? _chassisImage;
   Uint8List? _deckImage;
   Uint8List? _makersPlateImage;
@@ -97,6 +100,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _frontImageA;
   Uint8List? _sideImageA;
   Uint8List? _tyresImageA;
+  // Dynamic tyres (Superlink Trailer A)
+  List<Uint8List?> _tyreImagesA = [];
+  List<String> _tyreImageUrlsA = [];
   Uint8List? _chassisImageA;
   Uint8List? _deckImageA;
   Uint8List? _makersPlateImageA;
@@ -115,6 +121,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _frontImageB;
   Uint8List? _sideImageB;
   Uint8List? _tyresImageB;
+  // Dynamic tyres (Superlink Trailer B)
+  List<Uint8List?> _tyreImagesB = [];
+  List<String> _tyreImageUrlsB = [];
   Uint8List? _chassisImageB;
   Uint8List? _deckImageB;
   Uint8List? _makersPlateImageB;
@@ -225,6 +234,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _frontImageDoubleAxle;
   Uint8List? _sideImageDoubleAxle;
   Uint8List? _tyresImageDoubleAxle;
+  // Dynamic tyres (Double Axle)
+  List<Uint8List?> _tyreImagesDoubleAxle = [];
+  List<String> _tyreImageUrlsDoubleAxle = [];
   Uint8List? _chassisImageDoubleAxle;
   Uint8List? _deckImageDoubleAxle;
   Uint8List? _makersPlateImageDoubleAxle;
@@ -264,6 +276,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _frontOtherImage;
   Uint8List? _sideOtherImage;
   Uint8List? _tyresOtherImage;
+  // Dynamic tyres (Other)
+  List<Uint8List?> _tyreImagesOther = [];
+  List<String> _tyreImageUrlsOther = [];
   Uint8List? _chassisOtherImage;
   Uint8List? _deckOtherImage;
   Uint8List? _makersPlateOtherImage;
@@ -527,6 +542,18 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             trailerA, ['sideImageUrl', 'side_image_url', 'sideimageurl']);
         _tyresImageAUrl = getField(
             trailerA, ['tyresImageUrl', 'tyres_image_url', 'tyresimageurl']);
+        // Superlink A tyre arrays
+        if (trailerA['tyreImageUrls'] is List) {
+          _tyreImageUrlsA = List<String>.from(
+              (trailerA['tyreImageUrls'] as List)
+                  .map((e) => (e ?? '').toString()));
+          while (_tyreImageUrlsA.isNotEmpty && _tyreImageUrlsA.last.isEmpty) {
+            _tyreImageUrlsA.removeLast();
+          }
+        }
+        if (_tyreImageUrlsA.isEmpty && (_tyresImageAUrl?.isNotEmpty ?? false)) {
+          _tyreImageUrlsA = [_tyresImageAUrl!];
+        }
         _chassisImageAUrl = getField(trailerA,
             ['chassisImageUrl', 'chassis_image_url', 'chassisimageurl']);
         _deckImageAUrl = getField(
@@ -577,6 +604,18 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
             trailerB, ['sideImageUrl', 'side_image_url', 'sideimageurl']);
         _tyresImageBUrl = getField(
             trailerB, ['tyresImageUrl', 'tyres_image_url', 'tyresimageurl']);
+        // Superlink B tyre arrays
+        if (trailerB['tyreImageUrls'] is List) {
+          _tyreImageUrlsB = List<String>.from(
+              (trailerB['tyreImageUrls'] as List)
+                  .map((e) => (e ?? '').toString()));
+          while (_tyreImageUrlsB.isNotEmpty && _tyreImageUrlsB.last.isEmpty) {
+            _tyreImageUrlsB.removeLast();
+          }
+        }
+        if (_tyreImageUrlsB.isEmpty && (_tyresImageBUrl?.isNotEmpty ?? false)) {
+          _tyreImageUrlsB = [_tyresImageBUrl!];
+        }
         _chassisImageBUrl = getField(trailerB,
             ['chassisImageUrl', 'chassis_image_url', 'chassisimageurl']);
         _deckImageBUrl = getField(
@@ -629,6 +668,21 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _tyresImageUrl = trailerExtra['tyresImageUrl']?.toString() ??
             data['tyresImageUrl']?.toString() ??
             '';
+        // Tri-Axle tyre arrays
+        if (trailerExtra['tyreImageUrls'] is List) {
+          _tyreImageUrls = List<String>.from(
+              (trailerExtra['tyreImageUrls'] as List)
+                  .map((e) => (e ?? '').toString()));
+        } else if (data['tyreImageUrls'] is List) {
+          _tyreImageUrls = List<String>.from(
+              (data['tyreImageUrls'] as List).map((e) => (e ?? '').toString()));
+        }
+        while (_tyreImageUrls.isNotEmpty && _tyreImageUrls.last.isEmpty) {
+          _tyreImageUrls.removeLast();
+        }
+        if (_tyreImageUrls.isEmpty && (_tyresImageUrl?.isNotEmpty ?? false)) {
+          _tyreImageUrls = [_tyresImageUrl!];
+        }
         _chassisImageUrl = trailerExtra['chassisImageUrl']?.toString() ??
             data['chassisImageUrl']?.toString() ??
             '';
@@ -711,6 +765,23 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _tyresImageUrl = trailerExtra['tyresImageUrl']?.toString() ??
             data['tyresImageUrl']?.toString() ??
             '';
+        // Double Axle tyre arrays
+        if (trailerExtra['tyreImageUrls'] is List) {
+          _tyreImageUrlsDoubleAxle = List<String>.from(
+              (trailerExtra['tyreImageUrls'] as List)
+                  .map((e) => (e ?? '').toString()));
+        } else if (data['tyreImageUrls'] is List) {
+          _tyreImageUrlsDoubleAxle = List<String>.from(
+              (data['tyreImageUrls'] as List).map((e) => (e ?? '').toString()));
+        }
+        while (_tyreImageUrlsDoubleAxle.isNotEmpty &&
+            _tyreImageUrlsDoubleAxle.last.isEmpty) {
+          _tyreImageUrlsDoubleAxle.removeLast();
+        }
+        if (_tyreImageUrlsDoubleAxle.isEmpty &&
+            (_tyresImageUrl?.isNotEmpty ?? false)) {
+          _tyreImageUrlsDoubleAxle = [_tyresImageUrl!];
+        }
         _chassisImageUrl = trailerExtra['chassisImageUrl']?.toString() ??
             data['chassisImageUrl']?.toString() ??
             '';
@@ -888,6 +959,19 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _tyresImageUrl = trailerExtra['tyresImageUrl']?.toString() ??
             data['tyresImageUrl']?.toString() ??
             '';
+        // Other tyre arrays
+        if (trailerExtra['tyreImageUrls'] is List) {
+          _tyreImageUrlsOther = List<String>.from(
+              (trailerExtra['tyreImageUrls'] as List)
+                  .map((e) => (e ?? '').toString()));
+          while (_tyreImageUrlsOther.isNotEmpty &&
+              _tyreImageUrlsOther.last.isEmpty) {
+            _tyreImageUrlsOther.removeLast();
+          }
+        } else if (_tyreImageUrlsOther.isEmpty &&
+            (_tyresImageUrl?.isNotEmpty ?? false)) {
+          _tyreImageUrlsOther = [_tyresImageUrl!];
+        }
         _chassisImageUrl = trailerExtra['chassisImageUrl']?.toString() ??
             data['chassisImageUrl']?.toString() ??
             '';
@@ -2040,11 +2124,26 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           existingUrl: _roofDoubleAxleUrl,
         ),
         const SizedBox(height: 15),
-        _buildImageSectionWithTitle(
-          'Tyres Image',
-          _tyresDoubleAxleImage,
-          (img) => setState(() => _tyresDoubleAxleImage = img),
-          existingUrl: _tyresImageUrl,
+        _buildTyreImagesSection(
+          'Tyres',
+          _tyreImagesDoubleAxle,
+          _tyreImageUrlsDoubleAxle,
+          (index, img) {
+            setState(() {
+              if (index < _tyreImagesDoubleAxle.length) {
+                _tyreImagesDoubleAxle[index] = img;
+              } else {
+                // pad to index
+                while (_tyreImagesDoubleAxle.length < index) {
+                  _tyreImagesDoubleAxle.add(null);
+                }
+                _tyreImagesDoubleAxle.add(img);
+              }
+              _tyresDoubleAxleImage = _tyreImagesDoubleAxle.isNotEmpty
+                  ? _tyreImagesDoubleAxle.first
+                  : null;
+            });
+          },
         ),
         const SizedBox(height: 15),
         _buildImageSectionWithTitle(
@@ -2422,17 +2521,26 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           existingUrl: _sideImageAUrl,
         ),
         const SizedBox(height: 15),
-        _buildImageSectionWithTitle(
-          'Tyres Image (Trailer A)',
-          _tyresImageA,
-          (img) {
+        _buildTyreImagesSection(
+          'Trailer A - Tyres',
+          _tyreImagesA,
+          _tyreImageUrlsA,
+          (index, img) {
             if (!isDealer) {
               setState(() {
-                _tyresImageA = img;
+                if (index < _tyreImagesA.length) {
+                  _tyreImagesA[index] = img;
+                } else {
+                  while (_tyreImagesA.length < index) {
+                    _tyreImagesA.add(null);
+                  }
+                  _tyreImagesA.add(img);
+                }
+                _tyresImageA =
+                    _tyreImagesA.isNotEmpty ? _tyreImagesA.first : null;
               });
             }
           },
-          existingUrl: _tyresImageAUrl,
         ),
         const SizedBox(height: 15),
         _buildImageSectionWithTitle(
@@ -2703,17 +2811,26 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           existingUrl: _sideImageBUrl,
         ),
         const SizedBox(height: 15),
-        _buildImageSectionWithTitle(
-          'Tyres Image (Trailer B)',
-          _tyresImageB,
-          (img) {
+        _buildTyreImagesSection(
+          'Trailer B - Tyres',
+          _tyreImagesB,
+          _tyreImageUrlsB,
+          (index, img) {
             if (!isDealer) {
               setState(() {
-                _tyresImageB = img;
+                if (index < _tyreImagesB.length) {
+                  _tyreImagesB[index] = img;
+                } else {
+                  while (_tyreImagesB.length < index) {
+                    _tyreImagesB.add(null);
+                  }
+                  _tyreImagesB.add(img);
+                }
+                _tyresImageB =
+                    _tyreImagesB.isNotEmpty ? _tyreImagesB.first : null;
               });
             }
           },
-          existingUrl: _tyresImageBUrl,
         ),
         const SizedBox(height: 15),
         _buildImageSectionWithTitle(
@@ -3057,13 +3174,25 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           existingUrl: _sideImageUrl,
         ),
         const SizedBox(height: 15),
-        _buildImageSectionWithTitle(
-          'Tyres Image',
-          _tyresImage,
-          (img) {
-            if (!isDealer) setState(() => _tyresImage = img);
+        _buildTyreImagesSection(
+          'Tyres',
+          _tyreImages,
+          _tyreImageUrls,
+          (index, img) {
+            if (!isDealer) {
+              setState(() {
+                if (index < _tyreImages.length) {
+                  _tyreImages[index] = img;
+                } else {
+                  while (_tyreImages.length < index) {
+                    _tyreImages.add(null);
+                  }
+                  _tyreImages.add(img);
+                }
+                _tyresImage = _tyreImages.isNotEmpty ? _tyreImages.first : null;
+              });
+            }
           },
-          existingUrl: _tyresImageUrl,
         ),
         const SizedBox(height: 15),
         _buildImageSectionWithTitle(
@@ -3231,6 +3360,34 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           _buildFeaturesSection(),
         const SizedBox(height: 30),
       ]
+      // --- ADD 'OTHER' TYRES SECTION (dynamic, position-labeled) ---
+      else if (_selectedTrailerType == 'Other') ...[
+        const SizedBox(height: 15),
+        _buildTyreImagesSection(
+          'Tyres',
+          _tyreImagesOther,
+          _tyreImageUrlsOther,
+          (index, img) {
+            if (!isDealer) {
+              setState(() {
+                if (index < _tyreImagesOther.length) {
+                  _tyreImagesOther[index] = img;
+                } else {
+                  // pad to index
+                  while (_tyreImagesOther.length < index) {
+                    _tyreImagesOther.add(null);
+                  }
+                  _tyreImagesOther.add(img);
+                }
+                // Keep legacy single field synced to first element
+                _tyresOtherImage =
+                    _tyreImagesOther.isNotEmpty ? _tyreImagesOther.first : null;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 15),
+      ]
     ]);
   }
 
@@ -3314,6 +3471,168 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         border: Border.all(color: const Color(0xFF0E4CAF), width: 2.0),
       ),
       child: child,
+    );
+  }
+
+  // Dynamic Tyres section with position labels and add/remove controls (Edit)
+  Widget _buildTyreImagesSection(
+    String title,
+    List<Uint8List?> tyreImages,
+    List<String> existingUrls,
+    void Function(int index, Uint8List? image) onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+              fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        // Always show at least one position (Position 1) for consistency
+        for (int i = 0;
+            i <
+                ((tyreImages.isEmpty && existingUrls.isEmpty)
+                    ? 1
+                    : (tyreImages.length > existingUrls.length
+                        ? tyreImages.length
+                        : existingUrls.length));
+            i++) ...[
+          Text('Position ${i + 1}',
+              style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: () {
+              final bool isDealer =
+                  Provider.of<UserProvider>(context, listen: false)
+                          .getUserRole ==
+                      'dealer';
+              if (isDealer) return;
+              if (i < tyreImages.length && tyreImages[i] != null) {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Tyre Image'),
+                    content: const Text(
+                        'What would you like to do with this image?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _pickImageOrFile(
+                            title: 'Change Tyre Image',
+                            pickImageOnly: true,
+                            callback: (file, fileName) {
+                              if (file != null) onChanged(i, file);
+                            },
+                          );
+                        },
+                        child: const Text('Change Image'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          onChanged(i, null);
+                        },
+                        child: const Text('Remove Image',
+                            style: TextStyle(color: Colors.red)),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                _pickImageOrFile(
+                  title: 'Tyre Image (Position ${i + 1})',
+                  pickImageOnly: true,
+                  callback: (file, fileName) {
+                    if (file != null) onChanged(i, file);
+                  },
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(10.0),
+            child: _buildStyledContainer(
+              child: (i < tyreImages.length && tyreImages[i] != null)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.memory(tyreImages[i]!,
+                          fit: BoxFit.cover,
+                          height: 150,
+                          width: double.infinity),
+                    )
+                  : (i < existingUrls.length && existingUrls[i].isNotEmpty)
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Image.network(existingUrls[i],
+                              fit: BoxFit.cover,
+                              height: 150,
+                              width: double.infinity),
+                        )
+                      : const Column(
+                          children: [
+                            Icon(Icons.camera_alt,
+                                color: Colors.white, size: 50.0),
+                            SizedBox(height: 10),
+                            Text('Tap to upload tyre image',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white70),
+                                textAlign: TextAlign.center),
+                          ],
+                        ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  if (i < tyreImages.length) {
+                    tyreImages.removeAt(i);
+                  }
+                  if (i < existingUrls.length) {
+                    existingUrls.removeAt(i);
+                  }
+                });
+              },
+              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              label: const Text('Remove', style: TextStyle(color: Colors.red)),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 8),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              final bool isDealer =
+                  Provider.of<UserProvider>(context, listen: false)
+                          .getUserRole ==
+                      'dealer';
+              if (isDealer) return;
+              setState(() {
+                tyreImages.add(null);
+              });
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue, size: 30.0),
+                SizedBox(width: 8.0),
+                Text('Add another tyre',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -3531,10 +3850,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       currentTransporterEmail = transporter['email'];
     }
 
-    final List<String> transporterEmails = _transporterUsers
-        .map((e) => e['email'] as String)
-        .where((email) => email != null)
-        .toList();
+    final List<String> transporterEmails =
+        _transporterUsers.map((e) => e['email'] as String).toList();
 
     // --- DEBUGGING ---
     debugPrint(
@@ -3590,10 +3907,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       currentSalesRepEmail = salesRep['email'];
     }
 
-    final List<String> salesRepEmails = _salesRepUsers
-        .map((e) => e['email'] as String)
-        .where((email) => email != null)
-        .toList();
+    final List<String> salesRepEmails =
+        _salesRepUsers.map((e) => e['email'] as String).toList();
 
     // --- DEBUGGING ---
     debugPrint('[DEBUG][SalesRep] _selectedSalesRepId: $_selectedSalesRepId');
@@ -3747,6 +4062,23 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       // Build trailerExtraInfo
       Map<String, dynamic> trailerExtraInfo = {};
       if (_selectedTrailerType == 'Superlink') {
+        // Compute tyre lists once (avoid double uploads) and mirror legacy first URL
+        final List<String> _finalTyreUrlsA = await _uploadTyreImagesFromEdit(
+          _tyreImagesA,
+          _tyreImageUrlsA.isNotEmpty
+              ? _tyreImageUrlsA
+              : (_tyresImageAUrl?.isNotEmpty ?? false)
+                  ? [_tyresImageAUrl!]
+                  : [],
+        );
+        final List<String> _finalTyreUrlsB = await _uploadTyreImagesFromEdit(
+          _tyreImagesB,
+          _tyreImageUrlsB.isNotEmpty
+              ? _tyreImageUrlsB
+              : (_tyresImageBUrl?.isNotEmpty ?? false)
+                  ? [_tyresImageBUrl!]
+                  : [],
+        );
         trailerExtraInfo = {
           'trailerA': {
             'make': _makeController.text,
@@ -3771,10 +4103,10 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageA!, 'vehicle_images')
                 : _sideImageAUrl ?? '',
-            'tyresImageUrl': _tyresImageA != null
-                ? await _uploadFileToFirebaseStorage(
-                    _tyresImageA!, 'vehicle_images')
-                : _tyresImageAUrl ?? '',
+            // Tyres (Trailer A)
+            'tyreImageUrls': _finalTyreUrlsA,
+            'tyresImageUrl':
+                _finalTyreUrlsA.isNotEmpty ? _finalTyreUrlsA.first : '',
             'chassisImageUrl': _chassisImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageA!, 'vehicle_images')
@@ -3854,10 +4186,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageB!, 'vehicle_images')
                 : _sideImageBUrl ?? '',
-            'tyresImageUrl': _tyresImageB != null
-                ? await _uploadFileToFirebaseStorage(
-                    _tyresImageB!, 'vehicle_images')
-                : _tyresImageBUrl ?? '',
+            'tyreImageUrls': _finalTyreUrlsB,
+            'tyresImageUrl':
+                _finalTyreUrlsB.isNotEmpty ? _finalTyreUrlsB.first : '',
             'chassisImageUrl': _chassisImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageB!, 'vehicle_images')
@@ -3916,6 +4247,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           },
         };
       } else if (_selectedTrailerType == 'Other') {
+        // Persist existing Trailer A/B structure (if used) and also update flat tyres fields for 'Other'
         trailerExtraInfo = {
           'trailerA': {
             'length': _lengthTrailerAController.text,
@@ -3934,10 +4266,22 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageA!, 'vehicle_images')
                 : _sideImageAUrl ?? '',
-            'tyresImageUrl': _tyresImageA != null
-                ? await _uploadFileToFirebaseStorage(
-                    _tyresImageA!, 'vehicle_images')
-                : _tyresImageAUrl ?? '',
+            'tyreImageUrls': await _uploadTyreImagesFromEdit(
+              _tyreImagesA,
+              _tyreImageUrlsA.isNotEmpty
+                  ? _tyreImageUrlsA
+                  : (_tyresImageAUrl?.isNotEmpty ?? false)
+                      ? [_tyresImageAUrl!]
+                      : [],
+            ),
+            'tyresImageUrl': (() {
+              final list = _tyreImageUrlsA.isNotEmpty
+                  ? _tyreImageUrlsA
+                  : (_tyresImageAUrl?.isNotEmpty ?? false)
+                      ? [_tyresImageAUrl!]
+                      : [];
+              return list.isNotEmpty ? list.first : '';
+            })(),
             'chassisImageUrl': _chassisImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageA!, 'vehicle_images')
@@ -3970,10 +4314,22 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageB!, 'vehicle_images')
                 : _sideImageBUrl ?? '',
-            'tyresImageUrl': _tyresImageB != null
-                ? await _uploadFileToFirebaseStorage(
-                    _tyresImageB!, 'vehicle_images')
-                : _tyresImageBUrl ?? '',
+            'tyreImageUrls': await _uploadTyreImagesFromEdit(
+              _tyreImagesB,
+              _tyreImageUrlsB.isNotEmpty
+                  ? _tyreImageUrlsB
+                  : (_tyresImageBUrl?.isNotEmpty ?? false)
+                      ? [_tyresImageBUrl!]
+                      : [],
+            ),
+            'tyresImageUrl': (() {
+              final list = _tyreImageUrlsB.isNotEmpty
+                  ? _tyreImageUrlsB
+                  : (_tyresImageBUrl?.isNotEmpty ?? false)
+                      ? [_tyresImageBUrl!]
+                      : [];
+              return list.isNotEmpty ? list.first : '';
+            })(),
             'chassisImageUrl': _chassisImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageB!, 'vehicle_images')
@@ -3990,6 +4346,19 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 await _uploadListItems(_additionalImagesListTrailerB),
           },
         };
+        // Also store flat tyres array for 'Other' type to match prepopulation logic
+        final List<String> _finalTyreUrlsOther =
+            await _uploadTyreImagesFromEdit(
+          _tyreImagesOther,
+          _tyreImageUrlsOther.isNotEmpty
+              ? _tyreImageUrlsOther
+              : (_tyresImageUrl?.isNotEmpty ?? false)
+                  ? [_tyresImageUrl!]
+                  : [],
+        );
+        trailerExtraInfo['tyreImageUrls'] = _finalTyreUrlsOther;
+        trailerExtraInfo['tyresImageUrl'] =
+            _finalTyreUrlsOther.isNotEmpty ? _finalTyreUrlsOther.first : '';
       }
 
       // Add features to updated data.
@@ -4080,6 +4449,30 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       debugPrint('File upload error: $e');
       return null;
     }
+  }
+
+  // Merge existing tyre URLs with newly selected images and upload as needed.
+  Future<List<String>> _uploadTyreImagesFromEdit(
+      List<Uint8List?> newImages, List<String> existingUrls) async {
+    final int maxLen = (newImages.length > existingUrls.length)
+        ? newImages.length
+        : existingUrls.length;
+    final List<String> result = [];
+    for (int i = 0; i < maxLen; i++) {
+      final Uint8List? img = i < newImages.length ? newImages[i] : null;
+      final String prev = i < existingUrls.length ? existingUrls[i] : '';
+      if (img != null) {
+        final url = await _uploadFileToFirebaseStorage(img, 'vehicle_images');
+        result.add(url ?? '');
+      } else {
+        result.add(prev);
+      }
+    }
+    // Trim trailing empties
+    while (result.isNotEmpty && result.last.isEmpty) {
+      result.removeLast();
+    }
+    return result;
   }
 
   // --- Custom image/file picker dialog ---

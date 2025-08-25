@@ -1098,9 +1098,10 @@ class _VehiclesTabState extends State<VehiclesTab>
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const VehicleUploadScreen(
+                              builder: (context) => VehicleUploadScreen(
                                 isNewUpload: true,
                                 isAdminUpload: true,
+                                transporterId: transporterId,
                               ),
                             ),
                           );

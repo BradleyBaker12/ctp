@@ -16,6 +16,7 @@ import 'package:ctp/components/truck_info_web_nav.dart';
 // Added for platformViewRegistry
 // For web camera access
 import 'package:ctp/utils/camera_helper.dart'; // Added import for camera helper
+import 'package:ctp/providers/form_data_provider.dart';
 
 /// Class to handle both local files and network URLs for images
 class ImageData {
@@ -102,16 +103,35 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
     }
   }
 
-  Future<void> _loadExistingData() async {
-    print('InternalCab: Loading existing data for vehicle ${widget.vehicleId}');
+  // Resolve vehicleId from widget, provider, or route args
+  String? _resolveVehicleId() {
+    if (widget.vehicleId.isNotEmpty) return widget.vehicleId;
     try {
+      final formData = Provider.of<FormDataProvider>(context, listen: false);
+      final id = formData.vehicleId;
+      if (id != null && id.isNotEmpty) return id;
+    } catch (_) {}
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String && args.isNotEmpty) return args;
+    return null;
+  }
+
+  Future<void> _loadExistingData() async {
+    final effectiveId = _resolveVehicleId();
+    print(
+        'InternalCab: Loading existing data for vehicle ${effectiveId ?? '(missing)'}');
+    try {
+      if (effectiveId == null || effectiveId.isEmpty) {
+        print('InternalCab: Missing vehicleId. Skipping initial load.');
+        return;
+      }
       final doc = await FirebaseFirestore.instance
           .collection('vehicles')
-          .doc(widget.vehicleId)
+          .doc(effectiveId)
           .get();
 
       if (!doc.exists) {
-        print('InternalCab: No document found for vehicle ${widget.vehicleId}');
+        print('InternalCab: No document found for vehicle $effectiveId');
         return;
       }
 

@@ -291,8 +291,6 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
                                   'Battery': '',
                                   'Cat Walk': '',
                                   'Electrical Cable Black': '',
-                                  'Air Cable Yellow': '',
-                                  'Air Cable Red': '',
                                   'Tail Board': '',
                                   '5th Wheel': '',
                                   'Left Brake Rear Axel': '',

@@ -7,7 +7,6 @@ import '../providers/offer_provider.dart';
 import '../providers/user_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class OffersTab extends StatefulWidget {
   final String userId;
   final String userRole;
@@ -53,6 +52,21 @@ class _OffersTabState extends State<OffersTab> {
   // Tab state – "All", "In Progress", "Successful", or "Rejected"
   String _selectedTab = 'All';
 
+  // Optional day filter: show offers created on a specific date.
+  DateTime? _selectedDate;
+
+  // Map offer status to a consistent color for quick visual scanning.
+  Color _statusColor(String status) {
+    final s = status.toLowerCase();
+    if (s == 'rejected') return Colors.redAccent;
+    if (s == 'accepted') return Colors.lightGreen;
+    if (s == 'successful' || s == 'completed' || s == 'sold' || s == 'done') {
+      return Colors.green;
+    }
+    // Everything else treated as in-progress/pending
+    return Colors.amberAccent;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -91,6 +105,43 @@ class _OffersTabState extends State<OffersTab> {
         // print('DEBUG: _searchQuery set to => $_searchQuery');
       });
     });
+  }
+
+  String _formatDate(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return "$y-$m-$day";
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final initial = _selectedDate ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 5),
+      builder: (context, child) {
+        // Apply a dark theme to match the app
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFFF4E00),
+              surface: Colors.black,
+              onSurface: Colors.white,
+            ),
+            dialogBackgroundColor: Colors.grey[900],
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = DateTime(picked.year, picked.month, picked.day);
+      });
+    }
   }
 
   @override
@@ -223,15 +274,26 @@ class _OffersTabState extends State<OffersTab> {
     // Enhanced search across all relevant fields
     return (offer.vehicleMakeModel ?? '').toLowerCase().contains(query) ||
         (offer.dealerId).toLowerCase().contains(query) ||
-        (offer.transporterId ?? '').toLowerCase().contains(query) ||
+        offer.transporterId.toLowerCase().contains(query) ||
         (offer.offerStatus).toLowerCase().contains(query) ||
         (offer.offerAmount?.toString() ?? '').contains(query);
   }
 
   /// Filter offers by status, sort them, and return the final list.
   List<Offer> _getFilteredAndSortedOffers(List<Offer> offers) {
-    // First apply status filter
+    // First apply optional date (day) filter using createdAt
     var filteredOffers = offers.where((offer) {
+      if (_selectedDate == null) return true;
+      final created = offer.createdAt;
+      if (created == null) return false;
+      final start = DateTime(
+          _selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+      final end = start.add(const Duration(days: 1));
+      return !created.isBefore(start) && created.isBefore(end);
+    }).toList();
+
+    // Then apply status filter
+    filteredOffers = filteredOffers.where((offer) {
       if (_filterStatus == 'All') return true;
 
       final status = offer.offerStatus.toLowerCase();
@@ -382,15 +444,11 @@ class _OffersTabState extends State<OffersTab> {
 
   // Filtering logic (4 tabs):
   List<Offer> _filterOffersByTab(List<Offer> offers, String status) {
-    final filtered = offers.where((offer) {
-      final lowerStatus = offer.offerStatus.toLowerCase();
-      return lowerStatus != 'sold';
-    }).toList();
     switch (status.toUpperCase()) {
       case 'ALL':
-        return filtered;
+        return offers;
       case 'IN PROGRESS':
-        return filtered.where((offer) {
+        return offers.where((offer) {
           final lowerStatus = offer.offerStatus.toLowerCase();
           return lowerStatus != 'rejected' &&
               lowerStatus != 'successful' &&
@@ -399,7 +457,7 @@ class _OffersTabState extends State<OffersTab> {
               lowerStatus != 'done';
         }).toList();
       case 'SUCCESSFUL':
-        return filtered.where((offer) {
+        return offers.where((offer) {
           final lowerStatus = offer.offerStatus.toLowerCase();
           return lowerStatus == 'successful' ||
               lowerStatus == 'completed' ||
@@ -407,7 +465,7 @@ class _OffersTabState extends State<OffersTab> {
               lowerStatus == 'done';
         }).toList();
       case 'REJECTED':
-        return filtered
+        return offers
             .where((offer) => offer.offerStatus.toLowerCase() == 'rejected')
             .toList();
       default:
@@ -537,6 +595,43 @@ class _OffersTabState extends State<OffersTab> {
                 onPressed: _showFilterDialog,
                 tooltip: 'Filter Offers',
               ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.event, color: Colors.white),
+                tooltip: _selectedDate == null
+                    ? 'Filter by date'
+                    : 'Change date filter',
+                onPressed: _pickDate,
+              ),
+              if (_selectedDate != null) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _formatDate(_selectedDate!),
+                        style: GoogleFonts.montserrat(color: Colors.white70),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _selectedDate = null);
+                        },
+                        child: const Icon(Icons.close,
+                            size: 16, color: Colors.white70),
+                      )
+                    ],
+                  ),
+                )
+              ]
             ],
           ),
         ),
@@ -658,129 +753,142 @@ class _OffersTabState extends State<OffersTab> {
                           countdownText = 'No Life span';
                         }
                         final needsAttention = offer.needsInvoice == true;
-                        return Card(
-                          color: needsAttention
-                              ? Colors.red[800]
-                              : Colors.grey[900],
+                        return Container(
                           margin: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 5),
-                          child: ListTile(
-                            leading: Stack(
-                              children: [
-                                _buildOfferImage(offer),
-                                if (needsAttention)
-                                  Positioned(
-                                    top: 0,
-                                    right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(2),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.yellow,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.warning,
-                                        size: 12,
-                                        color: Colors.red[800],
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                  color: _statusColor(offer.offerStatus),
+                                  width: 4),
                             ),
-                            title: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (offer.vehicleRef != null) ...[
-                                  Text(
-                                    'Ref: ${offer.vehicleRef}',
-                                    style: GoogleFonts.montserrat(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFFF4E00),
-                                      fontSize: 16,
+                          ),
+                          child: Card(
+                            color: needsAttention
+                                ? Colors.red[800]
+                                : Colors.grey[900],
+                            margin: EdgeInsets.zero,
+                            child: ListTile(
+                              leading: Stack(
+                                children: [
+                                  _buildOfferImage(offer),
+                                  if (needsAttention)
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.yellow,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.warning,
+                                          size: 12,
+                                          color: Colors.red[800],
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  FutureBuilder<String?>(
-                                    future: Provider.of<UserProvider>(context,
-                                            listen: false)
-                                        .getUserEmailById(offer.dealerId),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 4.0),
-                                          child: SizedBox(
-                                            height: 18,
-                                            width: 18,
-                                            child: Center(
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                valueColor:
-                                                    AlwaysStoppedAnimation<
-                                                            Color>(
-                                                        Color(0xFFFF4E00)),
+                                ],
+                              ),
+                              title: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (offer.vehicleRef != null) ...[
+                                    Text(
+                                      'Ref: ${offer.vehicleRef}',
+                                      style: GoogleFonts.montserrat(
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFFFF4E00),
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    FutureBuilder<String?>(
+                                      future: Provider.of<UserProvider>(context,
+                                              listen: false)
+                                          .getUserEmailById(offer.dealerId),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 4.0),
+                                            child: SizedBox(
+                                              height: 18,
+                                              width: 18,
+                                              child: Center(
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2.5,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                              Color>(
+                                                          Color(0xFFFF4E00)),
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        );
-                                      }
-                                      final email = snapshot.data ?? '';
-                                      return email.isNotEmpty
-                                          ? Text(
-                                              email,
-                                              style: GoogleFonts.montserrat(
-                                                color: Colors.white70,
-                                                fontSize: 14,
-                                              ),
-                                            )
-                                          : const SizedBox.shrink();
-                                    },
+                                          );
+                                        }
+                                        final email = snapshot.data ?? '';
+                                        return email.isNotEmpty
+                                            ? Text(
+                                                email,
+                                                style: GoogleFonts.montserrat(
+                                                  color: Colors.white70,
+                                                  fontSize: 14,
+                                                ),
+                                              )
+                                            : const SizedBox.shrink();
+                                      },
+                                    ),
+                                  ],
+                                  Text(
+                                    "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
+                                    style: GoogleFonts.montserrat(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white),
                                   ),
                                 ],
-                                Text(
-                                  "${offer.vehicleMakeModel ?? 'No Title'}\nR ${offer.offerAmount?.toStringAsFixed(2) ?? 'N/A'}",
-                                  style: GoogleFonts.montserrat(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white),
-                                ),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Status: ${offer.offerStatus}',
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white70),
-                                ),
-                                if (needsAttention)
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    'Needs Invoice',
+                                    'Status: ${offer.offerStatus}',
                                     style: GoogleFonts.montserrat(
-                                      color: Colors.yellowAccent,
-                                      fontWeight: FontWeight.bold,
+                                      color: _statusColor(offer.offerStatus),
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                if (countdownText.isNotEmpty)
-                                  Text(
-                                    countdownText,
-                                    style: GoogleFonts.montserrat(
-                                        color: Colors.white70),
+                                  if (needsAttention)
+                                    Text(
+                                      'Needs Invoice',
+                                      style: GoogleFonts.montserrat(
+                                        color: Colors.yellowAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  if (countdownText.isNotEmpty)
+                                    Text(
+                                      countdownText,
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white70),
+                                    ),
+                                ],
+                              ),
+                              isThreeLine: needsAttention,
+                              trailing: const Icon(Icons.arrow_forward_ios,
+                                  color: Colors.white),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        OfferDetailPage(offer: offer),
                                   ),
-                              ],
+                                );
+                              },
                             ),
-                            isThreeLine: needsAttention,
-                            trailing: const Icon(Icons.arrow_forward_ios,
-                                color: Colors.white),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      OfferDetailPage(offer: offer),
-                                ),
-                              );
-                            },
                           ),
                         );
                       },
@@ -856,133 +964,144 @@ class _OffersTabState extends State<OffersTab> {
                       countdownText = 'No Life span';
                     }
                     final needsAttention = offer.needsInvoice == true;
-                    return Card(
-                      color:
-                          needsAttention ? Colors.red[800] : Colors.grey[900],
+                    return Container(
                       margin: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
-                      child: ListTile(
-                        leading: Stack(
-                          children: [
-                            _buildOfferImage(offer),
-                            if (needsAttention)
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.yellow,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.warning,
-                                    size: 12,
-                                    color: Colors.red[800],
-                                  ),
-                                ),
-                              ),
-                          ],
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                              color: _statusColor(offer.offerStatus), width: 4),
                         ),
-                        title: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              offer.vehicleMakeModel ?? 'No Title',
-                              style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white),
-                            ),
-                            Text(
-                              offer.offerAmount?.toStringAsFixed(2) ?? 'N/A',
-                              style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white),
-                            ),
-                            if (offer.vehicleRef != null) ...[
-                              Text(
-                                'Ref: ${offer.vehicleRef}',
-                                style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFFF4E00),
-                                  fontSize: 16,
+                      ),
+                      child: Card(
+                        color:
+                            needsAttention ? Colors.red[800] : Colors.grey[900],
+                        margin: EdgeInsets.zero,
+                        child: ListTile(
+                          leading: Stack(
+                            children: [
+                              _buildOfferImage(offer),
+                              if (needsAttention)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.yellow,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.warning,
+                                      size: 12,
+                                      color: Colors.red[800],
+                                    ),
+                                  ),
                                 ),
+                            ],
+                          ),
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                offer.vehicleMakeModel ?? 'No Title',
+                                style: GoogleFonts.montserrat(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
                               ),
-                              FutureBuilder<String?>(
-                                future: Provider.of<UserProvider>(context,
-                                        listen: false)
-                                    .getUserEmailById(offer.dealerId),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 4.0),
-                                      child: SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: Center(
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                    Color(0xFFFF4E00)),
+                              Text(
+                                offer.offerAmount?.toStringAsFixed(2) ?? 'N/A',
+                                style: GoogleFonts.montserrat(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
+                              ),
+                              if (offer.vehicleRef != null) ...[
+                                Text(
+                                  'Ref: ${offer.vehicleRef}',
+                                  style: GoogleFonts.montserrat(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFFF4E00),
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                FutureBuilder<String?>(
+                                  future: Provider.of<UserProvider>(context,
+                                          listen: false)
+                                      .getUserEmailById(offer.dealerId),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 4.0),
+                                        child: SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                      Color(0xFFFF4E00)),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    );
-                                  }
-                                  final email = snapshot.data ?? '';
-                                  return email.isNotEmpty
-                                      ? Text(
-                                          email,
-                                          style: GoogleFonts.montserrat(
-                                            color: Colors.white70,
-                                            fontSize: 14,
-                                          ),
-                                        )
-                                      : const SizedBox.shrink();
-                                },
-                              ),
+                                      );
+                                    }
+                                    final email = snapshot.data ?? '';
+                                    return email.isNotEmpty
+                                        ? Text(
+                                            email,
+                                            style: GoogleFonts.montserrat(
+                                              color: Colors.white70,
+                                              fontSize: 14,
+                                            ),
+                                          )
+                                        : const SizedBox.shrink();
+                                  },
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Status: ${offer.offerStatus}',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white70),
-                            ),
-                            if (needsAttention)
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                'Needs Invoice',
+                                'Status: ${offer.offerStatus}',
                                 style: GoogleFonts.montserrat(
-                                  color: Colors.yellowAccent,
-                                  fontWeight: FontWeight.bold,
+                                  color: _statusColor(offer.offerStatus),
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            if (countdownText.isNotEmpty)
-                              Text(
-                                countdownText,
-                                style: GoogleFonts.montserrat(
-                                    color: Colors.white70),
+                              if (needsAttention)
+                                Text(
+                                  'Needs Invoice',
+                                  style: GoogleFonts.montserrat(
+                                    color: Colors.yellowAccent,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              if (countdownText.isNotEmpty)
+                                Text(
+                                  countdownText,
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white70),
+                                ),
+                            ],
+                          ),
+                          isThreeLine: needsAttention,
+                          trailing: const Icon(Icons.arrow_forward_ios,
+                              color: Colors.white),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    OfferDetailPage(offer: offer),
                               ),
-                          ],
+                            );
+                          },
                         ),
-                        isThreeLine: needsAttention,
-                        trailing: const Icon(Icons.arrow_forward_ios,
-                            color: Colors.white),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  OfferDetailPage(offer: offer),
-                            ),
-                          );
-                        },
                       ),
                     );
                   },

@@ -2,7 +2,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 // Added for platformViewRegistry
 // For web camera access
@@ -61,8 +60,6 @@ class ChassisPage extends StatefulWidget {
 class ChassisPageState extends State<ChassisPage>
     with AutomaticKeepAliveClientMixin {
   final ImagePicker _picker = ImagePicker();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Overall condition radio buttons
   String _selectedCondition = 'good';
@@ -78,22 +75,28 @@ class ChassisPageState extends State<ChassisPage>
     'Front Axel': const ImageData(),
     'Suspension': const ImageData(),
     'Fuel Tank': const ImageData(),
+    'Fuel Tank 2': const ImageData(),
     'Battery': const ImageData(),
+    'Battery Cover': const ImageData(),
+    'Battery Cover 2': const ImageData(),
     'Cat Walk': const ImageData(),
     'Electrical Cable Black': const ImageData(),
-    'Air Cable Yellow': const ImageData(),
-    'Air Cable Red': const ImageData(),
     'Tail Board': const ImageData(),
     '5th Wheel': const ImageData(),
     'Left Brake Rear Axel': const ImageData(),
     'Right Brake Rear Axel': const ImageData(),
   };
 
+  // Number of fuel tanks (1 or 2). Default 1.
+  int _fuelTanksCount = 1;
+  // Number of battery covers (1 or 2). Default 1.
+  int _batteryCoversCount = 1;
+
   // Lists to store "damages" and "additional features"
   List<ItemData> _damageList = [];
   List<ItemData> _additionalFeaturesList = [];
 
-  bool _isInitialized = false; // For one-time initialization, if needed
+  // Removed unused initialization flag
 
   @override
   bool get wantKeepAlive => true; // For AutomaticKeepAliveClientMixin
@@ -193,14 +196,67 @@ class ChassisPageState extends State<ChassisPage>
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16.0),
-                _buildImageGrid([
-                  'Fuel Tank',
-                  'Battery',
-                  'Cat Walk',
-                  'Electrical Cable Black',
-                  'Air Cable Yellow',
-                  'Air Cable Red'
-                ]),
+                // Fuel tanks count selector
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CustomRadioButton(
+                      label: '1 Fuel Tank',
+                      value: '1',
+                      groupValue: _fuelTanksCount.toString(),
+                      onChanged: (val) => _updateAndNotify(() {
+                        _fuelTanksCount = 1;
+                        // Clear second tank if switching to 1
+                        _selectedImages['Fuel Tank 2'] = const ImageData();
+                      }),
+                    ),
+                    const SizedBox(width: 15),
+                    CustomRadioButton(
+                      label: '2 Fuel Tanks',
+                      value: '2',
+                      groupValue: _fuelTanksCount.toString(),
+                      onChanged: (val) => _updateAndNotify(() {
+                        _fuelTanksCount = 2;
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                // Battery covers count selector
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CustomRadioButton(
+                      label: '1 Battery Cover',
+                      value: '1',
+                      groupValue: _batteryCoversCount.toString(),
+                      onChanged: (val) => _updateAndNotify(() {
+                        _batteryCoversCount = 1;
+                        // Clear second battery cover if switching to 1
+                        _selectedImages['Battery Cover 2'] = const ImageData();
+                      }),
+                    ),
+                    const SizedBox(width: 15),
+                    CustomRadioButton(
+                      label: '2 Battery Covers',
+                      value: '2',
+                      groupValue: _batteryCoversCount.toString(),
+                      onChanged: (val) => _updateAndNotify(() {
+                        _batteryCoversCount = 2;
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                Builder(builder: (context) {
+                  final titles = <String>['Fuel Tank'];
+                  if (_fuelTanksCount == 2) titles.add('Fuel Tank 2');
+                  titles.add('Battery');
+                  titles.add('Battery Cover');
+                  if (_batteryCoversCount == 2) titles.add('Battery Cover 2');
+                  titles.addAll(['Cat Walk', 'Electrical Cable Black']);
+                  return _buildImageGrid(titles);
+                }),
                 const SizedBox(height: 16.0),
                 const Divider(thickness: 1.0),
                 const SizedBox(height: 16.0),
@@ -768,6 +824,11 @@ class ChassisPageState extends State<ChassisPage>
       _damagesCondition = data['damagesCondition'] ?? 'no';
       _additionalFeaturesCondition =
           data['additionalFeaturesCondition'] ?? 'no';
+      _fuelTanksCount =
+          (data['fuelTanksCount'] is int) ? (data['fuelTanksCount'] as int) : 1;
+      _batteryCoversCount = (data['batteryCoversCount'] is int)
+          ? (data['batteryCoversCount'] as int)
+          : 1;
 
       // Main images
       if (data['images'] != null) {
@@ -781,6 +842,30 @@ class ChassisPageState extends State<ChassisPage>
             );
           }
         });
+        // If saved without explicit count, infer from presence of Fuel Tank 2
+        if (data['fuelTanksCount'] == null) {
+          final hasSecond = images['Fuel Tank 2'] is Map &&
+              (images['Fuel Tank 2']['url'] ?? '').toString().isNotEmpty;
+          _fuelTanksCount = hasSecond ? 2 : 1;
+        }
+        // Infer battery cover count if not set (support legacy 'Battery 2')
+        if (data['batteryCoversCount'] == null) {
+          final hasSecondLegacy = images['Battery 2'] is Map &&
+              (images['Battery 2']['url'] ?? '').toString().isNotEmpty;
+          final hasSecondNew = images['Battery Cover 2'] is Map &&
+              (images['Battery Cover 2']['url'] ?? '').toString().isNotEmpty;
+          _batteryCoversCount = (hasSecondLegacy || hasSecondNew) ? 2 : 1;
+        }
+        // Map legacy 'Battery 2' into new key for runtime state
+        if (images['Battery 2'] is Map &&
+            (images['Battery 2']['url'] ?? '').toString().isNotEmpty &&
+            (_selectedImages['Battery Cover 2']?.url == null ||
+                _selectedImages['Battery Cover 2']!.url!.isEmpty)) {
+          _selectedImages['Battery Cover 2'] = ImageData(
+            file: null,
+            url: images['Battery 2']['url'],
+          );
+        }
       }
 
       // Damages
@@ -917,6 +1002,8 @@ class ChassisPageState extends State<ChassisPage>
       'condition': _selectedCondition,
       'damagesCondition': _damagesCondition,
       'additionalFeaturesCondition': _additionalFeaturesCondition,
+      'fuelTanksCount': _fuelTanksCount,
+      'batteryCoversCount': _batteryCoversCount,
       'images': serializedImages,
       'damages': serializedDamages,
       'additionalFeatures': serializedFeatures,
@@ -938,22 +1025,24 @@ class ChassisPageState extends State<ChassisPage>
       // Clear lists
       _damageList.clear();
       _additionalFeaturesList.clear();
-
-      _isInitialized = false;
     });
   }
 
   /// Example logic for a "completion percentage"
   double getCompletionPercentage() {
-    int totalFields =
-        17; // 1 condition + 14 images + 2 sections (damages & additional features)
+    // Base is 1 condition + 12 images + 2 sections
+    int baseTotal = 15;
+    // Add 1 to total if two fuel tanks required, and 1 if two battery covers
+    int totalFields = baseTotal +
+        (_fuelTanksCount == 2 ? 1 : 0) +
+        (_batteryCoversCount == 2 ? 1 : 0);
     int filledFields = 0;
 
     // Condition
     if (_selectedCondition.isNotEmpty) filledFields++;
 
-    // 14 images
-    _selectedImages.forEach((_, data) {
+    // Images (counts all present keys)
+    _selectedImages.forEach((key, data) {
       if (data.file != null || (data.url != null && data.url!.isNotEmpty)) {
         filledFields++;
       }
