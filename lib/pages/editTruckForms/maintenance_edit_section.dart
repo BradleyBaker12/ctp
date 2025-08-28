@@ -417,7 +417,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
       final int ts = DateTime.now().millisecondsSinceEpoch;
       final String namePrefix =
           isMaintenance ? 'maintenance_doc_' : 'warranty_doc_';
-      final String objectName = '$namePrefix${ts}${filename ?? ''}';
+      final String objectName = '$namePrefix$ts${filename ?? ''}';
       final ref =
           FirebaseStorage.instance.ref().child(folder).child(objectName);
       await ref.putData(bytes);
@@ -586,7 +586,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
-    final bool isTransporter = userRole == 'transporter';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
     final bool isSales = userRole == 'sales';
     final bool canEdit = isAdmin || isSales || isTransporter;
 
@@ -678,7 +678,7 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     print("Warranty Selection: ${widget.warrantySelection}");
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
     final bool isSales = userRole == 'sales';
     final bool canEdit = isAdmin || isSales || isTransporter;
 

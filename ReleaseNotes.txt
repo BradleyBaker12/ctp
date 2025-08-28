@@ -19,3 +19,37 @@ feat: Restrict document replacement options for dealers in trailer upload screen
 - Updated vehicle details page to dynamically build titles for trailers and vehicles based on available data in vehicle_details_page.dart.
 - Bumped version to 1.0.16+22 in pubspec.yaml.
 - Refactor navigation and enhance bottom navigation bar across multiple pages
+
+
+25 Aug 2025
+Refactor transport offer details page: 
+- Removed unused imports and methods related to invoice handling.
+- Added financial breakdown table with role-based display for dealers and transporters.
+- Improved currency formatting for amounts.
+- Enhanced image carousel with page indicator dots.
+
+Update chassis page:
+- Introduced fuel tank and battery cover count selectors.
+- Adjusted image grid to reflect selected counts.
+- Removed unused initialization flag and Firestore references.
+
+Revise vehicle upload screen:
+- Added transporter ID handling for admin uploads.
+- Updated user ID assignment logic based on upload context.
+
+Clean up truck page:
+- Removed unused fleet options loader and testing utilities.
+- Simplified vehicle type filter logic.
+
+Enhance upload proof of payment page:
+- Implemented invoice availability checks before allowing uploads.
+- Added functionality to view invoice if available.
+
+Improve vehicle details page:
+- Enhanced trailer information display based on type.
+- Restricted offer-making section visibility to authenticated users with appropriate roles.
+
+Refine wishlist offers page:
+- Removed unused air cable fields from the wishlist.
+
+Bump version to 1.0.18+24 in pubspec.yaml.

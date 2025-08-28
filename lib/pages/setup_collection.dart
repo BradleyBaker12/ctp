@@ -515,7 +515,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
     final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
     final bool isTransporter =
-        userRole == 'transporter'; // Check if the user is a dealer
+        userRole == 'transporter' || userRole == 'oem'; // Transporter-like
     return Stack(
       children: [
         GradientBackground(

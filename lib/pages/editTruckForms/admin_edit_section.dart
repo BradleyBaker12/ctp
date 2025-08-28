@@ -82,7 +82,7 @@ class AdminEditSectionState extends State<AdminEditSection>
     super.initState();
     _settlementAmountController.text = widget.settlementAmount ?? '';
     // NATIS sourcing: prefer vehicle.rc1NatisFile, fallback to adminData.natisRc1Url
-    final String? vehicleNatis = widget.vehicle.rc1NatisFile;
+    final String vehicleNatis = widget.vehicle.rc1NatisFile;
     if (vehicleNatis != null && vehicleNatis.isNotEmpty) {
       _natisRc1Url = vehicleNatis;
     } else {
@@ -271,7 +271,7 @@ class AdminEditSectionState extends State<AdminEditSection>
           : 'png';
       final ts = DateTime.now().millisecondsSinceEpoch;
       final storagePath =
-          'admin_docs/${widget.vehicle.referenceNumber}_${docName}${ts}.$ext';
+          'admin_docs/${widget.vehicle.referenceNumber}_$docName$ts.$ext';
       final ref = FirebaseStorage.instance.ref().child(storagePath);
       await ref.putData(bytes);
       final downloadUrl = await ref.getDownloadURL();

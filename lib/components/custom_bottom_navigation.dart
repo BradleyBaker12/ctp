@@ -34,7 +34,7 @@ class CustomBottomNavigation extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const HomePage()),
           );
         } else if (index == 1) {
-          if (userRole == 'transporter') {
+          if (userRole == 'transporter' || userRole == 'oem') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const VehiclesListPage()),
@@ -47,12 +47,14 @@ class CustomBottomNavigation extends StatelessWidget {
               ),
             );
           }
-        } else if (index == 2 && userRole == 'transporter') {
+        } else if (index == 2 &&
+            (userRole == 'transporter' || userRole == 'oem')) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const OffersPage()),
           );
-        } else if (index == 3 && userRole != 'transporter') {
+        } else if (index == 3 &&
+            !(userRole == 'transporter' || userRole == 'oem')) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const WishlistPage()),
@@ -91,26 +93,29 @@ class CustomBottomNavigation extends StatelessWidget {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
         final userRole = userProvider.getUserRole;
+        final bool isAuthenticated = userProvider.getUser != null;
 
         List<Widget> navBarItems = [];
 
         // Home Icon - Available for all roles
-        navBarItems.add(Expanded(
-          child: _buildNavBarItem(
-            context,
-            Icon(
-              Icons.home,
-              size: iconSize,
-              color: selectedIndex == 0
-                  ? Colors.black
-                  : Colors.black.withOpacity(0.6),
+        if (isAuthenticated) {
+          navBarItems.add(Expanded(
+            child: _buildNavBarItem(
+              context,
+              Icon(
+                Icons.home,
+                size: iconSize,
+                color: selectedIndex == 0
+                    ? Colors.black
+                    : Colors.black.withValues(alpha: 0.6),
+              ),
+              selectedIndex == 0,
+              0,
             ),
-            selectedIndex == 0,
-            0,
-          ),
-        ));
+          ));
 
-        navBarItems.add(_buildVerticalDivider());
+          navBarItems.add(_buildVerticalDivider());
+        }
 
         // Vehicles or Truck Icon
         navBarItems.add(Expanded(
@@ -121,14 +126,14 @@ class CustomBottomNavigation extends StatelessWidget {
               size: iconSize,
               color: selectedIndex == 1
                   ? Colors.black
-                  : Colors.black.withOpacity(0.6),
+                  : Colors.black.withValues(alpha: 0.6),
             ),
             selectedIndex == 1,
             1,
           ),
         ));
 
-        if (userRole == 'transporter') {
+        if (userRole == 'transporter' || userRole == 'oem') {
           navBarItems.add(_buildVerticalDivider());
           // Transporter Offers Icon - Only for transporters
           navBarItems.add(Expanded(
@@ -139,7 +144,7 @@ class CustomBottomNavigation extends StatelessWidget {
                 size: iconSize,
                 color: selectedIndex == 2
                     ? Colors.black
-                    : Colors.black.withOpacity(0.6),
+                    : Colors.black.withValues(alpha: 0.6),
               ),
               selectedIndex == 2,
               2,
@@ -147,7 +152,7 @@ class CustomBottomNavigation extends StatelessWidget {
           ));
         }
 
-        if (userRole != 'transporter') {
+        if (!(userRole == 'transporter' || userRole == 'oem')) {
           navBarItems.add(_buildVerticalDivider());
           // Wishlist Icon - Only for non-transporters
           navBarItems.add(Expanded(
@@ -158,7 +163,7 @@ class CustomBottomNavigation extends StatelessWidget {
                 size: iconSize,
                 color: selectedIndex == 3
                     ? Colors.black
-                    : Colors.black.withOpacity(0.6),
+                    : Colors.black.withValues(alpha: 0.6),
               ),
               selectedIndex == 3,
               3,
@@ -177,7 +182,7 @@ class CustomBottomNavigation extends StatelessWidget {
                 size: iconSize,
                 color: selectedIndex == 4
                     ? Colors.black
-                    : Colors.black.withOpacity(0.6),
+                    : Colors.black.withValues(alpha: 0.6),
               ),
               selectedIndex == 4,
               4,
@@ -185,7 +190,7 @@ class CustomBottomNavigation extends StatelessWidget {
           ));
         }
 
-        if (userRole != 'dealer') {
+        if (userRole != 'dealer' && isAuthenticated) {
           navBarItems.add(_buildVerticalDivider());
           // Profile Icon - Only for non-dealers
           navBarItems.add(Expanded(
@@ -196,7 +201,7 @@ class CustomBottomNavigation extends StatelessWidget {
                 size: iconSize,
                 color: selectedIndex == 5
                     ? Colors.black
-                    : Colors.black.withOpacity(0.6),
+                    : Colors.black.withValues(alpha: 0.6),
               ),
               selectedIndex == 5,
               5,
@@ -222,7 +227,7 @@ class CustomBottomNavigation extends StatelessWidget {
     return Container(
       width: 1,
       height: 80,
-      color: Colors.white.withOpacity(0.5),
+      color: Colors.white.withValues(alpha: 0.5),
     );
   }
 }

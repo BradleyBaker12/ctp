@@ -685,7 +685,7 @@ class DriveTrainEditPageState extends State<DriveTrainEditPage>
   // ===========================================================================
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final allowedRoles = ['transporter', 'admin', 'salesRep'];
+    final allowedRoles = ['transporter', 'oem', 'admin', 'salesRep'];
     if (!allowedRoles.contains(userProvider.getUserRole)) {
       return {};
     }

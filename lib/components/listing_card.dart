@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'cached_network_image.dart';
 import '../models/vehicle.dart';
 import '../models/trailer.dart';
 
@@ -309,19 +310,12 @@ class ListingCard extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius:
                           const BorderRadius.vertical(top: Radius.circular(10)),
-                      child: Image(
-                        image: (vehicle is Trailer
-                                    ? vehicle.mainImageUrl
-                                    : (vehicle.mainImageUrl ??
-                                        vehicle.trailer?.mainImageUrl)) !=
-                                null
-                            ? NetworkImage(vehicle is Trailer
-                                ? vehicle.mainImageUrl!
+                      child: SafeNetworkImage(
+                        imageUrl: (vehicle is Trailer
+                                ? vehicle.mainImageUrl
                                 : (vehicle.mainImageUrl ??
-                                    vehicle.trailer?.mainImageUrl)!)
-                            : const AssetImage(
-                                    "lib/assets/default_vehicle_image.png")
-                                as ImageProvider,
+                                    vehicle.trailer?.mainImageUrl)) ??
+                            '',
                         width: cardW,
                         height: cardH * 0.55,
                         fit: BoxFit.cover,
@@ -338,64 +332,21 @@ class ListingCard extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Title derived without extra Firestore reads
                             if (isTrailer)
-                              FutureBuilder<
-                                  DocumentSnapshot<Map<String, dynamic>>>(
-                                future: FirebaseFirestore.instance
-                                    .collection('vehicles')
-                                    .doc(vehicle.id)
-                                    .get(),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return SizedBox(
-                                      height: titleFontSize,
-                                      child: Center(
-                                        child: SizedBox(
-                                          width: titleFontSize,
-                                          height: titleFontSize,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                    Colors.white),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  final data =
-                                      snapshot.data?.data()?['trailerExtraInfo']
-                                              as Map<String, dynamic>? ??
-                                          {};
-                                  String make = '';
-                                  String model = '';
-                                  String year = '';
-                                  if (data.containsKey('trailerA')) {
-                                    final tA = data['trailerA']
-                                        as Map<String, dynamic>;
-                                    make = tA['make'] ?? '';
-                                    model = tA['model'] ?? '';
-                                    year = tA['year']?.toString() ?? '';
-                                  } else {
-                                    make = data['make'] ?? '';
-                                    model = data['model'] ?? '';
-                                    year = data['year']?.toString() ?? '';
-                                  }
-                                  return FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      '$year $make $model'.toUpperCase(),
-                                      style: GoogleFonts.montserrat(
-                                        fontSize: titleFontSize,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                      maxLines: 1,
-                                    ),
-                                  );
-                                },
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  '$displayYear $displayMakeModel'
+                                      .toUpperCase(),
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                ),
                               )
                             else
                               FittedBox(

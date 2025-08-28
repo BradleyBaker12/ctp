@@ -57,6 +57,9 @@ class Vehicle {
   final String? variant;
   final String? truckType;
   final String? companyName;
+  // Ownership meta
+  final String? ownerRole;
+  final String? oemBrand;
 
   // Nested Objects
   final AdminData adminData;
@@ -130,6 +133,8 @@ class Vehicle {
       this.trailer,
       this.truckType,
       this.companyName,
+      this.ownerRole,
+      this.oemBrand,
       // NEW FIELDS in constructor (all optional)
       this.natisDocumentUrl,
       this.serviceHistoryUrl,
@@ -401,6 +406,8 @@ class Vehicle {
               },
             ),
       companyName: getString(data['companyName']),
+      ownerRole: getString(data['ownerRole']),
+      oemBrand: getString(data['oemBrand']),
       referenceNumber: getString(data['referenceNumber']),
       brands: brands,
       requireToSettleType: data['requireToSettleType'] as String?,

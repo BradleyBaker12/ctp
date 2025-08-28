@@ -1014,12 +1014,12 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // --------------------------------------------------------------------
 
   // -------------------------- Existing Function: Load Transporter Users --------------------------
-  /// Load users from Firestore whose userRole is either 'transporter' or 'admin'
+  /// Load users from Firestore whose userRole is either 'transporter', 'admin', or 'oem'
   Future<void> _loadTransporterUsers() async {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('userRole', whereIn: ['transporter', 'admin']).get();
+          .where('userRole', whereIn: ['transporter', 'admin', 'oem']).get();
       setState(() {
         _transporterUsers = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
@@ -1034,6 +1034,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             'id': doc.id,
             'email': data['email'] ?? 'No Email',
             'name': composedName,
+            'role': (data['userRole'] ?? '').toString().toLowerCase(),
           };
         }).toList();
       });
@@ -1167,8 +1168,37 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
 
   // Existing Widget: Truck Owner Dropdown (Transporter)
   Widget _buildTruckOwnerField() {
-    final List<String> ownerEmails =
-        _transporterUsers.map((user) => user['email'] as String).toList();
+    // Build grouped items: Transporters/Admins first, then OEMs, each under a header
+    const String headerTA = '––– Transporters & Admins –––';
+    const String headerOEM = '––– OEMs –––';
+    final taUsers = _transporterUsers.where((u) {
+      final role = (u['role'] ?? '').toString();
+      return role == 'transporter' || role == 'admin' || role.isEmpty;
+    }).toList()
+      ..sort((a, b) => (a['name'] ?? '')
+          .toString()
+          .toLowerCase()
+          .compareTo((b['name'] ?? '').toString().toLowerCase()));
+    final oemUsers = _transporterUsers.where((u) {
+      final role = (u['role'] ?? '').toString();
+      return role == 'oem';
+    }).toList()
+      ..sort((a, b) => (a['name'] ?? '')
+          .toString()
+          .toLowerCase()
+          .compareTo((b['name'] ?? '').toString().toLowerCase()));
+
+    final List<String> ownerEmails = [];
+    if (taUsers.isNotEmpty) {
+      ownerEmails.add(headerTA);
+      ownerEmails
+          .addAll(taUsers.map((u) => (u['email'] ?? 'No Email') as String));
+    }
+    if (oemUsers.isNotEmpty) {
+      ownerEmails.add(headerOEM);
+      ownerEmails
+          .addAll(oemUsers.map((u) => (u['email'] ?? 'No Email') as String));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1195,6 +1225,20 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           value: _selectedTransporterEmail,
           items: ownerEmails,
           itemBuilder: (context, email) {
+            // Render group headers differently
+            if (email == headerTA || email == headerOEM) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Text(
+                  email.replaceAll('–', '').trim(),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }
             final matching = _transporterUsers.firstWhere(
               (user) => user['email'] == email,
               orElse: () => {'name': 'Unknown', 'email': email},
@@ -1232,6 +1276,8 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
             );
           },
           onChanged: (value) {
+            // Ignore clicks on group headers
+            if (value == headerTA || value == headerOEM) return;
             setState(() {
               _selectedTransporterEmail = value;
               try {
@@ -1424,7 +1470,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
     // Allow sales representatives the same image options as admin
     final bool isSalesRep = userRole == 'sales representative';
     final formData = Provider.of<FormDataProvider>(context);
@@ -1573,7 +1619,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
     final bool isSalesRep = userRole == 'sales representative';
     final formData = Provider.of<FormDataProvider>(context);
     return Padding(
@@ -2584,7 +2630,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
     final bool isSalesRep = userRole == 'sales representative';
 
     void handleTruckTypeChange(String? value) {

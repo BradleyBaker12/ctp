@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/custom_button.dart';
@@ -122,6 +123,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     'tyres': 0,
   };
 
+  // Real-time subscriptions
+  StreamSubscription<DocumentSnapshot>? _vehicleSub;
+  StreamSubscription<QuerySnapshot>? _myOffersSub;
+  StreamSubscription<DocumentSnapshot>? _acceptedOfferSub;
+
   @override
   void initState() {
     super.initState();
@@ -159,6 +165,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _preparePhotos());
     _pageController = PageController();
+    _startRealtimeSubscriptions();
   }
 
   // ---------------------------------------------------------------------------
@@ -404,6 +411,113 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         );
       }
     }
+  }
+
+  void _startRealtimeSubscriptions() {
+    // Vehicle document listener
+    _vehicleSub?.cancel();
+    _vehicleSub = FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(widget.vehicle.id)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted) return;
+      if (doc.exists) {
+        try {
+          final v = Vehicle.fromDocument(doc);
+          setState(() {
+            vehicle = v;
+            isInspectionComplete = doc.data()?['isInspectionComplete'] == true;
+            isCollectionComplete = doc.data()?['isCollectionComplete'] == true;
+            _canMakeOffer = !(doc.data()?['isAccepted'] == true);
+          });
+          // Update trailer if needed
+          if (_trailer == null &&
+              v.vehicleType.toLowerCase() == 'trailer' &&
+              doc.data() != null) {
+            try {
+              setState(() {
+                _trailer = Trailer.fromJson(doc.data()!);
+              });
+            } catch (_) {}
+          }
+          // Listen to accepted offer
+          final acceptedId = doc.data()?['acceptedOfferId'] as String?;
+          _listenAcceptedOffer(acceptedId);
+          // Refresh images
+          _preparePhotos();
+        } catch (e) {
+          debugPrint('Live vehicle update parse error: $e');
+        }
+      }
+    }, onError: (e) {
+      debugPrint('Vehicle doc listener error: $e');
+    });
+
+    // Dealer's offers on this vehicle
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _myOffersSub?.cancel();
+      _myOffersSub = FirebaseFirestore.instance
+          .collection('offers')
+          .where('dealerId', isEqualTo: user.uid)
+          .where('vehicleId', isEqualTo: widget.vehicle.id)
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .listen((snap) {
+        if (!mounted) return;
+        QueryDocumentSnapshot<Map<String, dynamic>>? latest;
+        DateTime? latestCreated;
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final status = (data['offerStatus']?.toString() ?? '').toLowerCase();
+          if (status == 'rejected' || status == 'archived') continue;
+          final ts = data['createdAt'];
+          final created = ts is Timestamp ? ts.toDate() : null;
+          final createdSafe = created ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final latestSafe =
+              latestCreated ?? DateTime.fromMillisecondsSinceEpoch(0);
+          if (latest == null || createdSafe.isAfter(latestSafe)) {
+            latest = doc;
+            latestCreated = created;
+          }
+        }
+        setState(() {
+          if (latest != null) {
+            _hasMadeOffer = true;
+            _offerStatus =
+                latest.data()['offerStatus']?.toString() ?? 'in-progress';
+          } else {
+            _hasMadeOffer = false;
+          }
+        });
+      }, onError: (e) {
+        debugPrint('Offers listener error: $e');
+      });
+    }
+  }
+
+  void _listenAcceptedOffer(String? offerId) {
+    _acceptedOfferSub?.cancel();
+    if (offerId == null || offerId.isEmpty) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    _acceptedOfferSub = FirebaseFirestore.instance
+        .collection('offers')
+        .doc(offerId)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted) return;
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final offerDealerId = data['dealerId'] ?? '';
+        setState(() {
+          _isAcceptedOfferMine = offerDealerId == user.uid;
+        });
+      }
+    }, onError: (e) {
+      debugPrint('Accepted offer listener error: $e');
+    });
   }
 
   void _addPhotoIfExists(String? photoUrl, String label) {
@@ -946,7 +1060,11 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
   @override
   void dispose() {
+    _vehicleSub?.cancel();
+    _myOffersSub?.cancel();
+    _acceptedOfferSub?.cancel();
     _controller.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -2406,7 +2524,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final String userRole = userProvider.getUserRole.toLowerCase() ?? '';
+    final String userRole = userProvider.getUserRole.toLowerCase();
     final size = MediaQuery.of(context).size;
     final bool isTrailer = (vehicle.vehicleType.toLowerCase() == 'trailer');
     const bool isWeb = kIsWeb;
@@ -2415,9 +2533,15 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     final bool isSalesRep = userRole.toLowerCase() == 'sales representative';
     final bool isDealer = userRole.toLowerCase() == 'dealer';
     final bool isTransporter = userRole.toLowerCase() == 'transporter';
+    final bool isOem = userRole.toLowerCase() == 'oem';
+    // Auth status for conditional UI (shared link public view)
+    final bool isAuthenticated = FirebaseAuth.instance.currentUser != null;
 
     List<NavigationItem> navigationItems;
-    if (userProvider.getUserRole == 'dealer') {
+    if (!isAuthenticated) {
+      // Guests: no navigation (hide Home)
+      navigationItems = [];
+    } else if (userProvider.getUserRole == 'dealer') {
       navigationItems = [
         NavigationItem(title: 'Home', route: '/home'),
         NavigationItem(title: 'Search Trucks', route: '/truckPage'),
@@ -2443,8 +2567,6 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
 
     // Build offer–related widgets into a separate list
     List<Widget> offerWidgets = [];
-    // Determine auth status once and reuse
-    final bool isAuthenticated = FirebaseAuth.instance.currentUser != null;
     if (vehicle.isAccepted) {
       if (_isAcceptedOfferMine) {
         offerWidgets.add(
@@ -2822,7 +2944,56 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         );
         offerWidgets.addAll(makeOfferWidgets);
       }
-      // If not authenticated, do not render any offer widgets (public view)
+      // Guests: show sign-in/sign-up prompt instead of offer UI
+      if (!isAuthenticated) {
+        offerWidgets.add(
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            margin: const EdgeInsets.symmetric(horizontal: 16.0),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF2F7FFF), width: 1),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Want to make an offer?',
+                  style: _customFont(18, FontWeight.bold, Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sign in or create an account to place offers on vehicles.',
+                  style: _customFont(14, FontWeight.normal, Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pushNamed(context, '/signin'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF2F7FFF)),
+                      ),
+                      child: const Text('Sign in'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pushNamed(context, '/signup'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF4E00),
+                      ),
+                      child: const Text('Sign up'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }
     }
 
     final safeVehicle = vehicle;
@@ -2830,9 +3001,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         safeVehicle.brands.isNotEmpty ? safeVehicle.brands : ['N/A'];
     final safeMakeModel = safeVehicle.makeModel;
     final safeYear = safeVehicle.year;
-    final safeMileage = safeVehicle.mileage ?? 'N/A';
-    final safeTransmissionType = safeVehicle.transmissionType ?? 'N/A';
-    final safeConfig = safeVehicle.config ?? 'N/A';
+    // Values available if needed:
+    // final safeMileage = safeVehicle.mileage;
+    // final safeTransmissionType = safeVehicle.transmissionType;
+    // final safeConfig = safeVehicle.config;
 
     String normalize(String? v) {
       if (v == null) return '';
@@ -2933,17 +3105,21 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       key: _scaffoldKey,
       backgroundColor: Colors.black,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          color: Color(0xFFFF4E00), // Deep orange
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              Navigator.of(context).pushReplacementNamed('/home');
-            }
-          },
-        ),
+        // Hide back button entirely for guests
+        leading: isAuthenticated
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                color: Color(0xFFFF4E00), // Deep orange
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  } else {
+                    // Fallback to home only for signed-in users
+                    Navigator.of(context).pushReplacementNamed('/home');
+                  }
+                },
+              )
+            : null,
         title: Text(
           appBarTitle,
           style: GoogleFonts.montserrat(
@@ -2965,7 +3141,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
         backgroundColor: Colors.white,
         foregroundColor: Color(0xFFFF4E00),
       ),
-      drawer: (_isCompactNavigation(context) && isWeb)
+      drawer: (_isCompactNavigation(context) && isWeb && isAuthenticated)
           ? Drawer(
               child: Container(
                 decoration: BoxDecoration(
@@ -3450,8 +3626,10 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                             ),
                                           ),
                                         // Action Buttons Section:
-                                        userProvider.getUserRole ==
-                                                'transporter'
+                                        (userProvider.getUserRole ==
+                                                    'transporter' ||
+                                                userProvider.getUserRole ==
+                                                    'oem')
                                             ? _buildTransporterActionButtonsColumn()
                                             : (userProvider.getUserRole ==
                                                         'admin' ||
@@ -3465,16 +3643,18 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                         else
                                           Column(
                                             children: [
-                                              _buildSection(
-                                                context,
-                                                'BASIC INFORMATION',
-                                                '${_calculateBasicInfoProgress()}/21',
-                                              ),
+                                              if (isAuthenticated)
+                                                _buildSection(
+                                                  context,
+                                                  'BASIC INFORMATION',
+                                                  '${_calculateBasicInfoProgress()}/21',
+                                                ),
                                               // Truck Conditions block
                                               if (isDealer ||
                                                   isAdmin ||
                                                   isSalesRep ||
-                                                  isTransporter)
+                                                  isTransporter ||
+                                                  isOem)
                                                 _buildSection(
                                                   context,
                                                   'TRUCK CONDITIONS',
@@ -3484,7 +3664,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                               if (isDealer ||
                                                   isAdmin ||
                                                   isSalesRep ||
-                                                  isTransporter)
+                                                  isTransporter ||
+                                                  isOem)
                                                 _buildSection(
                                                   context,
                                                   'MAINTENANCE AND WARRANTY',
@@ -3494,7 +3675,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                           ),
                                         const SizedBox(height: 30),
                                         if (userProvider.getUserRole ==
-                                            'transporter')
+                                                'transporter' ||
+                                            userProvider.getUserRole == 'oem')
                                           Padding(
                                             padding: const EdgeInsets.symmetric(
                                                 vertical: 10.0),
@@ -3595,6 +3777,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               },
             )
           : null,
+      resizeToAvoidBottomInset: null,
     );
   }
 

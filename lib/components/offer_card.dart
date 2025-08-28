@@ -292,7 +292,7 @@ class _OfferCardState extends State<OfferCard> {
       return;
     }
 
-    if (userRole == 'transporter') {
+    if (userRole == 'transporter' || userRole == 'oem') {
       switch (widget.offer.offerStatus) {
         case 'inspection pending':
           Navigator.push(

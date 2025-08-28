@@ -151,11 +151,12 @@ class OffersPageState extends State<OffersPage> with RouteAware {
   }
 
   ///
-  /// Filtering logic (4 tabs):
-  /// 1. ALL: Show everything.
-  /// 2. IN_PROGRESS: Show everything EXCEPT "rejected", "completed", "successful".
-  /// 3. SUCCESSFUL: Show only "completed" or "successful".
-  /// 4. REJECTED: Show only "rejected".
+  /// Filtering logic (5 tabs):
+  /// 1. ALL: Show everything (except 'sold' which is globally excluded here).
+  /// 2. IN_PROGRESS: Show everything EXCEPT "rejected", "completed", "successful", "sold", or "done".
+  /// 3. PAYMENT PROCESSING: Show statuses containing 'pay' (e.g., payment pending/options/approved, paid).
+  /// 4. SUCCESSFUL: Show only "completed", "successful", "sold", or "done".
+  /// 5. REJECTED: Show only "rejected".
   ///
   List<dynamic> _filterOffers(String status) {
     // First, filter out any sold offers
@@ -176,6 +177,12 @@ class OffersPageState extends State<OffersPage> with RouteAware {
               lowerStatus != 'completed' &&
               lowerStatus != 'sold' &&
               lowerStatus != 'done';
+        }).toList();
+      case 'PAYMENT PROCESSING':
+        // Include any status containing payment-related keywords
+        return offers.where((offer) {
+          final s = offer.offerStatus.toLowerCase();
+          return s.contains('pay'); // matches payment, paid, pay, etc.
         }).toList();
       case 'SUCCESSFUL':
         // Show "successful", "completed", "sold", or "done"
@@ -333,6 +340,10 @@ class OffersPageState extends State<OffersPage> with RouteAware {
               _buildTabButton(
                   'In Progress (${_getFilteredCount("IN PROGRESS")})',
                   'In Progress'),
+              const SizedBox(width: 12),
+              _buildTabButton(
+                  'Payment Processing (${_getFilteredCount("PAYMENT PROCESSING")})',
+                  'Payment Processing'),
               const SizedBox(width: 12),
               _buildTabButton('Successful (${_getFilteredCount("SUCCESSFUL")})',
                   'Successful'),
@@ -622,7 +633,8 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                               await MyNavigator.pushReplacement(
                                   context, const OffersPage());
                             }
-                          } else if (userRole == 'transporter') {
+                          } else if (userRole == 'transporter' ||
+                              userRole == 'oem') {
                             // Transporter navigation.
                             if (index == 0) {
                               await MyNavigator.pushReplacement(

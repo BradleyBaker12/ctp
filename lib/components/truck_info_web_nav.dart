@@ -60,6 +60,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
+    final bool isAuthenticated = userProvider.getUser != null;
     final isCompact = _isCompactNavigation(context);
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -87,7 +88,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 10,
             ),
           ],
@@ -123,12 +124,16 @@ class TruckInfoWebNavBar extends StatelessWidget {
                       : MainAxisAlignment.start,
                   children: [
                     GestureDetector(
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        userRole == 'admin' ? '/admin-home' : '/home',
-                      ),
+                      onTap: isAuthenticated
+                          ? () => Navigator.pushNamed(
+                                context,
+                                userRole == 'admin' ? '/admin-home' : '/home',
+                              )
+                          : null,
                       child: MouseRegion(
-                        cursor: SystemMouseCursors.click,
+                        cursor: isAuthenticated
+                            ? SystemMouseCursors.click
+                            : SystemMouseCursors.basic,
                         child: SizedBox(
                           width: logoWidth,
                           child: Image.network(
@@ -153,14 +158,15 @@ class TruckInfoWebNavBar extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildNavItem(
-                                context, 'Home', selectedTab == 'Home', () {
-                              if (userRole == 'admin') {
-                                Navigator.pushNamed(context, '/admin-home');
-                              } else {
-                                onHomePressed();
-                              }
-                            }),
+                            if (isAuthenticated)
+                              _buildNavItem(
+                                  context, 'Home', selectedTab == 'Home', () {
+                                if (userRole == 'admin') {
+                                  Navigator.pushNamed(context, '/admin-home');
+                                } else {
+                                  onHomePressed();
+                                }
+                              }),
                             if (isOnTruckConditionPage) ...[
                               _buildNavItem(
                                   context,
@@ -253,18 +259,19 @@ class TruckInfoWebNavBar extends StatelessWidget {
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: () => Navigator.pushNamed(context, '/profile'),
-                child: Builder(
-                  builder: (context) {
-                    final String profileUrl = userProvider.getProfileImageUrl;
-                    final ImageProvider avatar = profileUrl.isNotEmpty
-                        ? NetworkImage(profileUrl)
-                        : const AssetImage('lib/assets/default_profile.png');
-                    return CircleAvatar(radius: 18, backgroundImage: avatar);
-                  },
+              if (isAuthenticated)
+                GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/profile'),
+                  child: Builder(
+                    builder: (context) {
+                      final String profileUrl = userProvider.getProfileImageUrl;
+                      final ImageProvider avatar = profileUrl.isNotEmpty
+                          ? NetworkImage(profileUrl)
+                          : const AssetImage('lib/assets/default_profile.png');
+                      return CircleAvatar(radius: 18, backgroundImage: avatar);
+                    },
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -290,7 +297,8 @@ class TruckInfoWebNavBar extends StatelessWidget {
     ].contains(selectedTab);
 
     Future<void> confirmAndNavigate(Future<void> Function() navigate) async {
-      final shouldConfirm = userRole == 'admin' || userRole == 'transporter';
+      final shouldConfirm =
+          userRole == 'admin' || userRole == 'transporter' || userRole == 'oem';
       if (shouldConfirm) {
         await showDialog<int>(
           context: navContext,
@@ -389,26 +397,29 @@ class TruckInfoWebNavBar extends StatelessWidget {
                       ),
                       const Divider(color: Colors.white24),
                       // Navigation items
-                      ListTile(
-                        selected: selectedTab == "Home",
-                        selectedTileColor: Colors.black12,
-                        title: Text(
-                          "Home",
-                          style: TextStyle(
-                            color: selectedTab == "Home"
-                                ? const Color(0xFFFF4E00)
-                                : Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                      if (Provider.of<UserProvider>(context, listen: false)
+                              .getUser !=
+                          null)
+                        ListTile(
+                          selected: selectedTab == "Home",
+                          selectedTileColor: Colors.black12,
+                          title: Text(
+                            "Home",
+                            style: TextStyle(
+                              color: selectedTab == "Home"
+                                  ? const Color(0xFFFF4E00)
+                                  : Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            confirmAndNavigate(() async {
+                              onHomePressed();
+                            });
+                          },
                         ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          confirmAndNavigate(() async {
-                            onHomePressed();
-                          });
-                        },
-                      ),
                       if (isOnTruckConditionPage) ...[
                         _buildDrawerItem(context, "External Cab", () {
                           confirmAndNavigate(() async {

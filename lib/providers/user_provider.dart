@@ -25,11 +25,16 @@ class UserProvider extends ChangeNotifier {
   // Add verification field
   bool _isVerified = false;
 
+  // OEM brand assignment (for OEM users restricted to a single brand)
+  String? _oemBrand;
+
   // Add this line with the other field declarations
   String? _taxCertificateUrl;
 
   // Add getter
   bool get isVerified => _isVerified;
+  // OEM brand getter
+  String? get oemBrand => _oemBrand;
 
   // User details
   String? _companyName;
@@ -166,6 +171,41 @@ class UserProvider extends ChangeNotifier {
       }
     } else {
       throw Exception('No user logged in');
+    }
+  }
+
+  // Assign or change the OEM brand for the current user. Does not modify userRole.
+  Future<void> setOemBrand(String? brand) async {
+    if (_user == null) throw Exception('No user logged in');
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .update({'oemBrand': brand});
+      _oemBrand = brand;
+      notifyListeners();
+    } catch (e) {
+      print('Error setting OEM brand: $e');
+      rethrow;
+    }
+  }
+
+  // Convenience: set role to 'oem' and assign brand at the same time (for demo accounts)
+  Future<void> setOemRoleAndBrand(String brand) async {
+    if (_user == null) throw Exception('No user logged in');
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .update(
+              {'userRole': 'oem', 'oemBrand': brand, 'isFirstLogin': false});
+      _userRole = 'oem';
+      _oemBrand = brand;
+      await NotificationService.subscribeToTopics(_userRole);
+      notifyListeners();
+    } catch (e) {
+      print('Error setting OEM role and brand: $e');
+      rethrow;
     }
   }
 
@@ -331,6 +371,8 @@ class UserProvider extends ChangeNotifier {
           _dislikedVehicles = List<String>.from(data['dislikedVehicles'] ?? []);
           _preferredBrands = List<String>.from(data['preferredBrands'] ?? []);
           _fcmToken = data['fcmToken'];
+          // Read OEM brand assignment if present
+          _oemBrand = data['oemBrand'];
 
           // Fix: Update userName to use the firstName instead of remaining as 'Guest'
           _userName = _firstName ?? 'Guest';
@@ -526,6 +568,7 @@ class UserProvider extends ChangeNotifier {
     _createdAt = null;
     _adminApproval = null;
     _taxCertificateUrl = null;
+    _oemBrand = null;
     _isLoading = false;
     notifyListeners();
   }

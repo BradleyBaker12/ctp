@@ -91,20 +91,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _loadStopwatch = Stopwatch()..start();
 
     // Immediately check the user's account & role status and transporter vehicles after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAccountStatus();
-      _loadTransporterVehicles();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await _checkAccountStatus();
+      if (!mounted) return;
+      await _loadTransporterVehicles();
       // Start loading full data in background after essential data loads
       _bgStopwatch = Stopwatch()..start();
+      if (!mounted) return;
       final offerProvider = Provider.of<OfferProvider>(context, listen: false);
       // Start background fetch of offers immediately
-      offerProvider.fetchOffers(
+      await offerProvider.fetchOffers(
         FirebaseAuth.instance.currentUser!.uid,
         Provider.of<UserProvider>(context, listen: false).getUserRole,
       );
-      _initializeData().then((_) {
-        setState(() => _isVehiclesLoading = false);
-      });
+      if (!mounted) return;
+      await _initializeData();
+      if (!mounted) return;
+      setState(() => _isVehiclesLoading = false);
     });
 
     // Initialize essential data (fast path for routing/offers)
@@ -138,6 +142,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     // 1. User role check (skip phone number check for admin/sales rep)
     final userRole = userProvider.getUserRole.toLowerCase();
+
+    // OEM bypass: OEM users can access the Home page without any registration or approval checks
+    if (userRole == 'oem') {
+      return;
+    }
     if (userRole == 'pending') {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/tradingCategory');
@@ -170,7 +179,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (mounted) {
         if (userRole == 'dealer') {
           Navigator.pushReplacementNamed(context, '/dealerRegister');
-        } else if (userRole == 'transporter') {
+        } else if (userRole == 'transporter' || userRole == 'oem') {
           Navigator.pushReplacementNamed(context, '/transporterRegister');
         }
       }
@@ -476,10 +485,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             // Right - Profile avatar
             Consumer<UserProvider>(
               builder: (context, userProvider, child) {
+                final img = userProvider.getProfileImageUrl;
                 return CircleAvatar(
                   radius: 18,
-                  backgroundImage: userProvider.getProfileImageUrl != null
-                      ? NetworkImage(userProvider.getProfileImageUrl)
+                  backgroundImage: img.isNotEmpty
+                      ? NetworkImage(img)
                       : const AssetImage('lib/assets/default_profile.png')
                           as ImageProvider,
                 );
@@ -644,14 +654,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         final userRole = userProvider.getUserRole;
         // Compute a robust bottom inset to avoid overlap with system navigation
         final mq = MediaQuery.of(context);
-        final double _maxSystemBottom = [
+        final double maxSystemBottom = [
           mq.systemGestureInsets.bottom,
           mq.viewPadding.bottom,
           mq.viewInsets.bottom,
         ].reduce((a, b) => a > b ? a : b);
         // Only add padding beyond what SafeArea already provides
-        final double _extraBottomPadding =
-            Math.max(0.0, _maxSystemBottom - mq.padding.bottom);
+        final double extraBottomPadding =
+            Math.max(0.0, maxSystemBottom - mq.padding.bottom);
 
         // Build a list of nav items depending on userRole
         List<NavigationItem> navigationItems = userRole == 'dealer'
@@ -781,7 +791,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   bottom: true,
                   // Ensure at least a small spacing and respect additional system insets
                   minimum: EdgeInsets.only(
-                      bottom: Math.max(8.0, _extraBottomPadding)),
+                      bottom: Math.max(8.0, extraBottomPadding)),
                   maintainBottomViewPadding: true,
                   child: CustomBottomNavigation(
                     selectedIndex: _selectedIndex,
@@ -1268,7 +1278,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              userRole == 'transporter' ? "I AM SELLING A" : "I AM LOOKING FOR",
+              (userRole == 'transporter' || userRole == 'oem')
+                  ? "I AM SELLING A"
+                  : "I AM LOOKING FOR",
               style: _getTextStyle(
                 fontSize: titleFontSize,
                 fontWeight: FontWeight.bold,
@@ -1289,7 +1301,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     "TRUCKS",
                     const Color(0xFF2F7FFF),
                     onTap: () async {
-                      if (userRole == 'transporter') {
+                      if (userRole == 'transporter' || userRole == 'oem') {
                         await MyNavigator.push(
                           context,
                           VehicleUploadScreen(isNewUpload: true),
@@ -1314,7 +1326,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     "TRAILERS",
                     const Color(0xFFFF4E00),
                     onTap: () async {
-                      if (userRole == 'transporter') {
+                      if (userRole == 'transporter' || userRole == 'oem') {
                         await MyNavigator.push(
                           context,
                           const TrailerUploadScreen(

@@ -234,6 +234,10 @@ extension IterableExtensions<E> on Iterable<E> {
 
 /// The OfferProvider manages the state and operations related to offers, including pagination.
 class OfferProvider with ChangeNotifier {
+  StreamSubscription<QuerySnapshot>? _dealerSub;
+  StreamSubscription<QuerySnapshot>? _transporterSub;
+  StreamSubscription<QuerySnapshot>? _adminSub;
+
   /// Automatically mark offers as rejected if past expirationDate
   Future<void> expireOffers() async {
     final now = DateTime.now();
@@ -306,7 +310,118 @@ class OfferProvider with ChangeNotifier {
     _isInitialized = true;
     // print(
     //     'DEBUG: Initialized with userId: $_currentUserId, role: $_currentUserRole');
+    _startOffersListener(userId, userRole);
     notifyListeners();
+  }
+
+  void _startOffersListener(String userId, String userRole) {
+    // Cancel any existing listeners
+    _dealerSub?.cancel();
+    _transporterSub?.cancel();
+    _adminSub?.cancel();
+
+    // Helper to process snapshots into _offers
+    Future<void> process(List<QuerySnapshot> snaps) async {
+      final Map<String, Offer> merged = {};
+      for (final snap in snaps) {
+        for (final doc in snap.docs) {
+          if (!merged.containsKey(doc.id)) {
+            final offer = Offer.fromFirestore(doc);
+            await offer.fetchVehicleDetails();
+            merged[doc.id] = offer;
+          } else {
+            // Optionally merge fields if needed
+          }
+        }
+      }
+      _offers = merged.values.toList()
+        ..sort((a, b) {
+          final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return bTime.compareTo(aTime);
+        });
+      _offersController.add(_offers);
+      notifyListeners();
+    }
+
+    try {
+      final base = _firestore.collection('offers');
+      if (userRole.toLowerCase() == 'admin' ||
+          userRole.toLowerCase() == 'sales representative') {
+        // Admins see all offers
+        _adminSub = base
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .listen((snap) async {
+          await process([snap]);
+        }, onError: (e) {
+          _errorMessage = 'Failed to listen to offers: $e';
+          notifyListeners();
+        });
+      } else if (userRole.toLowerCase() == 'oem') {
+        // OEM sees both transporterId and dealerId matches
+        _transporterSub = base
+            .where('transporterId', isEqualTo: userId)
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .listen((transporterSnap) async {
+          // Wait for dealer snap too if active
+          QuerySnapshot? latestDealer;
+          try {
+            latestDealer = await base
+                .where('dealerId', isEqualTo: userId)
+                .orderBy('createdAt', descending: true)
+                .get();
+          } catch (_) {}
+          await process([
+            transporterSnap,
+            if (latestDealer != null) latestDealer,
+          ]);
+        }, onError: (e) {
+          _errorMessage = 'Failed to listen to offers: $e';
+          notifyListeners();
+        });
+
+        _dealerSub = base
+            .where('dealerId', isEqualTo: userId)
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .listen((dealerSnap) async {
+          QuerySnapshot? latestTransporter;
+          try {
+            latestTransporter = await base
+                .where('transporterId', isEqualTo: userId)
+                .orderBy('createdAt', descending: true)
+                .get();
+          } catch (_) {}
+          await process([
+            dealerSnap,
+            if (latestTransporter != null) latestTransporter,
+          ]);
+        }, onError: (e) {
+          _errorMessage = 'Failed to listen to offers: $e';
+          notifyListeners();
+        });
+      } else {
+        // Dealer or Transporter (non-admin)
+        final isDealer = userRole.toLowerCase() == 'dealer';
+        final query = isDealer
+            ? base.where('dealerId', isEqualTo: userId)
+            : base.where('transporterId', isEqualTo: userId);
+        _dealerSub = query
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .listen((snap) async {
+          await process([snap]);
+        }, onError: (e) {
+          _errorMessage = 'Failed to listen to offers: $e';
+          notifyListeners();
+        });
+      }
+    } catch (e) {
+      _errorMessage = 'Failed to start offers listener: $e';
+      notifyListeners();
+    }
   }
 
   /// Fetches the initial batch of offers based on user ID and role.
@@ -324,31 +439,79 @@ class OfferProvider with ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      Query query = _buildQuery(userId, userRole);
-      if (limit != null) {
-        query = query.limit(limit);
+      // Special handling for OEM: they should see offers they made (transporter)
+      // AND offers on their vehicles (dealer), merged together.
+      if (userRole.toLowerCase() == 'oem') {
+        Query base = _firestore
+            .collection('offers')
+            .orderBy('createdAt', descending: true);
+        Query transporterQuery = base.where('transporterId', isEqualTo: userId);
+        Query dealerQuery = base.where('dealerId', isEqualTo: userId);
+
+        // Apply limit per query if provided, then merge and clip again after sort
+        if (limit != null) {
+          transporterQuery = transporterQuery.limit(limit);
+          dealerQuery = dealerQuery.limit(limit);
+        }
+
+        final snapshots = await Future.wait([
+          transporterQuery.get(),
+          dealerQuery.get(),
+        ]);
+
+        final Map<String, Offer> merged = {};
+        for (final snap in snapshots) {
+          for (final doc in snap.docs) {
+            if (!merged.containsKey(doc.id)) {
+              final offer = Offer.fromFirestore(doc);
+              await offer.fetchVehicleDetails();
+              merged[doc.id] = offer;
+            }
+          }
+        }
+
+        _offers = merged.values.toList()
+          ..sort((a, b) {
+            final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return bTime.compareTo(aTime);
+          });
+
+        if (limit != null && _offers.length > limit) {
+          _offers = _offers.sublist(0, limit);
+        }
+
+        _hasMore = false; // Disable pagination for merged query path
+        _lastDocument = null;
+        _offersController.add(_offers);
       } else {
-        // When limit is null, fetch without pagination limit.
+        // Default path for other roles
+        Query query = _buildQuery(userId, userRole);
+        if (limit != null) {
+          query = query.limit(limit);
+        } else {
+          // When limit is null, fetch without pagination limit.
+        }
+
+        QuerySnapshot querySnapshot = await query.get();
+
+        _offers = await Future.wait(querySnapshot.docs.map((doc) async {
+          // print('DEBUG: Processing offer ${doc.id}');
+          Offer offer = Offer.fromFirestore(doc);
+          await offer.fetchVehicleDetails();
+          return offer;
+        }));
+
+        if (_offers.isNotEmpty && limit != null) {
+          _lastDocument = querySnapshot.docs.last;
+          _hasMore = querySnapshot.docs.length >= limit;
+        } else {
+          // When limit is null, disable further pagination.
+          _hasMore = false;
+        }
+
+        _offersController.add(_offers);
       }
-
-      QuerySnapshot querySnapshot = await query.get();
-
-      _offers = await Future.wait(querySnapshot.docs.map((doc) async {
-        // print('DEBUG: Processing offer ${doc.id}');
-        Offer offer = Offer.fromFirestore(doc);
-        await offer.fetchVehicleDetails();
-        return offer;
-      }));
-
-      if (_offers.isNotEmpty && limit != null) {
-        _lastDocument = querySnapshot.docs.last;
-        _hasMore = querySnapshot.docs.length >= limit;
-      } else {
-        // When limit is null, disable further pagination.
-        _hasMore = false;
-      }
-
-      _offersController.add(_offers);
     } catch (e) {
       print('ERROR: Failed to fetch offers: $e');
       _errorMessage = 'Failed to load offers: $e';
@@ -429,7 +592,7 @@ class OfferProvider with ChangeNotifier {
     if (userRole != 'admin') {
       if (userRole == 'dealer') {
         query = query.where('dealerId', isEqualTo: userId);
-      } else if (userRole == 'transporter') {
+      } else if (userRole == 'transporter' || userRole == 'oem') {
         query = query.where('transporterId', isEqualTo: userId);
       }
     }
@@ -604,6 +767,9 @@ class OfferProvider with ChangeNotifier {
 
   @override
   void dispose() {
+    _dealerSub?.cancel();
+    _transporterSub?.cancel();
+    _adminSub?.cancel();
     _offersController.close();
     super.dispose();
   }

@@ -485,7 +485,8 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                  ] else if (userRole == 'transporter') ...[
+                  ] else if (userRole == 'transporter' ||
+                      userRole == 'oem') ...[
                     const Text(
                       "Dealer's delivery address:",
                       style: TextStyle(

@@ -60,7 +60,8 @@ class ProfilePage extends StatelessWidget {
     final bool isAdmin = userRole.toLowerCase() == 'admin';
     final bool isSalesRep = userRole.toLowerCase() == 'sales representative';
     final bool isDealer = userRole.toLowerCase() == 'dealer';
-    final bool isTransporter = userRole.toLowerCase() == 'transporter';
+    final bool isTransporter = userRole.toLowerCase() == 'transporter' ||
+        userRole.toLowerCase() == 'oem';
 
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [

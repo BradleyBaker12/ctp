@@ -201,6 +201,12 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // If OEM user, prefill locked brand
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final String? oemBrand = userProvider.oemBrand;
+      if (oemBrand != null && oemBrand.isNotEmpty) {
+        formData.setBrands([oemBrand]);
+      }
       if (widget.isNewUpload) {
         _clearAllData(formData);
       } else if (widget.vehicle != null) {
@@ -1112,11 +1118,26 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
                           : null,
                       items: _brandOptions,
                       onChanged: (value) {
+                        final userProvider =
+                            Provider.of<UserProvider>(context, listen: false);
+                        final String? oemBrand = userProvider.oemBrand;
+                        if (oemBrand != null && oemBrand.isNotEmpty) {
+                          // Enforce OEM brand, ignore selection
+                          formData.setBrands([oemBrand]);
+                          _loadModelsForBrand(oemBrand);
+                          return;
+                        }
                         if (value != null) {
                           formData.setBrands([value]);
                           _loadModelsForBrand(value);
                         }
                       },
+                      enabled: (() {
+                        final userProvider =
+                            Provider.of<UserProvider>(context, listen: false);
+                        final String? oemBrand = userProvider.oemBrand;
+                        return !(oemBrand != null && oemBrand.isNotEmpty);
+                      })(),
                     ),
                     const SizedBox(height: 15),
                     CustomDropdown(
@@ -1697,7 +1718,7 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
         return null;
       }
 
-      // Step 2: Create vehicle document first (30%)
+      // Step 2: Create or update vehicle document first (30%)
       setState(() {
         _uploadProgress = 0.3;
         _uploadStatus = 'Creating vehicle record...';
@@ -1713,15 +1734,40 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
       final String? assignedSalesRepId =
           widget.isAdminUpload ? _selectedSalesRep : currentUser?.uid;
 
+      // Resolve OEM brand assignment: lock brand if current user is OEM
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final String role = userProvider.getUserRole.toLowerCase();
+      String? oemBrand = userProvider.oemBrand;
+      // If OEM user has no brand set yet, derive from form and persist to user profile
+      if (role == 'oem' && ((oemBrand ?? '').trim().isEmpty)) {
+        final derived = (formData.brands != null && formData.brands!.isNotEmpty)
+            ? formData.brands!.first.trim()
+            : '';
+        if (derived.isNotEmpty) {
+          try {
+            await userProvider.setOemBrand(derived);
+            oemBrand = derived;
+          } catch (e) {
+            debugPrint('Failed to set OEM brand on user: $e');
+          }
+        }
+      }
+      final List<String>? enforcedBrands =
+          (role == 'oem' && (oemBrand ?? '').isNotEmpty)
+              ? [oemBrand!.trim()]
+              : formData.brands;
+
       // Create basic vehicle data without images first
       final vehicleData = {
         'year': formData.year,
         'makeModel': formData.makeModel,
         'variant': formData.variant,
-        'brands': formData.brands,
+        'brands': enforcedBrands,
         'modelDetails': {
           'year': formData.year,
-          'manufacturer': formData.brands?.first ?? '',
+          'manufacturer': (enforcedBrands?.isNotEmpty == true)
+              ? enforcedBrands!.first
+              : (formData.brands?.first ?? ''),
           'model': formData.makeModel,
           'variant': formData.variant,
         },
@@ -1749,15 +1795,28 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
         'assignedSalesRepId': assignedSalesRepId,
         'vehicleStatus': 'Draft',
         'truckType': _selectedTruckType,
+        // Ownership meta for OEM filtering
+        'ownerRole': role,
+        'oemBrand': (role == 'oem')
+            ? (oemBrand ?? (enforcedBrands?.first ?? ''))
+            : null,
         // Placeholder URLs that will be updated
         'mainImageUrl': null,
         'rc1NatisFile': null,
       };
 
-      final docRef = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .add(vehicleData);
-      _vehicleId = docRef.id;
+      // If a draft doc was already created (e.g., when uploading main image), update it.
+      DocumentReference<Map<String, dynamic>> docRef;
+      if (_vehicleId != null && _vehicleId!.isNotEmpty) {
+        docRef =
+            FirebaseFirestore.instance.collection('vehicles').doc(_vehicleId);
+        await docRef.set(vehicleData, SetOptions(merge: true));
+      } else {
+        docRef = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .add(vehicleData);
+        _vehicleId = docRef.id;
+      }
 
       // Step 3: Upload main image in background (60%)
       setState(() {
@@ -1766,7 +1825,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
       });
 
       String? imageUrl;
-      if (formData.selectedMainImage != null) {
+      // Avoid double-upload if it was already uploaded earlier
+      if ((formData.mainImageUrl ?? '').isNotEmpty) {
+        imageUrl = formData.mainImageUrl;
+      } else if (formData.selectedMainImage != null) {
         final ref = FirebaseStorage.instance
             .ref()
             .child('vehicle_images')
@@ -1877,6 +1939,24 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
         onPressed: () async {
           final formData =
               Provider.of<FormDataProvider>(context, listen: false);
+          // Enforce OEM brand restriction
+          final userProvider =
+              Provider.of<UserProvider>(context, listen: false);
+          if ((userProvider.oemBrand ?? '').isNotEmpty) {
+            final selectedBrand = formData.brands?.isNotEmpty == true
+                ? formData.brands!.first
+                : '';
+            if (selectedBrand.toLowerCase() !=
+                userProvider.oemBrand!.toLowerCase()) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'As an OEM user, you can only upload ${userProvider.oemBrand} vehicles.'),
+                ),
+              );
+              return;
+            }
+          }
           // Require NATIS/RC1 upload if maintenance is selected
           if (formData.maintenance == 'yes' &&
               _natisRc1File == null &&
@@ -2080,14 +2160,24 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
         widget.isAdminUpload ? (widget.transporterId ?? userId) : userId;
     final String? resolvedAssigned =
         widget.isAdminUpload ? _selectedSalesRep : userId;
+    // Enforce brand for OEM users in draft docs too
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String role = userProvider.getUserRole.toLowerCase();
+    final String? oemBrand = userProvider.oemBrand;
+    final List<String>? enforcedBrands =
+        (role == 'oem' && (oemBrand ?? '').isNotEmpty)
+            ? [oemBrand!]
+            : formData.brands;
     final Map<String, dynamic> data = {
       'year': formData.year,
       'makeModel': formData.makeModel,
       'variant': formData.variant,
-      'brands': formData.brands,
+      'brands': enforcedBrands,
       'modelDetails': {
         'year': formData.year,
-        'manufacturer': formData.brands?.first ?? '',
+        'manufacturer': (enforcedBrands?.isNotEmpty == true)
+            ? enforcedBrands!.first
+            : (formData.brands?.first ?? ''),
         'model': formData.makeModel,
         'variant': formData.variant,
       },
@@ -2139,9 +2229,25 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       setState(() {
-        _brandOptions = data[year]?.keys.toList() ?? [];
+        List<String> brands =
+            List<String>.from(data[year]?.keys.toList() ?? []);
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final String? oemBrand = userProvider.oemBrand;
+        if (oemBrand != null && oemBrand.isNotEmpty) {
+          brands = brands
+              .where((b) => b.toLowerCase() == oemBrand.toLowerCase())
+              .toList();
+        }
+        _brandOptions = brands;
         if (!widget.isDuplicating) {
-          formData.setBrands(null);
+          // Preserve OEM brand if enforced
+          if (oemBrand != null && oemBrand.isNotEmpty) {
+            formData.setBrands([oemBrand]);
+            // Preload models for locked brand
+            _loadModelsForBrand(oemBrand);
+          } else {
+            formData.setBrands(null);
+          }
           formData.setMakeModel(null);
           formData.setVariant(null);
         }

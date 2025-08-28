@@ -80,7 +80,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _sideImage;
   Uint8List? _tyresImage;
   // Dynamic tyres (Tri-Axle)
-  List<Uint8List?> _tyreImages = [];
+  final List<Uint8List?> _tyreImages = [];
   List<String> _tyreImageUrls = [];
   Uint8List? _chassisImage;
   Uint8List? _deckImage;
@@ -101,7 +101,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _sideImageA;
   Uint8List? _tyresImageA;
   // Dynamic tyres (Superlink Trailer A)
-  List<Uint8List?> _tyreImagesA = [];
+  final List<Uint8List?> _tyreImagesA = [];
   List<String> _tyreImageUrlsA = [];
   Uint8List? _chassisImageA;
   Uint8List? _deckImageA;
@@ -122,7 +122,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _sideImageB;
   Uint8List? _tyresImageB;
   // Dynamic tyres (Superlink Trailer B)
-  List<Uint8List?> _tyreImagesB = [];
+  final List<Uint8List?> _tyreImagesB = [];
   List<String> _tyreImageUrlsB = [];
   Uint8List? _chassisImageB;
   Uint8List? _deckImageB;
@@ -235,7 +235,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _sideImageDoubleAxle;
   Uint8List? _tyresImageDoubleAxle;
   // Dynamic tyres (Double Axle)
-  List<Uint8List?> _tyreImagesDoubleAxle = [];
+  final List<Uint8List?> _tyreImagesDoubleAxle = [];
   List<String> _tyreImageUrlsDoubleAxle = [];
   Uint8List? _chassisImageDoubleAxle;
   Uint8List? _deckImageDoubleAxle;
@@ -277,7 +277,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   Uint8List? _sideOtherImage;
   Uint8List? _tyresOtherImage;
   // Dynamic tyres (Other)
-  List<Uint8List?> _tyreImagesOther = [];
+  final List<Uint8List?> _tyreImagesOther = [];
   List<String> _tyreImageUrlsOther = [];
   Uint8List? _chassisOtherImage;
   Uint8List? _deckOtherImage;
@@ -4063,7 +4063,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       Map<String, dynamic> trailerExtraInfo = {};
       if (_selectedTrailerType == 'Superlink') {
         // Compute tyre lists once (avoid double uploads) and mirror legacy first URL
-        final List<String> _finalTyreUrlsA = await _uploadTyreImagesFromEdit(
+        final List<String> finalTyreUrlsA = await _uploadTyreImagesFromEdit(
           _tyreImagesA,
           _tyreImageUrlsA.isNotEmpty
               ? _tyreImageUrlsA
@@ -4071,7 +4071,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                   ? [_tyresImageAUrl!]
                   : [],
         );
-        final List<String> _finalTyreUrlsB = await _uploadTyreImagesFromEdit(
+        final List<String> finalTyreUrlsB = await _uploadTyreImagesFromEdit(
           _tyreImagesB,
           _tyreImageUrlsB.isNotEmpty
               ? _tyreImageUrlsB
@@ -4104,9 +4104,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                     _sideImageA!, 'vehicle_images')
                 : _sideImageAUrl ?? '',
             // Tyres (Trailer A)
-            'tyreImageUrls': _finalTyreUrlsA,
+            'tyreImageUrls': finalTyreUrlsA,
             'tyresImageUrl':
-                _finalTyreUrlsA.isNotEmpty ? _finalTyreUrlsA.first : '',
+                finalTyreUrlsA.isNotEmpty ? finalTyreUrlsA.first : '',
             'chassisImageUrl': _chassisImageA != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageA!, 'vehicle_images')
@@ -4186,9 +4186,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 ? await _uploadFileToFirebaseStorage(
                     _sideImageB!, 'vehicle_images')
                 : _sideImageBUrl ?? '',
-            'tyreImageUrls': _finalTyreUrlsB,
+            'tyreImageUrls': finalTyreUrlsB,
             'tyresImageUrl':
-                _finalTyreUrlsB.isNotEmpty ? _finalTyreUrlsB.first : '',
+                finalTyreUrlsB.isNotEmpty ? finalTyreUrlsB.first : '',
             'chassisImageUrl': _chassisImageB != null
                 ? await _uploadFileToFirebaseStorage(
                     _chassisImageB!, 'vehicle_images')
@@ -4347,7 +4347,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
           },
         };
         // Also store flat tyres array for 'Other' type to match prepopulation logic
-        final List<String> _finalTyreUrlsOther =
+        final List<String> finalTyreUrlsOther =
             await _uploadTyreImagesFromEdit(
           _tyreImagesOther,
           _tyreImageUrlsOther.isNotEmpty
@@ -4356,9 +4356,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                   ? [_tyresImageUrl!]
                   : [],
         );
-        trailerExtraInfo['tyreImageUrls'] = _finalTyreUrlsOther;
+        trailerExtraInfo['tyreImageUrls'] = finalTyreUrlsOther;
         trailerExtraInfo['tyresImageUrl'] =
-            _finalTyreUrlsOther.isNotEmpty ? _finalTyreUrlsOther.first : '';
+            finalTyreUrlsOther.isNotEmpty ? finalTyreUrlsOther.first : '';
       }
 
       // Add features to updated data.

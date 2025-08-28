@@ -91,6 +91,16 @@ android {
         //         debugSymbolLevel 'FULL'
         //     }
     }
+
+    // Product flavors for variant-specific branding
+    flavorDimensions "default"
+    productFlavors {
+        oemdemo {
+            dimension "default"
+            // Keep the same applicationId so Firebase config continues to work.
+            // Only the label will change via manifest overlay.
+        }
+    }
 }
 
 configurations.all {

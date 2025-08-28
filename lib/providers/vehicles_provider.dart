@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_provider.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:async';
 
 class VehicleProvider with ChangeNotifier {
   List<model.Vehicle> _vehicles = [];
   bool _isLoading = true;
   DocumentSnapshot? _lastFetchedDocument;
   String? _vehicleId; // Field to store the vehicleId
+  StreamSubscription<QuerySnapshot>? _vehiclesSubscription;
 
   List<model.Vehicle> get vehicles => _vehicles;
   bool get isLoading => _isLoading;
@@ -32,16 +34,57 @@ class VehicleProvider with ChangeNotifier {
 
   VehicleProvider();
 
-  // Initialize the provider by fetching vehicles
+  // Initialize the provider by setting up a real-time listener
   void initialize(UserProvider userProvider) {
+    // Cancel any existing listener first
+    _vehiclesSubscription?.cancel();
+
     String? userId = userProvider.userId; // Extract userId
+    _isLoading = true;
+    notifyListeners();
+
+    Query query = FirebaseFirestore.instance
+        .collection('vehicles')
+        .orderBy('createdAt', descending: true);
+
     if (userId != null && userId.isNotEmpty) {
-      fetchVehicles(userProvider, userId: userId); // Pass userId
-    } else {
-      print('User ID is null or empty, cannot fetch vehicles.');
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    _vehiclesSubscription = query.snapshots().listen((snapshot) {
+      try {
+        final updated = snapshot.docs
+            .map((doc) {
+              try {
+                final data = doc.data() as Map<String, dynamic>;
+                if (data['trailerExtraInfo'] != null) {
+                  final processed = Map<String, dynamic>.from(data);
+                  processed['trailerExtraInfo'] =
+                      _processTrailerData(data['trailerExtraInfo']);
+                  return model.Vehicle.fromFirestore(doc.id, processed);
+                }
+                return model.Vehicle.fromFirestore(doc.id, data);
+              } catch (_) {
+                return null;
+              }
+            })
+            .whereType<model.Vehicle>()
+            .toList();
+
+        _vehicles = updated;
+        vehicleListenable.value = List.from(_vehicles);
+        _isLoading = false;
+        notifyListeners();
+      } catch (e) {
+        print('Error processing vehicle snapshots: $e');
+        _isLoading = false;
+        notifyListeners();
+      }
+    }, onError: (e) {
+      print('Error listening to vehicles: $e');
       _isLoading = false;
       notifyListeners();
-    }
+    });
   }
 
   // Add a vehicle to the local list
@@ -88,15 +131,7 @@ class VehicleProvider with ChangeNotifier {
       QuerySnapshot querySnapshot = await query.get();
       // print('DEBUG: Found ${querySnapshot.docs.length} vehicles in total');
 
-      // Debug information about all vehicles
-      for (var doc in querySnapshot.docs) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        // print('DEBUG: Vehicle ID: ${doc.id}');
-        // print('DEBUG: Vehicle userId: ${data['userId']}');
-        // print('DEBUG: Vehicle makeModel: ${data['makeModel']}');
-        // print('DEBUG: Vehicle status: ${data['vehicleStatus']}');
-        // print('-------------------');
-      }
+      // Debug information about all vehicles (removed to avoid unused var warnings)
 
       _vehicles = querySnapshot.docs
           .map((doc) {
@@ -124,12 +159,7 @@ class VehicleProvider with ChangeNotifier {
           .toList(); // Filter out null values
 
       // print('DEBUG: Final processed vehicles count: ${_vehicles.length}');
-      if (userId != null) {
-        // print('DEBUG: Vehicles matching userId $userId:');
-        for (var vehicle in _vehicles) {
-          // print('model.Vehicle ID: ${vehicle.id}, Model: ${vehicle.makeModel}');
-        }
-      }
+      // if (userId != null) { /* optional debug logging */ }
 
       vehicleListenable.value = List<model.Vehicle>.from(_vehicles);
       _isLoading = false;
@@ -227,15 +257,7 @@ class VehicleProvider with ChangeNotifier {
       QuerySnapshot querySnapshot = await query.get();
       // print('DEBUG: Total vehicles in Firestore: ${querySnapshot.docs.length}');
 
-      // Debug print all vehicles before processing
-      for (var doc in querySnapshot.docs) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        // print('DEBUG: model.Vehicle ID: ${doc.id}');
-        // print('DEBUG: model.Vehicle userId: ${data['userId']}');
-        // print('DEBUG: model.Vehicle makeModel: ${data['makeModel']}');
-        // print('DEBUG: model.Vehicle status: ${data['vehicleStatus']}');
-        // print('-------------------');
-      }
+      // Debug print all vehicles before processing (omitted)
 
       _vehicles = querySnapshot.docs
           .map((doc) {
@@ -267,15 +289,7 @@ class VehicleProvider with ChangeNotifier {
         print('No valid vehicles found after parsing.');
       }
 
-      // print('DEBUG: Final processed vehicles count: ${_vehicles.length}');
-      // print('DEBUG: Processed vehicles summary:');
-      for (var vehicle in _vehicles) {
-        // print('model.Vehicle ID: ${vehicle.id}');
-        // print('UserID: ${vehicle.userId}');
-        // print('Model: ${vehicle.makeModel}');
-        // print('Status: ${vehicle.vehicleStatus}');
-        // print('-------------------');
-      }
+      // Optional: debug summary omitted
 
       vehicleListenable.value = List.from(_vehicles);
       _isLoading = false;
@@ -584,7 +598,7 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-   /// Returns a sorted list of unique company names (falling back to 'Anonymous'),
+  /// Returns a sorted list of unique company names (falling back to 'Anonymous'),
   /// with 'All' as the first option.
   List<String> getAllCompanies() {
     final companies = _vehicles
@@ -660,5 +674,11 @@ class VehicleProvider with ChangeNotifier {
       print('Error publishing vehicle: $e');
       rethrow;
     }
+  }
+
+  @override
+  void dispose() {
+    _vehiclesSubscription?.cancel();
+    super.dispose();
   }
 }

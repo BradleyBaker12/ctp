@@ -477,60 +477,17 @@ class TruckCard extends StatelessWidget {
                           SizedBox(height: verticalSpacing),
                           // Trailer display: fetch extra info and show Year Make Model
                           if (isTrailer) ...[
-                            FutureBuilder<
-                                DocumentSnapshot<Map<String, dynamic>>>(
-                              future: FirebaseFirestore.instance
-                                  .collection('vehicles')
-                                  .doc(vehicle.id)
-                                  .get(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return SizedBox(
-                                    height: titleFontSize,
-                                    child: Center(
-                                      child: SizedBox(
-                                        width: titleFontSize,
-                                        height: titleFontSize,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                  Colors.white),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }
-                                final docData = snapshot.data?.data();
-                                // Data may be stored directly or under trailerExtraInfo
-                                final data = (docData?['trailerExtraInfo']
-                                        as Map<String, dynamic>?) ??
-                                    (docData?['trailerA']
-                                        as Map<String, dynamic>?) ??
-                                    (docData?['trailerB']
-                                        as Map<String, dynamic>?) ??
-                                    {};
-                                final info = data.containsKey('trailerA') ||
-                                        data.containsKey('trailerB')
-                                    ? data.containsKey('trailerA')
-                                        ? data['trailerA']
-                                        : data['trailerB']
-                                    : data;
-                                final make = info['make'] ?? '';
-                                final model = info['model'] ?? '';
-                                final yearTxt = info['year']?.toString() ?? '';
-                                return Text(
-                                  '$yearTxt $make $model'.toUpperCase(),
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: titleFontSize,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                );
-                              },
+                            Text(
+                              '$displayYear $displayMakeModel'
+                                  .trim()
+                                  .toUpperCase(),
+                              style: GoogleFonts.montserrat(
+                                fontSize: titleFontSize,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ] else ...[
                             Text(
@@ -572,8 +529,8 @@ class TruckCard extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              _buildSpecBox(context, '$displayMileage km',
-                                  specFontSize),
+                              _buildSpecBox(
+                                  context, '$displayMileage km', specFontSize),
                               SizedBox(width: responsiveSpacing),
                               _buildSpecBox(
                                   context, displayTransmission, specFontSize),

@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
 // Trailer card widget
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -44,11 +43,14 @@ class FilterCriterion {
 class TruckPage extends StatefulWidget {
   final String? vehicleType;
   final String? selectedBrand;
+  // When true, open the page with the OEM tab selected even if no brand is chosen
+  final bool openOemTab;
 
   const TruckPage({
     super.key,
     this.vehicleType,
     this.selectedBrand,
+    this.openOemTab = false,
   });
 
   @override
@@ -72,7 +74,7 @@ class _TruckPageState extends State<TruckPage> {
   int loadedVehicleIndex = 0;
   bool _hasReachedEnd = false;
   bool _isLoading = true;
-  final bool _isFiltering = false;
+  // Removed unused _isFiltering; shimmer grid not used in this refactor.
 
   /// NEW: Track total number of filtered vehicles
   int _totalFilteredVehicles = 0;
@@ -103,9 +105,9 @@ class _TruckPageState extends State<TruckPage> {
   final List<String> _selectedVehicleType = [];
 
   // --------------------------------------------------------------------
-  // 2) Hard-coded Filter Lists
+  // 2) Hard-coded Filter Lists (re-added)
   // --------------------------------------------------------------------
-  final List<String> _yearOptions = [
+  final List<String> _yearOptions = const [
     'All',
     '2015',
     '2016',
@@ -118,11 +120,20 @@ class _TruckPageState extends State<TruckPage> {
     '2023',
     '2024'
   ];
-  final List<String> _vehicleStatusOptions = ['All', 'Live', 'Sold', 'Draft'];
-  final List<String> _transmissionOptions = ['All', 'manual', 'automatic'];
+  final List<String> _vehicleStatusOptions = const [
+    'All',
+    'Live',
+    'Sold',
+    'Draft'
+  ];
+  final List<String> _transmissionOptions = const [
+    'All',
+    'manual',
+    'automatic'
+  ];
   final List<String> _countryOptions = ['All'];
   List<String> _provinceOptions = ['All'];
-  final List<String> _applicationOfUseOptions = [
+  final List<String> _applicationOfUseOptions = const [
     'Bowser Body Trucks',
     'Cage Body Trucks',
     'Cattle Body Trucks',
@@ -149,7 +160,7 @@ class _TruckPageState extends State<TruckPage> {
     'Tipper Body Trucks',
     'Volume Body Trucks',
   ];
-  final List<String> _configOptions = [
+  final List<String> _configOptions = const [
     'All',
     '4x2',
     '6x4',
@@ -157,14 +168,28 @@ class _TruckPageState extends State<TruckPage> {
     '8x4',
     '10x4'
   ];
-  final List<String> _vehicleTypeOptions = ['All', 'truck', 'trailer'];
+  final List<String> _vehicleTypeOptions = const ['All', 'truck', 'trailer'];
 
   // --------------------------------------------------------------------
-  // 3) Dynamic Brand & Model Loading
+  // 3) Dynamic Brand & Model Loading (re-added)
   // --------------------------------------------------------------------
-  final List<String> _brandOptions = ['All']; // From JSON
-  List<String> _makeModelOptions = ['All']; // From JSON
+  final List<String> _brandOptions = ['All']; // Populated from JSON
+  List<String> _makeModelOptions = ['All']; // Populated based on brand
   List<dynamic> _countriesData = [];
+
+  // OEM tab state (dealer only)
+  bool _isOemMode = false;
+  List<String> _oemBrands = [];
+  bool _isLoadingOemBrands = false;
+  // When a brand is selected from the OEM tab, we only show vehicles uploaded by OEM users for that brand
+  final Set<String> _oemUserIdsForSelectedBrand = {};
+  bool _oemUserIdsLoadedForBrand = false;
+  String? _oemUserIdsBrandKey;
+  // Cache of all OEM userIds for excluding OEM uploads from All Stock
+  final Set<String> _allOemUserIds = {};
+  bool _allOemUserIdsLoaded = false;
+
+  // (Removed) OEM debug dialog helper
 
   // --------------------------------------------------------------------
   // 4) Initialization and Data Loading
@@ -172,18 +197,14 @@ class _TruckPageState extends State<TruckPage> {
   @override
   void initState() {
     super.initState();
-    // Redirect admin users before the page loads fully
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userRole =
-          Provider.of<UserProvider>(context, listen: false).getUserRole;
-      if (userRole == 'admin') {
-        Navigator.pushReplacementNamed(context, '/adminVehicles');
-      }
-    });
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
 
-    // Default to showing all vehicle types (trucks and trailers) unless user applies a filter.
+    // Determine initial OEM mode based on deep-linked brand
+    final hasBrand = widget.selectedBrand != null &&
+        widget.selectedBrand!.isNotEmpty &&
+        widget.selectedBrand != 'All';
+    _isOemMode = widget.openOemTab || hasBrand;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialVehicles();
@@ -200,8 +221,9 @@ class _TruckPageState extends State<TruckPage> {
   }
 
   void _scrollListener() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) {
       if (!_isLoadingMore && !_hasReachedEnd) {
         _loadMoreVehicles();
       }
@@ -213,24 +235,24 @@ class _TruckPageState extends State<TruckPage> {
       final String response =
           await rootBundle.loadString('lib/assets/updated_truck_data.json');
       final Map<String, dynamic> jsonData = json.decode(response);
-      Set<String> uniqueBrands = {};
+      final Set<String> uniqueBrands = {};
       jsonData.forEach((year, yearData) {
         if (yearData is Map<String, dynamic>) {
           yearData.forEach((brandName, _) {
-            final String normalized = brandName.trim();
-            uniqueBrands.add(normalized);
+            uniqueBrands.add(brandName.toString().trim());
           });
         }
       });
-      List<String> sortedBrands = uniqueBrands.toList()
+      final List<String> sortedBrands = uniqueBrands.toList()
         ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
       setState(() {
-        _brandOptions.clear();
-        _brandOptions.add('All');
-        _brandOptions.addAll(sortedBrands);
+        _brandOptions
+          ..clear()
+          ..add('All')
+          ..addAll(sortedBrands);
       });
     } catch (e) {
-      // debugPrint('Error loading brands from JSON: $e');
+      debugPrint('Error loading brands from JSON: $e');
     }
   }
 
@@ -242,8 +264,9 @@ class _TruckPageState extends State<TruckPage> {
       if (data is List) {
         setState(() {
           _countriesData = data;
-          _countryOptions.clear();
-          _countryOptions.add('All');
+          _countryOptions
+            ..clear()
+            ..add('All');
           for (var item in data) {
             if (item is Map<String, dynamic>) {
               final countryName = item['name'];
@@ -258,6 +281,153 @@ class _TruckPageState extends State<TruckPage> {
       debugPrint('Error loading countries from JSON: $e');
     }
   }
+
+  // --------------------------------------------------------------------
+  // OEM Brands loading and selection (dealer only)
+  // --------------------------------------------------------------------
+  Future<void> _loadOemBrands() async {
+    try {
+      setState(() => _isLoadingOemBrands = true);
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      // Ensure we have vehicles loaded for fallbacks
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      if (vehicleProvider.vehicles.isEmpty) {
+        await vehicleProvider.fetchAllVehicles();
+      }
+      // Fetch candidates by multiple role field variants and by non-empty oemBrand
+      final futures = <Future<QuerySnapshot>>[
+        usersRef.where('userRole', whereIn: ['oem', 'OEM', 'Oem']).get(),
+        usersRef.where('role', whereIn: ['oem', 'OEM', 'Oem']).get(),
+        usersRef.where('oemBrand', isGreaterThan: '').get(),
+      ];
+      final snapshots = await Future.wait(futures);
+      final set = <String>{};
+      for (final snap in snapshots) {
+        for (final doc in snap.docs) {
+          final Map<String, dynamic> data =
+              Map<String, dynamic>.from(doc.data() as Map);
+          final brand = (data['oemBrand'] ?? '').toString().trim();
+          if (brand.isNotEmpty) set.add(brand);
+        }
+      }
+      // If no brands found from users, derive from vehicles owned by OEM users
+      if (set.isEmpty) {
+        try {
+          final vehicleProvider =
+              Provider.of<VehicleProvider>(context, listen: false);
+          // Unique ownerIds from vehicles
+          final ownerIds =
+              vehicleProvider.vehicles.map((v) => v.userId).toSet().toList();
+          // Fetch owner user docs in small batches
+          for (final ownerId in ownerIds) {
+            final doc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(ownerId)
+                .get();
+            if (!doc.exists) continue;
+            final data = Map<String, dynamic>.from(doc.data() ?? {});
+            final brand = (data['oemBrand'] ?? '').toString().trim();
+            if (brand.isNotEmpty) {
+              set.add(brand);
+            } else {
+              // derive brand from vehicles owned by this user
+              final ownedVehicleBrands = vehicleProvider.vehicles
+                  .where((v) => v.userId == ownerId)
+                  .expand((v) => v.brands)
+                  .map((b) => b.trim())
+                  .where((b) => b.isNotEmpty)
+                  .toSet();
+              set.addAll(ownedVehicleBrands);
+            }
+          }
+        } catch (e) {
+          debugPrint('Fallback OEM brand derivation failed: $e');
+        }
+      }
+
+      // Final fallback: derive from vehicles' own ownerRole/oemBrand metadata
+      if (set.isEmpty) {
+        final vehicleProvider =
+            Provider.of<VehicleProvider>(context, listen: false);
+        for (final v in vehicleProvider.vehicles) {
+          final role = (v.ownerRole ?? '').trim().toLowerCase();
+          final brand = (v.oemBrand ?? '').trim();
+          if (role == 'oem' && brand.isNotEmpty) set.add(brand);
+        }
+      }
+
+      // If still empty, show all known brands from vehicles (UI discovery); results page will filter to OEM-owned
+      if (set.isEmpty) {
+        final vehicleProvider =
+            Provider.of<VehicleProvider>(context, listen: false);
+        for (final v in vehicleProvider.vehicles) {
+          for (final b in v.brands) {
+            final brand = (b).trim();
+            if (brand.isNotEmpty) set.add(brand);
+          }
+        }
+      }
+
+      final brands = set.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      setState(() {
+        _oemBrands = brands;
+        _isLoadingOemBrands = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading OEM brands: $e');
+      setState(() => _isLoadingOemBrands = false);
+    }
+  }
+
+  // Ensure we have the set of OEM userIds for the selected brand when filtering
+  Future<void> _ensureOemUserIdsForSelectedBrandLoaded() async {
+    final brand = widget.selectedBrand;
+    if (brand == null || brand == 'All') return;
+    // Reload when brand changes
+    if (_oemUserIdsLoadedForBrand && _oemUserIdsBrandKey == brand) return;
+    try {
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      // Fetch all OEM users (both schemas), then filter locally by brand (case-insensitive)
+      final results = await Future.wait([
+        usersRef.where('userRole', whereIn: ['oem', 'OEM', 'Oem']).get(),
+        usersRef.where('role', whereIn: ['oem', 'OEM', 'Oem']).get(),
+        usersRef.where('oemBrand', isGreaterThan: '').get(),
+      ]);
+      final target = brand.trim().toLowerCase();
+      _oemUserIdsForSelectedBrand.clear();
+      for (final snap in results) {
+        for (final doc in snap.docs) {
+          final Map<String, dynamic> data =
+              Map<String, dynamic>.from(doc.data() as Map);
+          final b = (data['oemBrand'] ?? '').toString().trim().toLowerCase();
+          if (b != target) continue;
+          // If role fields exist, prefer requiring them to equal oem; else allow presence of oemBrand to qualify
+          final roleVal = (data['userRole'] ?? data['role'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          if (roleVal.isEmpty || roleVal == 'oem') {
+            _oemUserIdsForSelectedBrand.add(doc.id);
+          }
+        }
+      }
+      _oemUserIdsLoadedForBrand = true;
+      _oemUserIdsBrandKey = brand;
+    } catch (e) {
+      debugPrint('Error loading OEM userIds for brand $brand: $e');
+      _oemUserIdsLoadedForBrand = true; // avoid retry loop; show none if failed
+      _oemUserIdsBrandKey = brand;
+    }
+    // Fallback: if no userIds were found, allow filter by vehicle.ownerRole/oemBrand
+    if (_oemUserIdsForSelectedBrand.isEmpty) {
+      debugPrint(
+          'OEM userIds empty for brand $brand; will rely on vehicle.ownerRole/oemBrand meta.');
+    }
+  }
+
+  // OEM brand selection now navigates to a new TruckPage; no in-place filter here.
 
   void _updateProvincesForCountry(String countryName) {
     if (countryName == 'All') {
@@ -377,37 +547,51 @@ class _TruckPageState extends State<TruckPage> {
           _hasReachedEnd = true;
         });
       } else {
-        // Default "All" mode
+        // Default All/OEM mode (non-fleet)
         debugPrint(
             'DEBUG: All mode. vehicleProvider.vehicles count = ${vehicleProvider.vehicles.length}');
         _setCompanyOptions(vehicleProvider.vehicles);
+
+        // Base status filter
+        Iterable<Vehicle> filteredVehicles = vehicleProvider.vehicles.where(
+          (vehicle) => vehicle.vehicleStatus == 'Live',
+        );
+
+        // Brand/ownership scoping
+        final bool hasBrand =
+            widget.selectedBrand != null && widget.selectedBrand != 'All';
+        if (_isOemMode && hasBrand) {
+          await _ensureOemUserIdsForSelectedBrandLoaded();
+          final tgt = (widget.selectedBrand ?? '').trim().toLowerCase();
+          filteredVehicles = filteredVehicles.where((vehicle) {
+            final matchesOwnerByUser =
+                _oemUserIdsForSelectedBrand.contains(vehicle.userId);
+            final matchesOwnerByMeta =
+                (vehicle.ownerRole?.toLowerCase() == 'oem') &&
+                    ((vehicle.oemBrand ?? '').trim().toLowerCase() == tgt);
+            return matchesOwnerByUser || matchesOwnerByMeta;
+          });
+        }
+
+        // In All Stock (non-OEM) view, exclude OEM-owned vehicles entirely
+        if (!_isOemMode) {
+          await _ensureAllOemUserIdsLoaded();
+          filteredVehicles =
+              filteredVehicles.where((v) => !_isVehicleOemOwned(v));
+        }
+
+        // Apply any user-chosen filters
+        filteredVehicles = _applySelectedFilters(filteredVehicles);
+
+        debugPrint(
+            'DEBUG: filteredVehicles count = ${filteredVehicles.length}');
+
         setState(() {
-          /// Base filter: only vehicles with status "Live"
-          var filteredVehicles = vehicleProvider.vehicles
-              .where((vehicle) => vehicle.vehicleStatus == 'Live');
-
-          /// If a brand was passed in, apply it only if != 'All'
-          if (widget.selectedBrand != null && widget.selectedBrand != 'All') {
-            filteredVehicles = filteredVehicles.where(
-              (vehicle) => vehicle.brands.contains(widget.selectedBrand),
-            );
-          }
-          // Apply any user-chosen filters
-          filteredVehicles = _applySelectedFilters(filteredVehicles);
-
-          debugPrint(
-              'DEBUG: filteredVehicles count = ${filteredVehicles.length}');
-
-          /// 1) Count them all
           _totalFilteredVehicles = filteredVehicles.length;
-
-          /// 2) Take the first page
           displayedVehicles = filteredVehicles.take(_itemsPerPage).toList();
           _currentPage = 1;
           _isLoading = false;
           loadedVehicleIndex = displayedVehicles.length;
-
-          /// If we already got them all in the first page, mark `_hasReachedEnd`
           _hasReachedEnd = displayedVehicles.length >= _totalFilteredVehicles;
         });
       }
@@ -435,12 +619,28 @@ class _TruckPageState extends State<TruckPage> {
       _setCompanyOptions(vehicleProvider.vehicles);
       int startIndex = _currentPage * _itemsPerPage;
       // Re-filter everything (same logic as in _loadInitialVehicles "All" branch)
+      // Base status filter (Live-only for all views)
       var filteredVehicles = vehicleProvider.vehicles
           .where((vehicle) => vehicle.vehicleStatus == 'Live');
-      if (widget.selectedBrand != null && widget.selectedBrand != 'All') {
-        filteredVehicles = filteredVehicles.where(
-          (vehicle) => vehicle.brands.contains(widget.selectedBrand),
-        );
+      final hasBrand =
+          widget.selectedBrand != null && widget.selectedBrand != 'All';
+      if (_isOemMode && hasBrand) {
+        await _ensureOemUserIdsForSelectedBrandLoaded();
+        filteredVehicles = filteredVehicles.where((vehicle) {
+          final matchesOwnerByUser =
+              _oemUserIdsForSelectedBrand.contains(vehicle.userId);
+          final matchesOwnerByMeta =
+              (vehicle.ownerRole?.toLowerCase() == 'oem') &&
+                  ((vehicle.oemBrand ?? '').trim().toLowerCase() ==
+                      (widget.selectedBrand ?? '').trim().toLowerCase());
+          return matchesOwnerByUser || matchesOwnerByMeta;
+        });
+      }
+      // In All Stock (non-OEM) view, exclude OEM-owned vehicles entirely
+      if (!_isOemMode) {
+        await _ensureAllOemUserIdsLoaded();
+        filteredVehicles =
+            filteredVehicles.where((v) => !_isVehicleOemOwned(v));
       }
       filteredVehicles = _applySelectedFilters(filteredVehicles);
       // Get the next batch
@@ -1199,32 +1399,38 @@ class _TruckPageState extends State<TruckPage> {
                     const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
-                    //                   DefaultTabController(
-//                     length: 2,
-//                     initialIndex: _isFleetMode ? 1 : 0,
-//                     child: TabBar(
-//                       labelColor: const Color(0xFFFF4E00),
-//                       unselectedLabelColor: Colors.white,
-//                       indicatorColor: const Color(0xFFFF4E00),
-//                       onTap: (index) {
-//                         setState(() {
-//                           _isFleetMode = index == 1;
-//                           if (_isFleetMode) {
-//                             _loadFleetOptions();
-//                             _selectedCompany = null;
-//                           } else {
-//                             // Reset to All view
-//                             _selectedCompany = 'All';
-//                             _loadInitialVehicles();
-//                           }
-//                         });
-//                       },
-//                       tabs: const [
-//                         Tab(text: 'All'),
-//                         Tab(text: 'Fleet'),
-//                       ],
-//                     ),
-//                   ),
+                    if (userRole == 'dealer')
+                      DefaultTabController(
+                        length: 2,
+                        initialIndex: _isOemMode ? 1 : 0,
+                        child: TabBar(
+                          labelColor: const Color(0xFFFF4E00),
+                          unselectedLabelColor: Colors.white,
+                          indicatorColor: const Color(0xFFFF4E00),
+                          onTap: (index) async {
+                            setState(() {
+                              _isOemMode = index == 1;
+                              _isFleetMode =
+                                  false; // disable fleet UI in dealer tabs
+                            });
+                            if (_isOemMode) {
+                              await _loadOemBrands();
+                              setState(() {
+                                displayedVehicles = [];
+                                _totalFilteredVehicles = 0;
+                              });
+                            } else {
+                              setState(() => _isLoading = true);
+                              _loadInitialVehicles();
+                            }
+                          },
+                          tabs: const [
+                            Tab(text: 'All Stock'),
+                            Tab(text: 'OEM'),
+                          ],
+                        ),
+                      ),
+                    // OEM brand list moved to main content body below
                     if (_isFleetMode) ...[
                       const SizedBox(height: 8),
                       // Only show dropdown when live fleets exist
@@ -1276,6 +1482,35 @@ class _TruckPageState extends State<TruckPage> {
                         ),
                         Row(
                           children: [
+                            if (_isOemMode &&
+                                widget.selectedBrand != null &&
+                                widget.selectedBrand!.isNotEmpty &&
+                                widget.selectedBrand != 'All')
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final nav = Navigator.of(context);
+                                  if (nav.canPop()) {
+                                    nav.pop();
+                                  } else {
+                                    // No back stack (e.g., deep link) → jump to OEM brands list
+                                    await nav.pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => const TruckPage(
+                                          openOemTab: true,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.swap_horiz, size: 18),
+                                label: const Text('Change Brand'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFFF4E00),
+                                  side: const BorderSide(
+                                      color: Color(0xFFFF4E00)),
+                                  shape: const StadiumBorder(),
+                                ),
+                              ),
                             IconButton(
                               icon: const Icon(Icons.tune, color: Colors.white),
                               onPressed: _showFilterDialog,
@@ -1323,198 +1558,9 @@ class _TruckPageState extends State<TruckPage> {
               ),
               // Main body
               Expanded(
-                child: _isFleetMode && _selectedCompany == null
-                    ? _buildNoVehiclesAvailable()
-                    : _isLoading
-                        ? Center(
-                            child: Image.asset(
-                              'lib/assets/Loading_Logo_CTP.gif',
-                              width: 100,
-                              height: 100,
-                            ),
-                          )
-                        : _isFiltering
-                            ? GridView.builder(
-                                padding: const EdgeInsets.all(24),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount:
-                                      _calculateCrossAxisCount(context),
-                                  crossAxisSpacing: 24,
-                                  mainAxisSpacing: 24,
-                                  mainAxisExtent: 600,
-                                ),
-                                itemCount: 8, // Show 8 shimmer cards
-                                itemBuilder: (context, index) {
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF2F7FFF)
-                                          .withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(25),
-                                      border: Border.all(
-                                        color: const Color(0xFF2F7FFF),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: Shimmer.fromColors(
-                                      baseColor: Colors.grey[900]!,
-                                      highlightColor: Colors.grey[800]!,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          // Image placeholder
-                                          Container(
-                                            height: 360, // 60% of 600
-                                            decoration: const BoxDecoration(
-                                              color: Colors.black12,
-                                              borderRadius:
-                                                  BorderRadius.vertical(
-                                                top: Radius.circular(24),
-                                              ),
-                                            ),
-                                          ),
-                                          // Content area
-                                          Expanded(
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.all(16.0),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  // Title placeholder
-                                                  Container(
-                                                    height: 24,
-                                                    width: double.infinity,
-                                                    color: Colors.black12,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  // Subtitle placeholder
-                                                  Container(
-                                                    height: 16,
-                                                    width: 100,
-                                                    color: Colors.black12,
-                                                  ),
-                                                  const SizedBox(height: 24),
-                                                  // Spec boxes
-                                                  Row(
-                                                    children: [
-                                                      for (var i = 0;
-                                                          i < 3;
-                                                          i++) ...[
-                                                        if (i > 0)
-                                                          const SizedBox(
-                                                              width: 8),
-                                                        Container(
-                                                          height: 36,
-                                                          width: 80,
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color:
-                                                                Colors.black12,
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        8),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 24),
-                                                  // Progress bar placeholder
-                                                  Container(
-                                                    height: 24,
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.black12,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              12),
-                                                    ),
-                                                  ),
-                                                  const Spacer(),
-                                                  // Button placeholder
-                                                  Container(
-                                                    height: 48,
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.black12,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              )
-                            : displayedVehicles.isNotEmpty
-                                ? NotificationListener<ScrollNotification>(
-                                    onNotification: (scrollInfo) {
-                                      if (scrollInfo is ScrollEndNotification) {
-                                        _scrollListener();
-                                      }
-                                      return false;
-                                    },
-                                    child: GridView.builder(
-                                      controller: _scrollController,
-                                      padding: const EdgeInsets.all(24),
-                                      gridDelegate:
-                                          SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount:
-                                            _calculateCrossAxisCount(context),
-                                        crossAxisSpacing: 24,
-                                        mainAxisSpacing: 24,
-                                        mainAxisExtent: 600,
-                                      ),
-                                      itemCount: displayedVehicles.length +
-                                          (_isLoadingMore ? 1 : 0),
-                                      itemBuilder: (context, index) {
-                                        if (index < displayedVehicles.length) {
-                                          final vehicle =
-                                              displayedVehicles[index];
-                                          // Always pass trailer for trailers
-                                          return TruckCard(
-                                            vehicle: vehicle,
-                                            onInterested: _markAsInterested,
-                                            isSelectionMode: _isSelectionMode,
-                                            borderColor:
-                                                _selectedVehicleIdsForOffer
-                                                        .contains(vehicle.id)
-                                                    ? const Color(0xFFFF4E00)
-                                                    : null,
-                                            // When navigating, always pass trailer for trailers
-                                            key: ValueKey(vehicle.id),
-                                            // ...other props...
-                                            // Navigation logic inside TruckCard should use:
-                                            // Navigator.push(
-                                            //   context,
-                                            //   MaterialPageRoute(
-                                            //     builder: (context) => VehicleDetailsPage(vehicle: vehicle, trailer: trailerObj),
-                                            //   ),
-                                            // );
-                                          );
-                                        } else {
-                                          // Loading indicator for pagination
-                                          return Center(
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.all(24.0),
-                                              child: CircularProgressIndicator(
-                                                  color: Color(0xFFFF4E00)),
-                                            ),
-                                          );
-                                        }
-                                      },
-                                    ),
-                                  )
-                                : _buildNoVehiclesAvailable(),
+                child: _isOemMode
+                    ? _buildOemContent(context)
+                    : _buildAllContent(context),
               ),
             ],
           ),
@@ -1579,6 +1625,172 @@ class _TruckPageState extends State<TruckPage> {
                   ),
                 ),
     );
+  }
+
+  // =============================
+  // Content builders
+  // =============================
+  Widget _buildOemContent(BuildContext context) {
+    final hasBrand = widget.selectedBrand != null &&
+        widget.selectedBrand!.isNotEmpty &&
+        widget.selectedBrand != 'All';
+    if (hasBrand) {
+      if (_isLoading) {
+        return Center(
+          child: Image.asset(
+            'lib/assets/Loading_Logo_CTP.gif',
+            width: 100,
+            height: 100,
+          ),
+        );
+      }
+      return displayedVehicles.isNotEmpty
+          ? _buildVehicleGrid(context)
+          : _buildNoVehiclesAvailable();
+    }
+    // No brand selected → show brand list
+    if (_isLoadingOemBrands) {
+      return const Center(
+        child: SizedBox(
+          height: 32,
+          width: 32,
+          child: CircularProgressIndicator(
+              color: Color(0xFFFF4E00), strokeWidth: 2),
+        ),
+      );
+    }
+    if (_oemBrands.isEmpty) {
+      return Center(
+        child: Text(
+          'No OEM brands available yet.',
+          style: _customFont(14, FontWeight.w500, Colors.white70),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      itemBuilder: (context, index) {
+        final brand = _oemBrands[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TruckPage(selectedBrand: brand),
+              ),
+            );
+          },
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.grey[700],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              brand,
+              style: _customFont(16, FontWeight.w600, Colors.white),
+            ),
+          ),
+        );
+      },
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemCount: _oemBrands.length,
+    );
+  }
+
+  Widget _buildAllContent(BuildContext context) {
+    if (_isFleetMode && _selectedCompany == null) {
+      return _buildNoVehiclesAvailable();
+    }
+    if (_isLoading) {
+      return Center(
+        child: Image.asset(
+          'lib/assets/Loading_Logo_CTP.gif',
+          width: 100,
+          height: 100,
+        ),
+      );
+    }
+    return displayedVehicles.isNotEmpty
+        ? _buildVehicleGrid(context)
+        : _buildNoVehiclesAvailable();
+  }
+
+  Widget _buildVehicleGrid(BuildContext context) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollInfo) {
+        if (scrollInfo is ScrollEndNotification) {
+          _scrollListener();
+        }
+        return false;
+      },
+      child: GridView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(24),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _calculateCrossAxisCount(context),
+          crossAxisSpacing: 24,
+          mainAxisSpacing: 24,
+          mainAxisExtent: 600,
+        ),
+        itemCount: displayedVehicles.length + (_isLoadingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index < displayedVehicles.length) {
+            final vehicle = displayedVehicles[index];
+            return TruckCard(
+              vehicle: vehicle,
+              onInterested: _markAsInterested,
+              isSelectionMode: _isSelectionMode,
+              borderColor: _selectedVehicleIdsForOffer.contains(vehicle.id)
+                  ? const Color(0xFFFF4E00)
+                  : null,
+              key: ValueKey(vehicle.id),
+            );
+          }
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: const CircularProgressIndicator(color: Color(0xFFFF4E00)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // =============================
+  // Filtering helpers
+  // =============================
+  // (Removed) Non-OEM brand filter helper, not used in All Stock
+
+  Future<void> _ensureAllOemUserIdsLoaded() async {
+    if (_allOemUserIdsLoaded) return;
+    try {
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      final snapshots = await Future.wait([
+        usersRef.where('userRole', whereIn: ['oem', 'OEM', 'Oem']).get(),
+        usersRef.where('role', whereIn: ['oem', 'OEM', 'Oem']).get(),
+      ]);
+      for (final snap in snapshots) {
+        for (final doc in snap.docs) {
+          _allOemUserIds.add(doc.id);
+        }
+      }
+      _allOemUserIdsLoaded = true;
+    } catch (e) {
+      debugPrint('Error loading all OEM userIds: $e');
+      _allOemUserIdsLoaded = true; // avoid repeated attempts
+    }
+  }
+
+  bool _isVehicleOemOwned(Vehicle v) {
+    final role = (v.ownerRole ?? '').trim().toLowerCase();
+    if (role == 'oem') return true;
+    if (_allOemUserIds.contains(v.userId)) return true;
+    // Heuristic: if oemBrand is present, treat as OEM-owned
+    final ob = (v.oemBrand ?? '').trim();
+    return ob.isNotEmpty;
   }
 }
 

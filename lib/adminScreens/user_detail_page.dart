@@ -49,6 +49,8 @@ class _UserDetailPageState extends State<UserDetailPage> {
   final TextEditingController _registrationNumberController =
       TextEditingController();
   final TextEditingController _vatNumberController = TextEditingController();
+  // OEM brand controller (only used when role is 'oem')
+  final TextEditingController _oemBrandController = TextEditingController();
 
   // Dropdown state variables.
   String _accountStatus = 'active'; // default value.
@@ -69,6 +71,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
     'suspended',
     'deactivated',
     'inactive',
+    'archived',
   ];
 
   // Add loading state variables
@@ -98,6 +101,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
     _countryController.dispose();
     _registrationNumberController.dispose();
     _vatNumberController.dispose();
+    _oemBrandController.dispose();
     super.dispose();
   }
 
@@ -153,7 +157,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         // If the currently logged-in user is a sales rep, then assign the current rep's id.
         if (userProvider.getUserRole == 'sales representative') {
-          _selectedSalesRep = userProvider.userRole;
+          _selectedSalesRep = userProvider.userId;
         }
 
         Map<String, dynamic> updateData = {
@@ -176,12 +180,21 @@ class _UserDetailPageState extends State<UserDetailPage> {
           'vatNumber': _vatNumberController.text,
         };
 
-        // Only include assignedSalesRep if user is a dealer or transporter
-        if (_userRole == 'dealer' || _userRole == 'transporter') {
+        // Only include assignedSalesRep if user is a dealer, transporter or oem
+        if (_userRole == 'dealer' ||
+            _userRole == 'transporter' ||
+            _userRole == 'oem') {
           updateData['assignedSalesRep'] = _selectedSalesRep;
         } else {
           // Remove assignedSalesRep field for admin and sales rep roles
           updateData['assignedSalesRep'] = null;
+        }
+
+        // Persist OEM brand when applicable; clear it otherwise
+        if (_userRole == 'oem') {
+          updateData['oemBrand'] = _oemBrandController.text;
+        } else {
+          updateData['oemBrand'] = null;
         }
 
         if (profileImageUrl != null) {
@@ -366,10 +379,10 @@ class _UserDetailPageState extends State<UserDetailPage> {
     final bool isSalesRep = currentUserRole == 'sales representative';
 
     // Determine allowed user roles based on current user's role.
-    // Admin can choose among transporter, dealer, and admin.
-    // Sales rep can only create/edit a transporter or dealer.
-    final List<String> roleOptions = isAdmin
-        ? ['transporter', 'dealer', 'admin']
+    // Admin: transporter, dealer, oem, admin.
+    // Sales rep: transporter, dealer. If editing an OEM account, include 'oem' to preserve value display.
+    List<String> roleOptions = isAdmin
+        ? ['transporter', 'dealer', 'oem', 'admin']
         : ['transporter', 'dealer'];
 
     // If logged in user is a sales rep and no sales rep is assigned, assign current rep id.
@@ -444,8 +457,13 @@ class _UserDetailPageState extends State<UserDetailPage> {
               // Initialize user role with proper null check and validation
               String? storedRole = data['userRole']?.toString();
               if (storedRole != null &&
-                  ['transporter', 'dealer', 'admin', 'sales representative']
-                      .contains(storedRole)) {
+                  [
+                    'transporter',
+                    'dealer',
+                    'admin',
+                    'sales representative',
+                    'oem'
+                  ].contains(storedRole)) {
                 _userRole = storedRole;
               } else {
                 _userRole = 'dealer'; // Default value if invalid or null
@@ -453,6 +471,16 @@ class _UserDetailPageState extends State<UserDetailPage> {
 
               // Initialize assigned Sales Representative with null check
               _selectedSalesRep = data['assignedSalesRep']?.toString();
+
+              // Initialize OEM brand
+              _oemBrandController.text = data['oemBrand']?.toString() ?? '';
+
+              // Ensure role dropdown shows 'oem' for non-admins when viewing an OEM account
+              if (!isAdmin &&
+                  _userRole == 'oem' &&
+                  !roleOptions.contains('oem')) {
+                roleOptions = [...roleOptions, 'oem'];
+              }
 
               _isControllersInitialized = true;
             }
@@ -738,7 +766,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                     setState(() {
                                       _userRole = newValue;
                                       if (isAdmin &&
-                                          !['transporter', 'dealer']
+                                          !['transporter', 'dealer', 'oem']
                                               .contains(_userRole)) {
                                         _selectedSalesRep = null;
                                       }
@@ -747,6 +775,34 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                 },
                               ),
                             ),
+                            // OEM Brand field (required when role is 'oem')
+                            if (_userRole == 'oem')
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10.0),
+                                child: TextFormField(
+                                  controller: _oemBrandController,
+                                  enabled: isAdmin,
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                  decoration: InputDecoration(
+                                    labelText: 'OEM Brand',
+                                    labelStyle: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                    filled: true,
+                                    fillColor: Colors.grey[800],
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (value) {
+                                    if (_userRole == 'oem' &&
+                                        (value == null ||
+                                            value.trim().isEmpty)) {
+                                      return 'Please enter OEM Brand';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
                             _buildEditableField(
                                 'VAT Number', _vatNumberController, false),
                             SizedBox(height: 20),
@@ -754,7 +810,8 @@ class _UserDetailPageState extends State<UserDetailPage> {
                             // Show dropdown only if the logged-in user is admin and the user being edited has transporter or dealer role.
                             if (isAdmin &&
                                 (_userRole == 'transporter' ||
-                                    _userRole == 'dealer'))
+                                    _userRole == 'dealer' ||
+                                    _userRole == 'oem'))
                               FutureBuilder<QuerySnapshot>(
                                 future: _fetchSalesReps(),
                                 builder: (context, snapshot) {
@@ -825,7 +882,8 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                       },
                                       validator: (value) {
                                         if ((_userRole == 'transporter' ||
-                                                _userRole == 'dealer') &&
+                                                _userRole == 'dealer' ||
+                                                _userRole == 'oem') &&
                                             (value == null || value.isEmpty)) {
                                           return 'Please select a representative or admin';
                                         }

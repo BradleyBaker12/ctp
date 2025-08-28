@@ -130,8 +130,7 @@ class _OffersTabState extends State<OffersTab> {
               primary: Color(0xFFFF4E00),
               surface: Colors.black,
               onSurface: Colors.white,
-            ),
-            dialogBackgroundColor: Colors.grey[900],
+            ), dialogTheme: DialogThemeData(backgroundColor: Colors.grey[900]),
           ),
           child: child!,
         );

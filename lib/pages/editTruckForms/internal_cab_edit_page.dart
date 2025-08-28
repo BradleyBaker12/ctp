@@ -1223,8 +1223,8 @@ class InternalCabEditPageState extends State<InternalCabEditPage>
 
   Future<Map<String, dynamic>> getData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    // Allow transporter, admin, and salesRep to upload data
-    final allowedRoles = ['transporter', 'admin', 'salesRep'];
+    // Allow transporter, OEM, admin, and salesRep to upload data
+    final allowedRoles = ['transporter', 'oem', 'admin', 'salesRep'];
     if (!allowedRoles.contains(userProvider.getUserRole)) {
       return {};
     }

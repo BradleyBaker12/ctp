@@ -58,23 +58,9 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     });
     _tabController = TabController(length: 3, vsync: this);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final vehicleProvider =
-          Provider.of<VehicleProvider>(context, listen: false);
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final currentUserId = userProvider.userId;
-
-      if (currentUserId != null) {
-        // Fetch vehicles for the logged-in user
-        await vehicleProvider.fetchVehicles(
-          userProvider,
-          userId: currentUserId,
-          filterLikedDisliked: false,
-        );
-        setState(() {
-          isLoading = false;
-        });
-      }
+    // Let VehicleProvider's real-time listener populate; show skeleton briefly
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() => isLoading = false);
     });
   }
 
@@ -306,7 +292,19 @@ class _VehiclesListPageState extends State<VehiclesListPage>
             ],
           ),
         ),
-        floatingActionButton: null,
+        floatingActionButton: (kIsWeb ||
+                userProvider.getUserRole == 'admin' ||
+                userProvider.getUserRole == 'sales representative')
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: _showVehicleTypeSelectionDialog,
+                backgroundColor: const Color(0xFFFF4E00),
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: const Text(
+                  'Upload',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
         bottomNavigationBar: (kIsWeb ||
                 userProvider.getUserRole == 'admin' ||
                 userProvider.getUserRole == 'sales representative')
@@ -350,7 +348,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                       }
                     }
                     // Example for transporters
-                    else if (userRole == 'transporter') {
+                    else if (userRole == 'transporter' || userRole == 'oem') {
                       // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
                       if (index == 0) {
                         await MyNavigator.pushReplacement(

@@ -46,6 +46,7 @@ import 'package:ctp/pages/tutorial_started.dart';
 import 'package:ctp/pages/vehicles_list.dart';
 import 'package:ctp/pages/waiting_for_approval.dart';
 import 'package:ctp/pages/wish_list_page.dart';
+import 'package:ctp/pages/oem_demo_page.dart';
 import 'package:ctp/providers/complaints_provider.dart';
 import 'package:ctp/providers/form_data_provider.dart';
 import 'package:ctp/providers/offer_provider.dart';
@@ -458,7 +459,7 @@ Future<void> _navigateToOfferDetails(BuildContext context, String offerId,
         Navigator.of(context).pushNamed('/adminOffers');
       } else if (userRole == 'dealer') {
         Navigator.of(context).pushNamed('/offers');
-      } else if (userRole == 'transporter') {
+      } else if (userRole == 'transporter' || userRole == 'oem') {
         Navigator.of(context).pushNamed('/offers');
       } else {
         Navigator.of(context).pushNamed('/offers');
@@ -521,6 +522,14 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Improve Firestore caching/performance
+  try {
+    FirebaseFirestore.instance.settings = Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  } catch (_) {}
+
   // Setup notifications service
   await setupNotifications();
 
@@ -546,7 +555,17 @@ void main() async {
             return vehicleProvider!;
           },
         ),
-        ChangeNotifierProvider(create: (_) => OfferProvider()),
+        ChangeNotifierProxyProvider<UserProvider, OfferProvider>(
+          create: (_) => OfferProvider(),
+          update: (_, userProvider, offerProvider) {
+            final uid = userProvider.userId ?? '';
+            final role = userProvider.userRole;
+            if (uid.isNotEmpty) {
+              offerProvider?.initialize(uid, role);
+            }
+            return offerProvider!;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => ComplaintsProvider()),
         ChangeNotifierProvider(create: (_) => FormDataProvider()),
         ChangeNotifierProxyProvider<FormDataProvider, TruckConditionsProvider>(
@@ -697,7 +716,17 @@ class MyApp extends StatelessWidget {
             return vehicleProvider!;
           },
         ),
-        ChangeNotifierProvider(create: (_) => OfferProvider()),
+        ChangeNotifierProxyProvider<UserProvider, OfferProvider>(
+          create: (_) => OfferProvider(),
+          update: (_, userProvider, offerProvider) {
+            final uid = userProvider.userId ?? '';
+            final role = userProvider.userRole;
+            if (uid.isNotEmpty) {
+              offerProvider?.initialize(uid, role);
+            }
+            return offerProvider!;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => ComplaintsProvider()),
         ChangeNotifierProvider(create: (_) => FormDataProvider()),
         ChangeNotifierProxyProvider<FormDataProvider, TruckConditionsProvider>(
@@ -741,6 +770,7 @@ class MyApp extends StatelessWidget {
           '/truckPage': (context) => const TruckPage(),
           '/offers': (context) => const OffersPage(),
           '/profile': (context) => ProfilePage(),
+          '/oem-demo': (context) => const OemDemoPage(),
           '/waiting-for-approval': (context) => const AccountStatusPage(),
           '/add-profile-photo-admin': (context) => AddProfilePhotoAdminPage(),
           '/admin-home': (context) => AdminHomePage(),
@@ -860,24 +890,40 @@ class MyApp extends StatelessWidget {
             }
 
             if (vehicleId != null && vehicleId.isNotEmpty) {
-              return _guarded((context) => FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('vehicles')
-                        .doc(vehicleId)
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Scaffold(
-                          body: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      if (!snapshot.hasData || !snapshot.data!.exists) {
-                        return const ErrorPage();
-                      }
-                      final vehicle = Vehicle.fromDocument(snapshot.data!);
-                      return VehicleDetailsPage(vehicle: vehicle);
-                    },
-                  ));
+              // Public access: allow viewing vehicle details without authentication
+              return MaterialPageRoute(
+                builder: (context) => FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('vehicles')
+                      .doc(vehicleId)
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    if (!snapshot.hasData || !snapshot.data!.exists) {
+                      return const ErrorPage();
+                    }
+                    final vehicle = Vehicle.fromDocument(snapshot.data!);
+                    return VehicleDetailsPage(vehicle: vehicle);
+                  },
+                ),
+              );
+            }
+
+            // Deep link: /oem-demo or /oem-demo/:brand or /oem-demo?brand=...
+            if (uri.pathSegments.isNotEmpty &&
+                uri.pathSegments.first == 'oem-demo') {
+              String? brand;
+              if (uri.pathSegments.length >= 2) {
+                brand = uri.pathSegments[1];
+              }
+              brand ??= uri.queryParameters['brand'];
+              return MaterialPageRoute(
+                builder: (context) => OemDemoPage(brand: brand),
+              );
             }
 
             // Deep link: /basic_information/:vehicleId (existing block below kept for args)

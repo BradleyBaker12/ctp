@@ -270,10 +270,7 @@ class TrailerCard extends StatelessWidget {
     final (filledFields, totalFields) = _calculateFieldsRatio();
     final progressRatio = totalFields > 0 ? filledFields / totalFields : 0.0;
 
-    // Brand + Model text
-    final brandModel = [
-      trailer.makeModel,
-    ].where((e) => e.isNotEmpty).join(" ");
+    // Brand + Model text (derived directly when needed)
 
     // Create a conversion method from Trailer to Vehicle
     Vehicle trailerToVehicle(Trailer trailer) {
@@ -296,21 +293,21 @@ class TrailerCard extends StatelessWidget {
         acceptedOfferId: '',
         application: [],
         dashboardPhoto: '',
-        engineNumber: trailer.engineNumber ?? '',
+        engineNumber: trailer.engineNumber,
         faultCodesPhoto: '',
         hydraluicType: '',
         licenceDiskUrl: '',
-        mileage: trailer.mileage ?? '',
+        mileage: trailer.mileage,
         mileageImage: '',
         photos: const [],
         rc1NatisFile: '',
-        registrationNumber: trailer.registrationNumber ?? '',
+        registrationNumber: trailer.registrationNumber,
         suspensionType: '',
         transmissionType: '',
         config: '',
-        vinNumber: trailer.vinNumber ?? '',
+        vinNumber: trailer.vinNumber,
         warrentyType: '',
-        warrantyDetails: trailer.warrantyDetails ?? '',
+        warrantyDetails: trailer.warrantyDetails,
         vehicleAvailableImmediately: '',
         availableDate: '',
         adminData: AdminData(
@@ -401,7 +398,6 @@ class TrailerCard extends StatelessWidget {
               final cardH = constraints.maxHeight;
               final imageSectionHeight = cardH * 0.6;
               final titleFontSize = max(cardW * 0.045, 14.0);
-              final subtitleFontSize = max(cardW * 0.042, 12.0);
               final specFontSize = max(cardW * 0.032, 14.0);
               final progressText = max(cardW * 0.024, 8.0);
               final buttonHeight = cardH * 0.08;
@@ -468,55 +464,17 @@ class TrailerCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                            future: FirebaseFirestore.instance
-                                .collection('vehicles')
-                                .doc(trailer.id)
-                                .get(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return SizedBox(
-                                  height: titleFontSize,
-                                  child: Center(
-                                    child: SizedBox(
-                                      width: titleFontSize,
-                                      height: titleFontSize,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                                Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                              final doc = snapshot.data?.data();
-                              // Data may be under trailerExtraInfo, trailerA, or trailerB
-                              final raw = (doc?['trailerExtraInfo']
-                                      as Map<String, dynamic>?) ??
-                                  (doc?['trailerA'] as Map<String, dynamic>?) ??
-                                  (doc?['trailerB'] as Map<String, dynamic>?) ??
-                                  {};
-                              final info = raw.containsKey('trailerA') ||
-                                      raw.containsKey('trailerB')
-                                  ? (raw['trailerA'] ?? raw['trailerB'])
-                                  : raw;
-                              final make = info['make'] ?? '';
-                              final model = info['model'] ?? '';
-                              final yearTxt = info['year']?.toString() ?? '';
-                              return Text(
-                                '$yearTxt $make $model'.toUpperCase(),
-                                style: GoogleFonts.montserrat(
-                                  fontSize: titleFontSize,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              );
-                            },
+                          Text(
+                            '${trailer.year} ${getTrailerDetails()}'
+                                .trim()
+                                .toUpperCase(),
+                            style: GoogleFonts.montserrat(
+                              fontSize: titleFontSize,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 18),
                           Row(

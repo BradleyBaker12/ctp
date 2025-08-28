@@ -170,7 +170,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _landingLegImageA;
   final List<Map<String, dynamic>> _additionalImagesListTrailerA = [];
   // Multiple Tyres for Trailer A
-  List<Uint8List?> _tyreImagesA = [];
+  final List<Uint8List?> _tyreImagesA = [];
 
   // New fields for Trailer A: Axles and two NATIS document uploads
   final TextEditingController _axlesTrailerAController =
@@ -197,7 +197,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _makersPlateImageB;
   final List<Map<String, dynamic>> _additionalImagesListTrailerB = [];
   // Multiple Tyres for Trailer B
-  List<Uint8List?> _tyreImagesB = [];
+  final List<Uint8List?> _tyreImagesB = [];
 
   // New fields for Trailer B: Axles and two NATIS document uploads
   final TextEditingController _axlesTrailerBController =
@@ -229,7 +229,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _landingLegsImage;
   final List<Map<String, dynamic>> _additionalImagesList = [];
   // Multiple Tyres for Tri-Axle / default
-  List<Uint8List?> _tyreImages = [];
+  final List<Uint8List?> _tyreImages = [];
 
   // Documents
   Uint8List? _natisRc1File;
@@ -329,7 +329,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _makersPlateDblAxleImage;
   Uint8List? _tyresDoubleAxleImage;
   // Multiple Tyres for Double Axle
-  List<Uint8List?> _tyreImagesDoubleAxle = [];
+  final List<Uint8List?> _tyreImagesDoubleAxle = [];
 
   // Other trailer type specific controllers
   final TextEditingController _makeOtherController = TextEditingController();
@@ -367,7 +367,7 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
   Uint8List? _natisOtherDocFile;
   String? _natisOtherDocFileName;
   // Multiple Tyres for Other
-  List<Uint8List?> _tyreImagesOther = [];
+  final List<Uint8List?> _tyreImagesOther = [];
 
   @override
   void initState() {
@@ -3386,12 +3386,21 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
       Map<String, String?> commonUrls = await _uploadCommonFiles();
       Map<String, dynamic> trailerExtraInfo = await _buildTrailerTypeData();
 
+      // Determine brand assignment for OEM users so dealer OEM tab can find these
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final String role = userProvider.getUserRole.toLowerCase();
+      final String? oemBrand = userProvider.oemBrand;
+      final List<String> brands =
+          (role == 'oem' && (oemBrand ?? '').isNotEmpty) ? [oemBrand!] : [];
+
       final Map<String, dynamic> trailerData = {
         'trailerType': _selectedTrailerType,
         'vehicleType': 'trailer',
         'mainImageUrl': commonUrls['mainImageUrl'] ?? '',
         'serviceHistoryUrl': commonUrls['serviceHistoryUrl'] ?? '',
         'trailerExtraInfo': trailerExtraInfo,
+        // Important for brand filtering in dealer OEM tab
+        'brands': brands,
         // Add these fields for damages
         'damagesCondition': _damagesCondition,
         'damages': await _uploadListItems(_damageList),
@@ -3416,6 +3425,11 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'lastModifiedBy': currentUser?.uid,
+        // Ownership meta for OEM filtering
+        'ownerRole': role,
+        'oemBrand': (role == 'oem')
+            ? (oemBrand ?? (brands.isNotEmpty ? brands.first : ''))
+            : null,
         'adminData': {
           'settlementAmount': _sellingPriceController.text,
           'requireSettlement': false,
@@ -4656,11 +4670,23 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('userRole', whereIn: ['transporter', 'admin']).get();
+          .where('userRole', whereIn: ['transporter', 'admin', 'oem']).get();
       setState(() {
         _transporterUsers = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          return {'id': doc.id, 'email': data['email'] ?? 'No Email'};
+          final firstName = (data['firstName'] ?? '').toString();
+          final lastName = (data['lastName'] ?? '').toString();
+          final tradingName = (data['tradingName'] ?? '').toString();
+          String composedName = tradingName.isNotEmpty
+              ? tradingName
+              : ('$firstName $lastName').trim();
+          if (composedName.isEmpty) composedName = data['email'] ?? 'Unknown';
+          return {
+            'id': doc.id,
+            'email': data['email'] ?? 'No Email',
+            'name': composedName,
+            'role': (data['userRole'] ?? '').toString().toLowerCase(),
+          };
         }).toList();
       });
     } catch (e) {
@@ -4686,8 +4712,37 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
 
   // Add transporter field widget
   Widget _buildTransporterField() {
-    final List<String> ownerEmails =
-        _transporterUsers.map((e) => e['email'] as String).toList();
+    // Group by role and add headers
+    const String headerTA = '––– Transporters & Admins –––';
+    const String headerOEM = '––– OEMs –––';
+    final taUsers = _transporterUsers.where((u) {
+      final role = (u['role'] ?? '').toString();
+      return role == 'transporter' || role == 'admin' || role.isEmpty;
+    }).toList()
+      ..sort((a, b) => (a['name'] ?? '')
+          .toString()
+          .toLowerCase()
+          .compareTo((b['name'] ?? '').toString().toLowerCase()));
+    final oemUsers = _transporterUsers.where((u) {
+      final role = (u['role'] ?? '').toString();
+      return role == 'oem';
+    }).toList()
+      ..sort((a, b) => (a['name'] ?? '')
+          .toString()
+          .toLowerCase()
+          .compareTo((b['name'] ?? '').toString().toLowerCase()));
+
+    final List<String> ownerEmails = [];
+    if (taUsers.isNotEmpty) {
+      ownerEmails.add(headerTA);
+      ownerEmails
+          .addAll(taUsers.map((u) => (u['email'] ?? 'No Email') as String));
+    }
+    if (oemUsers.isNotEmpty) {
+      ownerEmails.add(headerOEM);
+      ownerEmails
+          .addAll(oemUsers.map((u) => (u['email'] ?? 'No Email') as String));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4700,7 +4755,58 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
           hintText: 'Select Transporter',
           value: _selectedTransporterEmail,
           items: ownerEmails,
+          itemBuilder: (context, email) {
+            if (email == headerTA || email == headerOEM) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Text(
+                  email.replaceAll('–', '').trim(),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }
+            final matching = _transporterUsers.firstWhere(
+              (user) => user['email'] == email,
+              orElse: () => {'name': 'Unknown', 'email': email},
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  matching['name'] ?? 'Unknown',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  email,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            );
+          },
+          selectedItemBuilderSingle: (context, email) {
+            final matching = _transporterUsers.firstWhere(
+              (user) => user['email'] == email,
+              orElse: () => {'name': 'Unknown', 'email': email},
+            );
+            return Text(
+              matching['name'] ?? 'Unknown',
+              style: const TextStyle(color: Colors.white),
+            );
+          },
           onChanged: (value) {
+            if (value == headerTA || value == headerOEM) return;
             setState(() {
               _selectedTransporterEmail = value;
               try {

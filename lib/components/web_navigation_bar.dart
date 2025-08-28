@@ -30,6 +30,7 @@ class WebNavigationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
+    final bool isAuthenticated = userProvider.getUser != null;
     final screenWidth = MediaQuery.of(context).size.width;
     // If screenWidth is 600 or more, use a fixed width of 150, otherwise 10% of the width.
     final bool isTabletOrLarger = screenWidth >= 600;
@@ -49,6 +50,12 @@ class WebNavigationBar extends StatelessWidget {
             NavigationItem(title: 'In-Progress', route: '/in-progress'),
           ];
 
+    // Guests: hide Home from the navigation list
+    if (!isAuthenticated) {
+      navigationItems =
+          navigationItems.where((item) => item.title != 'Home').toList();
+    }
+
     return Container(
       height: 70,
       decoration: BoxDecoration(
@@ -59,7 +66,7 @@ class WebNavigationBar extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
           ),
         ],
@@ -85,15 +92,19 @@ class WebNavigationBar extends StatelessWidget {
                     : MainAxisAlignment.start,
                 children: [
                   GestureDetector(
-                    onTap: () {
-                      if (userRole == 'admin') {
-                        Navigator.pushNamed(context, '/adminHome');
-                      } else {
-                        Navigator.pushNamed(context, '/home');
-                      }
-                    },
+                    onTap: isAuthenticated
+                        ? () {
+                            if (userRole == 'admin') {
+                              Navigator.pushNamed(context, '/adminHome');
+                            } else {
+                              Navigator.pushNamed(context, '/home');
+                            }
+                          }
+                        : null,
                     child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
+                      cursor: isAuthenticated
+                          ? SystemMouseCursors.click
+                          : SystemMouseCursors.basic,
                       child: SizedBox(
                         width: logoWidth,
                         child: Image.network(
@@ -134,19 +145,20 @@ class WebNavigationBar extends StatelessWidget {
               ),
             ),
 
-            // Right section - Profile icon
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/profile');
-              },
-              child: CircleAvatar(
-                radius: 18,
-                backgroundImage: userProvider.getProfileImageUrl != null
-                    ? NetworkImage(userProvider.getProfileImageUrl)
-                    : const AssetImage('lib/assets/default_profile.png')
-                        as ImageProvider,
+            // Right section - Profile icon (hidden for guests)
+            if (isAuthenticated)
+              GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, '/profile');
+                },
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundImage: userProvider.getProfileImageUrl.isNotEmpty
+                      ? NetworkImage(userProvider.getProfileImageUrl)
+                      : const AssetImage('lib/assets/default_profile.png')
+                          as ImageProvider,
+                ),
               ),
-            ),
           ],
         ),
       ),

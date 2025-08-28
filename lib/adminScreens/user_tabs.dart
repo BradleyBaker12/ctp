@@ -400,6 +400,12 @@ class _UsersTabState extends State<UsersTab> {
             return false;
           }
           break;
+        case 'OEM':
+          if ((data['userRole'] as String?)?.toLowerCase() != 'oem' ||
+              (data['accountStatus'] as String?)?.toLowerCase() == 'pending') {
+            return false;
+          }
+          break;
         case 'Pending':
           if ((data['accountStatus'] as String?)?.toLowerCase() != 'pending') {
             return false;
@@ -412,7 +418,7 @@ class _UsersTabState extends State<UsersTab> {
     return Scaffold(
       body: GradientBackground(
         child: DefaultTabController(
-          length: isAdmin ? 3 : 2,
+          length: isAdmin ? 4 : 2,
           child: Column(
             children: [
               // Search, Sort, and Filter Row.
@@ -631,6 +637,8 @@ class _UsersTabState extends State<UsersTab> {
                     const SizedBox(width: 12),
                     _buildUserTabButton('Transporters'),
                     if (isAdmin) ...[
+                      const SizedBox(width: 12),
+                      _buildUserTabButton('OEM'),
                       const SizedBox(width: 12),
                       _buildUserTabButton('Pending'),
                     ],
@@ -862,6 +870,8 @@ class _UsersTabState extends State<UsersTab> {
     final firstNameController = TextEditingController();
     final companyNameController = TextEditingController();
     final tradingAsController = TextEditingController();
+    // OEM brand input (only used when role is OEM)
+    final oemBrandController = TextEditingController();
 
     // Get current user's role and ID.
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -877,7 +887,7 @@ class _UsersTabState extends State<UsersTab> {
     // Define available roles based on current user's role.
     List<String> roles = [];
     if (isAdmin) {
-      roles = ['admin', 'transporter', 'dealer', 'sales representative'];
+      roles = ['admin', 'transporter', 'dealer', 'sales representative', 'oem'];
     } else if (currentUserRole == 'sales representative') {
       roles = ['transporter', 'dealer'];
     }
@@ -980,9 +990,16 @@ class _UsersTabState extends State<UsersTab> {
                         },
                       ),
                       const SizedBox(height: 16),
+                      if (isAdmin && selectedRole == 'oem')
+                        CustomTextField(
+                          hintText: 'OEM BRAND',
+                          controller: oemBrandController,
+                        ),
+                      const SizedBox(height: 16),
                       if (isAdmin &&
                           (selectedRole == 'transporter' ||
-                              selectedRole == 'dealer'))
+                              selectedRole == 'dealer' ||
+                              selectedRole == 'oem'))
                         FutureBuilder<QuerySnapshot>(
                           future: FirebaseFirestore.instance
                               .collection('users')
@@ -1045,7 +1062,8 @@ class _UsersTabState extends State<UsersTab> {
                               },
                               validator: (value) {
                                 if ((selectedRole == 'transporter' ||
-                                        selectedRole == 'dealer') &&
+                                        selectedRole == 'dealer' ||
+                                        selectedRole == 'oem') &&
                                     (value == null || value.isEmpty)) {
                                   return 'Please select a sales representative';
                                 }
@@ -1078,7 +1096,8 @@ class _UsersTabState extends State<UsersTab> {
                     }
                     if (isAdmin &&
                         (selectedRole == 'transporter' ||
-                            selectedRole == 'dealer') &&
+                            selectedRole == 'dealer' ||
+                            selectedRole == 'oem') &&
                         (selectedSalesRep == null ||
                             selectedSalesRep!.isEmpty)) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1125,8 +1144,26 @@ class _UsersTabState extends State<UsersTab> {
                         'createdBy': isAdmin ? 'admin' : 'sales representative',
                       };
 
+                      if (selectedRole == 'oem') {
+                        final brand = oemBrandController.text.trim();
+                        if (brand.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Please enter an OEM Brand for the account.',
+                                style: GoogleFonts.montserrat(),
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        newUserData['oemBrand'] = brand;
+                      }
+
                       if (selectedRole == 'transporter' ||
-                          selectedRole == 'dealer') {
+                          selectedRole == 'dealer' ||
+                          selectedRole == 'oem') {
                         if (isAdmin) {
                           newUserData['assignedSalesRep'] = selectedSalesRep;
                         } else if (currentUserRole == 'sales representative') {
