@@ -17,7 +17,6 @@ import 'package:provider/provider.dart';
 // Define the PhotoItem class to hold both the image URL and its label
 // import 'package:auto_route/auto_route.dart';
 
-
 class PhotoItem {
   final String url;
   final String label;
@@ -42,11 +41,9 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
 
   final TextEditingController _controller = TextEditingController();
   double _totalCost = 0.0;
-  int _currentImageIndex = 0;
   bool _isLoading = false;
   double _offerAmount = 0.0;
   bool _hasMadeOffer = false;
-  final bool _isAdditionalInfoExpanded = true; // State to track the dropdown
   List<PhotoItem> allPhotos = [];
   late PageController _pageController;
   String _offerStatus = 'in-progress'; // Default status for the offer
@@ -283,7 +280,29 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
 
       String dealerId = user.uid;
       String vehicleId = widget.vehicle.id;
+      // Determine transporter assignment; OEM-owned vehicles should assign the OEM user
       String transporterId = widget.vehicle.userId;
+      try {
+        final vehSnap = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(vehicleId)
+            .get();
+        if (vehSnap.exists) {
+          final v = vehSnap.data() as Map<String, dynamic>;
+          final ownerRole = (v['ownerRole'] ?? '').toString().toLowerCase();
+          final assigned = (v['assignedTransporterId'] ?? '').toString();
+          if (ownerRole == 'oem') {
+            final fallback = (v['userId'] ?? '').toString();
+            if (fallback.isNotEmpty) {
+              transporterId = fallback;
+            }
+          } else if (assigned.isNotEmpty) {
+            transporterId = assigned;
+          }
+        }
+      } catch (_) {
+        // keep default transporterId on error
+      }
       DateTime createdAt = DateTime.now();
 
       DocumentReference docRef =
@@ -294,7 +313,8 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
         'offerId': offerId,
         'dealerId': dealerId,
         'vehicleId': vehicleId,
-        'transportId': transporterId,
+        // NOTE: Must use 'transporterId' for transporter visibility on Offers page
+        'transporterId': transporterId,
         'createdAt': createdAt,
         'collectionDates': null,
         'collectionLocation': null,
@@ -499,11 +519,7 @@ class _VehicleDetailsPageAdminState extends State<VehicleDetailsPageAdmin> {
       child: PageView.builder(
         controller: _pageController,
         itemCount: allPhotos.length,
-        onPageChanged: (index) {
-          setState(() {
-            _currentImageIndex = index;
-          });
-        },
+        // onPageChanged removed: index not used in current UI
         itemBuilder: (context, index) {
           return Column(
             children: [

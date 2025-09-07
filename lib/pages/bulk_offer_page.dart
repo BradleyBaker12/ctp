@@ -6,7 +6,9 @@ import 'package:ctp/components/gradient_background.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class BulkOfferPage extends StatefulWidget {
+
+@RoutePage()
+class BulkOfferPage extends StatefulWidget {
   static const routeName = '/bulkOffer';
 
   const BulkOfferPage({super.key});
@@ -143,10 +145,36 @@ class _BulkOfferPageState extends State<BulkOfferPage> {
                     final vehicles = await _vehiclesFuture;
                     final docRef =
                         FirebaseFirestore.instance.collection('offers').doc();
+                    // Compute transporter assignment for each vehicle; if vehicle is OEM-owned, assign OEM
+                    final List<String> vehicleIds =
+                        vehicles.map((v) => v.id).toList();
+                    final Map<String, String> vehicleToTransporter = {};
+                    try {
+                      final snaps = await Future.wait(vehicleIds.map((id) =>
+                          FirebaseFirestore.instance
+                              .collection('vehicles')
+                              .doc(id)
+                              .get()));
+                      for (final snap in snaps) {
+                        if (!snap.exists) continue;
+                        final data = snap.data() as Map<String, dynamic>;
+                        final ownerRole =
+                            (data['ownerRole'] ?? '').toString().toLowerCase();
+                        final assigned =
+                            (data['assignedTransporterId'] ?? '').toString();
+                        String tId = assigned.isNotEmpty
+                            ? assigned
+                            : ((data['userId'] ?? '').toString());
+                        if (tId.isEmpty) continue;
+                        if (ownerRole == 'oem' || tId.isNotEmpty) {
+                          vehicleToTransporter[snap.id] = tId;
+                        }
+                      }
+                    } catch (_) {}
                     await docRef.set({
                       'offerId': docRef.id,
                       'offerType': 'bulk',
-                      'vehicleId': vehicles.map((v) => v.id).toList(),
+                      'vehicleId': vehicleIds,
                       'dealerId': dealerId,
                       'offerAmount': amount,
                       'offerStatus': 'in-progress',
@@ -154,6 +182,8 @@ class _BulkOfferPageState extends State<BulkOfferPage> {
                       'createdAt': FieldValue.serverTimestamp(),
                       'dealerInspectionComplete': false,
                       'transporterInspectionComplete': false,
+                      // Optional mapping to support per-vehicle transporter ownership, incl. OEM
+                      'vehicleTransporters': vehicleToTransporter,
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(

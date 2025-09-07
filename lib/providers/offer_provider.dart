@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart'; // Added for the widget
+import 'package:ctp/providers/user_provider.dart';
 
 /// The Offer model representing each offer from Firestore.
 class Offer extends ChangeNotifier {
@@ -404,19 +405,65 @@ class OfferProvider with ChangeNotifier {
         });
       } else {
         // Dealer or Transporter (non-admin)
-        final isDealer = userRole.toLowerCase() == 'dealer';
-        final query = isDealer
-            ? base.where('dealerId', isEqualTo: userId)
-            : base.where('transporterId', isEqualTo: userId);
-        _dealerSub = query
-            .orderBy('createdAt', descending: true)
-            .snapshots()
-            .listen((snap) async {
-          await process([snap]);
-        }, onError: (e) {
-          _errorMessage = 'Failed to listen to offers: $e';
-          notifyListeners();
-        });
+        final role = userRole.toLowerCase();
+        final isDealer = role == 'dealer';
+
+        if (isDealer) {
+          _dealerSub = base
+              .where('dealerId', isEqualTo: userId)
+              .orderBy('createdAt', descending: true)
+              .snapshots()
+              .listen((snap) async {
+            await process([snap]);
+          }, onError: (e) {
+            _errorMessage = 'Failed to listen to offers: $e';
+            notifyListeners();
+          });
+        } else {
+          // Transporter: include both correct field 'transporterId' and legacy 'transportId'
+          _transporterSub = base
+              .where('transporterId', isEqualTo: userId)
+              .orderBy('createdAt', descending: true)
+              .snapshots()
+              .listen((transporterSnap) async {
+            QuerySnapshot? legacySnap;
+            try {
+              legacySnap = await base
+                  .where('transportId', isEqualTo: userId)
+                  .orderBy('createdAt', descending: true)
+                  .get();
+            } catch (_) {}
+            await process([
+              transporterSnap,
+              if (legacySnap != null) legacySnap,
+            ]);
+          }, onError: (e) {
+            _errorMessage = 'Failed to listen to offers: $e';
+            notifyListeners();
+          });
+
+          // Also listen to legacy field updates (defensive for older docs)
+          _dealerSub = base
+              .where('transportId', isEqualTo: userId)
+              .orderBy('createdAt', descending: true)
+              .snapshots()
+              .listen((legacyLiveSnap) async {
+            QuerySnapshot? currentSnap;
+            try {
+              currentSnap = await base
+                  .where('transporterId', isEqualTo: userId)
+                  .orderBy('createdAt', descending: true)
+                  .get();
+            } catch (_) {}
+            await process([
+              legacyLiveSnap,
+              if (currentSnap != null) currentSnap,
+            ]);
+          }, onError: (e) {
+            _errorMessage = 'Failed to listen to offers: $e';
+            notifyListeners();
+          });
+        }
       }
     } catch (e) {
       _errorMessage = 'Failed to start offers listener: $e';
@@ -486,31 +533,78 @@ class OfferProvider with ChangeNotifier {
         _offersController.add(_offers);
       } else {
         // Default path for other roles
-        Query query = _buildQuery(userId, userRole);
-        if (limit != null) {
-          query = query.limit(limit);
-        } else {
-          // When limit is null, fetch without pagination limit.
-        }
+        final role = userRole.toLowerCase();
 
-        QuerySnapshot querySnapshot = await query.get();
+        if (role == 'transporter') {
+          // Merge current and legacy transporter fields
+          Query base = _firestore
+              .collection('offers')
+              .orderBy('createdAt', descending: true);
 
-        _offers = await Future.wait(querySnapshot.docs.map((doc) async {
-          // print('DEBUG: Processing offer ${doc.id}');
-          Offer offer = Offer.fromFirestore(doc);
-          await offer.fetchVehicleDetails();
-          return offer;
-        }));
+          Query currentQ = base.where('transporterId', isEqualTo: userId);
+          Query legacyQ = base.where('transportId', isEqualTo: userId);
+          if (limit != null) {
+            currentQ = currentQ.limit(limit);
+            legacyQ = legacyQ.limit(limit);
+          }
 
-        if (_offers.isNotEmpty && limit != null) {
-          _lastDocument = querySnapshot.docs.last;
-          _hasMore = querySnapshot.docs.length >= limit;
-        } else {
-          // When limit is null, disable further pagination.
+          final snapshots = await Future.wait([
+            currentQ.get(),
+            legacyQ.get(),
+          ]);
+
+          final Map<String, Offer> merged = {};
+          for (final snap in snapshots) {
+            for (final doc in snap.docs) {
+              if (!merged.containsKey(doc.id)) {
+                final offer = Offer.fromFirestore(doc);
+                await offer.fetchVehicleDetails();
+                merged[doc.id] = offer;
+              }
+            }
+          }
+
+          _offers = merged.values.toList()
+            ..sort((a, b) {
+              final aTime =
+                  a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final bTime =
+                  b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return bTime.compareTo(aTime);
+            });
+
+          if (limit != null && _offers.length > limit) {
+            _offers = _offers.sublist(0, limit);
+          }
+
           _hasMore = false;
-        }
+          _lastDocument = null;
+          _offersController.add(_offers);
+        } else {
+          Query query = _buildQuery(userId, userRole);
+          if (limit != null) {
+            query = query.limit(limit);
+          } else {
+            // When limit is null, fetch without pagination limit.
+          }
 
-        _offersController.add(_offers);
+          QuerySnapshot querySnapshot = await query.get();
+
+          _offers = await Future.wait(querySnapshot.docs.map((doc) async {
+            Offer offer = Offer.fromFirestore(doc);
+            await offer.fetchVehicleDetails();
+            return offer;
+          }));
+
+          if (_offers.isNotEmpty && limit != null) {
+            _lastDocument = querySnapshot.docs.last;
+            _hasMore = querySnapshot.docs.length >= limit;
+          } else {
+            _hasMore = false;
+          }
+
+          _offersController.add(_offers);
+        }
       }
     } catch (e) {
       print('ERROR: Failed to fetch offers: $e');
@@ -722,8 +816,30 @@ class OfferProvider with ChangeNotifier {
     }
   }
 
-  Future<void> acceptOffer(String offerId, String vehicleId) async {
+  Future<void> acceptOffer(String offerId, String vehicleId,
+      {UserProvider? userProvider}) async {
     try {
+      // Optional client-side guard: only OEM managers of the owning company can accept
+      if (userProvider != null) {
+        final role = userProvider.getUserRole.toLowerCase();
+        if (role == 'oem') {
+          final vehicleSnap = await FirebaseFirestore.instance
+              .collection('vehicles')
+              .doc(vehicleId)
+              .get();
+          if (vehicleSnap.exists) {
+            final vdata = vehicleSnap.data() as Map<String, dynamic>;
+            final ownerUserId = (vdata['userId'] ?? '').toString();
+            final allowed =
+                await userProvider.isCurrentUserOemManagerForOwner(ownerUserId);
+            if (!allowed) {
+              throw Exception(
+                  'Only the OEM manager can accept offers for this vehicle.');
+            }
+          }
+        }
+      }
+
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         // Get all offers for this vehicle
         final offersQuery = await FirebaseFirestore.instance
@@ -737,11 +853,36 @@ class OfferProvider with ChangeNotifier {
             {'offerStatus': 'accepted'});
 
         // Update vehicle status
-        transaction.update(
-            FirebaseFirestore.instance.collection('vehicles').doc(vehicleId), {
+        Map<String, dynamic> vehicleUpdates = {
           'isAccepted': true,
           'acceptedOfferId': offerId,
-        });
+        };
+        try {
+          final vehicleDoc = await FirebaseFirestore.instance
+              .collection('vehicles')
+              .doc(vehicleId)
+              .get();
+          if (vehicleDoc.exists) {
+            final v = vehicleDoc.data() as Map<String, dynamic>;
+            final ownerUserId = (v['userId'] ?? '').toString();
+            if (ownerUserId.isNotEmpty) {
+              final ownerDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(ownerUserId)
+                  .get();
+              if (ownerDoc.exists) {
+                final u = ownerDoc.data() as Map<String, dynamic>;
+                if (u['managerId'] != null) {
+                  vehicleUpdates['managerUserId'] = u['managerId'];
+                }
+              }
+            }
+          }
+        } catch (_) {}
+
+        transaction.update(
+            FirebaseFirestore.instance.collection('vehicles').doc(vehicleId),
+            vehicleUpdates);
 
         // Update all other offers for this vehicle to rejected
         for (var doc in offersQuery.docs) {
@@ -775,28 +916,4 @@ class OfferProvider with ChangeNotifier {
   }
 }
 
-/// Widget to build the offer image with loading indicator and error handling.
-Widget _buildOfferImage(Offer offer) {
-  if (offer.isVehicleDetailsLoading) {
-    return CircularProgressIndicator(
-      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4E00)),
-    );
-  }
-
-  final imageUrl = offer.vehicleMainImage;
-  // Check for null, empty or non-http URLs.
-  if (imageUrl == null || imageUrl.isEmpty || !imageUrl.startsWith('http')) {
-    return Icon(Icons.directions_car, color: Colors.blueAccent);
-  }
-
-  return Image.network(
-    imageUrl,
-    width: 50,
-    height: 50,
-    fit: BoxFit.cover,
-    errorBuilder: (context, error, stackTrace) {
-      // print('DEBUG: Error loading image: $error');
-      return Icon(Icons.directions_car, color: Colors.blueAccent);
-    },
-  );
-}
+// (removed) _buildOfferImage was unused

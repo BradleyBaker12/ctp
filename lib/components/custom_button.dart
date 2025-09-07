@@ -47,12 +47,15 @@ class CustomButton extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation(Colors.blue),
                   ),
                 )
-              : Text(
-                  text,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white, // Text color
+              : Center(
+                  child: Text(
+                    text,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white, // Text color
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
         ),

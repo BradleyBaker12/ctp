@@ -596,10 +596,23 @@ Future<void> setupNotifications() async {
     );
     print('DEBUG: Web permission status - ${settings.authorizationStatus}');
 
-    // Get Web FCM token using VAPID key
-    const vapidKey = String.fromEnvironment('WEB_VAPID_KEY');
-    String? webToken = await messaging.getToken(vapidKey: vapidKey);
-    print('DEBUG: Web FCM Token: $webToken');
+    // Get Web FCM token using VAPID key (only if granted)
+    try {
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        const vapidKey = String.fromEnvironment('WEB_VAPID_KEY');
+        if (vapidKey.isEmpty) {
+          print('DEBUG: No WEB_VAPID_KEY provided; skipping web FCM token retrieval');
+        } else {
+          final webToken = await messaging.getToken(vapidKey: vapidKey);
+          print('DEBUG: Web FCM Token: $webToken');
+        }
+      } else {
+        print('DEBUG: Web notifications not authorized; skipping token retrieval');
+      }
+    } catch (e) {
+      print('DEBUG: Error getting web FCM token: $e');
+    }
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) {

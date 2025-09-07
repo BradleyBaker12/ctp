@@ -200,6 +200,22 @@ class AdminHomeRouteArgs {
 }
 
 /// generated route for
+/// [OemInviteEmployeePage]
+class OemInviteEmployeeRoute extends PageRouteInfo<void> {
+  const OemInviteEmployeeRoute({List<PageRouteInfo>? children})
+      : super(OemInviteEmployeeRoute.name, initialChildren: children);
+
+  static const String name = 'OemInviteEmployeeRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const OemInviteEmployeePage();
+    },
+  );
+}
+
+/// generated route for
 /// [BoughtVehiclesListPage]
 class BoughtVehiclesListRoute extends PageRouteInfo<void> {
   const BoughtVehiclesListRoute({List<PageRouteInfo>? children})

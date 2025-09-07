@@ -22,7 +22,8 @@
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <script>
-      window.flutterWebRenderer = "canvaskit";
+      // Let Flutter choose the best renderer (auto fallback avoids CanvasKit issues on some Edge setups)
+      window.flutterWebRenderer = "auto";
       window.addEventListener("load", function () {
         window.Cropper = Cropper;
       });
@@ -43,6 +44,7 @@
 
     <!-- iOS meta tags & icons -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="ctp" />
     <link rel="apple-touch-icon" href="icons/Icon-192.png" />
@@ -52,16 +54,13 @@
 
     <title>ctp</title>
     <link rel="manifest" href="manifest.json" />
-    <script
-      src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs"
-      type="module"
-    ></script>
     <script type="module">
-      var { pdfjsLib } = globalThis;
+      // Edge-friendly ESM import for PDF.js (avoid relying on globals)
+      import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs";
+      window.pdfjsLib = pdfjsLib;
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
-
-      var pdfRenderOptions = {
+      window.pdfRenderOptions = {
         cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/",
         cMapPacked: true,
       };
@@ -80,61 +79,46 @@
       content="default-src * self blob: data: gap:; style-src * self 'unsafe-inline' blob: data: gap:; script-src * 'self' 'unsafe-eval' 'unsafe-inline' blob: data: gap:; object-src * 'self' blob: data: gap:; img-src * self 'unsafe-inline' blob: data: gap:; connect-src self * 'unsafe-inline' blob: data: gap:; frame-src * self blob: data: gap:;"
     />
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-
-    <script>
-      // Replace with your Firebase configuration
-      const firebaseConfig = {
-        // Your web app Firebase configuration
-      };
-
-      // Initialize Firebase
-      firebase.initializeApp(firebaseConfig);
-    </script>
-
-    <!-- Firebase Messaging -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
-    <script>
-      // Initialize Firebase Messaging
-      const messaging = firebase.messaging();
-
-      // Register the service worker
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker
-          .register("/firebase-messaging-sw.js")
-          .then((registration) => {
-            console.log("Service worker registered:", registration);
-            messaging.useServiceWorker(registration);
-            // Get FCM token
-            return messaging.getToken({
-              vapidKey:
-                "BAlDvkaDKAYZPblZHC2VhYuf0hy2hNYqaGDDZZtq7I1sTwsFiQiHdfDjkzN0v4hkbVocdiw6ALkeOyYOkGs1uwQ",
-            });
-          })
-          .then((token) => {
-            console.log("Web FCM token:", token);
-            // TODO: Send token to your backend for storage
-          })
-          .catch((err) => {
-            console.error(
-              "Error registering service worker or getting token:",
-              err
-            );
-          });
-      }
-
-      // Handle incoming messages when the page is in focus
-      messaging.onMessage((payload) => {
-        console.log("Message received:", payload);
-        // Optionally display an in-app notification here
-      });
-    </script>
+    <!-- Firebase is initialized by Flutter (firebase_options.dart). Avoid duplicating init here to prevent conflicts, especially on Edge. -->
+    <!-- If you use FirebaseUI or Messaging on the web directly, wire it through FlutterFire instead of re-initializing in index.html. -->
   </head>
   <body>
-    <script src="main.dart.js" type="application/javascript"></script>
-    <script src="flutter_bootstrap.js" async></script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #0b0b0b; /* prevent white flash */
+      }
+      #ctp-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0b0b0b;
+        z-index: 9999;
+      }
+      #ctp-splash img {
+        width: 160px;
+        height: auto;
+      }
+    </style>
+    <div id="ctp-splash" aria-label="Loading">
+      <img src="assets/lib/assets/Loading_Logo_CTP.gif" alt="Loading" />
+    </div>
+    <script>
+      // Remove splash as soon as Flutter paints its first frame
+      window.addEventListener("flutter-first-frame", function () {
+        const el = document.getElementById("ctp-splash");
+        if (el) el.remove();
+      });
+      // Safety timeout in case first-frame event is blocked
+      setTimeout(function () {
+        const el = document.getElementById("ctp-splash");
+        if (el) el.style.opacity = "0";
+      }, 15000);
+    </script>
+    <script src="main.dart.js" type="application/javascript" defer></script>
   </body>
 </html>

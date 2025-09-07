@@ -447,7 +447,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                                 ),
                               ),
                             if ((userRole == 'dealer' && !dealerComplete) ||
-                                (userRole == 'transporter' &&
+                                ((userRole == 'transporter' ||
+                                        userRole == 'oem') &&
                                     !transporterComplete))
                               Padding(
                                 padding: EdgeInsets.only(
@@ -460,7 +461,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                                 ),
                               ),
                             if ((userRole == 'dealer' && dealerComplete) ||
-                                (userRole == 'transporter' &&
+                                ((userRole == 'transporter' ||
+                                        userRole == 'oem') &&
                                     transporterComplete))
                               Padding(
                                 padding: EdgeInsets.only(

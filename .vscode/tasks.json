@@ -8,6 +8,15 @@
       "args": ["analyze", "lib/pages/vehicle_details_page.dart"],
       "group": "build",
       "isBackground": false
+    },
+    {
+      "label": "Flutter Build APK (oemdemo release)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "apk", "--flavor", "oemdemo"],
+      "group": "build",
+      "isBackground": false,
+      "problemMatcher": []
     }
   ]
 }

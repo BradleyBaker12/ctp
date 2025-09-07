@@ -13,24 +13,47 @@ import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 import 'package:auto_route/auto_route.dart';
 
 @RoutePage()
-class OfferSummaryPage extends StatelessWidget {
+class OfferSummaryPage extends StatefulWidget {
   final String offerId;
+  final String? viewerRoleOverride; // 'dealer' or 'transporter' (admin use)
 
   const OfferSummaryPage({
     super.key,
     required this.offerId,
+    this.viewerRoleOverride,
   });
 
+  @override
+  State<OfferSummaryPage> createState() => _OfferSummaryPageState();
+}
+
+class _OfferSummaryPageState extends State<OfferSummaryPage> {
+  String? _overrideRole; // runtime toggle for admin
+
+  String _formatRand(num amount) {
+    final formatted = NumberFormat.currency(
+      locale: 'en_ZA',
+      symbol: 'R',
+      decimalDigits: 0,
+    ).format(amount);
+    final withSpaces = formatted.replaceAll(',', ' ');
+    return withSpaces.replaceFirst(RegExp(r'^R\s*'), 'R ');
+  }
+
   Future<File?> _generatePdf(
-      BuildContext context,
-      Map<String, dynamic> offerData,
-      Map<String, dynamic> dealerData,
-      Map<String, dynamic> vehicleData,
-      Map<String, dynamic> transporterData) async {
+    BuildContext context,
+    Map<String, dynamic> offerData,
+    Map<String, dynamic> dealerData,
+    Map<String, dynamic> vehicleData,
+    Map<String, dynamic> transporterData,
+    String viewerRole,
+  ) async {
     final pdf = pw.Document();
 
     final robotoRegular = pw.Font.ttf(
@@ -52,14 +75,19 @@ class OfferSummaryPage extends StatelessWidget {
         ? await _networkImage(vehicleData['mainImageUrl'])
         : null;
 
-    // Calculate breakdown based on typed offer before VAT and commission
+    // Determine role and calculate breakdowns
+    final role = viewerRole.toLowerCase().trim();
     final baseAmount =
         (offerData['typedOfferAmount'] as num?)?.toDouble() ?? 0.0;
-    // Fixed commission
     const double commissionAmount = 12500.0;
-    // VAT is applied on base + commission
-    final vatAmount = (baseAmount + commissionAmount) * 0.15;
-    final totalAmount = baseAmount + commissionAmount + vatAmount;
+    // Dealer view: VAT on (base + commission), total = base + commission + VAT
+    final dealerSubtotal = baseAmount + commissionAmount;
+    final dealerVatAmount = dealerSubtotal * 0.15;
+    final dealerTotalAmount = dealerSubtotal + dealerVatAmount;
+    // Transporter view: payout after commission, VAT on the remainder
+    final amountAfterCommission = baseAmount - commissionAmount;
+    final transporterVat = amountAfterCommission * 0.15;
+    final transporterPayout = amountAfterCommission + transporterVat;
 
     pdf.addPage(
       pw.Page(
@@ -289,39 +317,30 @@ class OfferSummaryPage extends StatelessWidget {
                                     font: robotoBold,
                                     fontSize: 16,
                                     color: PdfColors.white)),
-                            pw.Text(
-                                'Offer (Excl VAT & commission): R ${baseAmount.toStringAsFixed(2)}\n'
-                                'Commission: R ${commissionAmount.toStringAsFixed(2)}\n'
-                                'VAT (15%): R ${vatAmount.toStringAsFixed(2)}\n'
-                                'Total (Incl VAT & commission): R ${totalAmount.toStringAsFixed(2)}',
-                                style: pw.TextStyle(
-                                    font: robotoRegular,
-                                    color: PdfColors.white)),
+                            if (role == 'dealer')
+                              pw.Text(
+                                  'Typed offer: ${_formatRand(baseAmount)}\n'
+                                  'Commission: ${_formatRand(commissionAmount)}\n'
+                                  'Subtotal after commission: ${_formatRand(dealerSubtotal)}\n'
+                                  'VAT 15%: ${_formatRand(dealerVatAmount)}\n'
+                                  'Your payout: ${_formatRand(dealerTotalAmount)}',
+                                  style: pw.TextStyle(
+                                      font: robotoRegular,
+                                      color: PdfColors.white))
+                            else
+                              pw.Text(
+                                  'Typed offer: ${_formatRand(baseAmount)}\n'
+                                  'Commission: ${_formatRand(commissionAmount)}\n'
+                                  'Subtotal after commission: ${_formatRand(amountAfterCommission)}\n'
+                                  'VAT 15%: ${_formatRand(transporterVat)}\n'
+                                  'Payout: ${_formatRand(transporterPayout)}',
+                                  style: pw.TextStyle(
+                                      font: robotoRegular,
+                                      color: PdfColors.white)),
                           ],
                         ),
                       ),
                     ),
-                    // pw.SizedBox(width: 40),
-                    // pw.Expanded(
-                    //   child: pw.Padding(
-                    //     padding: const pw.EdgeInsets.only(right: 40),
-                    //     child: pw.Column(
-                    //       crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    //       children: [
-                    //         pw.Text('TRANSPORTER BANK DETAILS',
-                    //             style: pw.TextStyle(
-                    //                 font: robotoBold,
-                    //                 fontSize: 16,
-                    //                 color: PdfColors.white)),
-                    //         pw.Text(
-                    //             'Name: ${transporterData['firstName'] ?? 'N/A'} ${transporterData['middleName'] ?? ''} ${transporterData['lastName'] ?? 'N/A'}',
-                    //             style: pw.TextStyle(
-                    //                 font: robotoRegular,
-                    //                 color: PdfColors.white)),
-                    //       ],
-                    //     ),
-                    //   ),
-                    // ),
                   ],
                 ),
                 pw.SizedBox(height: 50),
@@ -359,7 +378,7 @@ class OfferSummaryPage extends StatelessWidget {
       var dt = DateTime.now().millisecondsSinceEpoch.toString();
       final blob = html.Blob([pdfBytes]);
       final url = html.Url.createObjectUrlFromBlob(blob);
-      final html.AnchorElement anchor = html.AnchorElement(href: url)
+      html.AnchorElement(href: url)
         ..setAttribute("download", "offer_summary_$dt.pdf")
         ..click();
       html.Url.revokeObjectUrl(url);
@@ -406,12 +425,18 @@ class OfferSummaryPage extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _overrideRole = widget.viewerRoleOverride;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     return FutureBuilder(
       future: Future.wait([
-        _fetchDocumentData('offers', offerId),
+        _fetchDocumentData('offers', widget.offerId),
         userProvider.fetchUserData().then((_) => userProvider.getUserData()),
       ]),
       builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
@@ -427,12 +452,7 @@ class OfferSummaryPage extends StatelessWidget {
           final offerData = snapshot.data![0] as Map<String, dynamic>;
           final userData = snapshot.data![1] as Map<String, dynamic>;
 
-          print('Offer Data: $offerData');
-          print('User Data: $userData');
-
-          // Add before accessing vehicleData
-          print('Vehicle ID being accessed: ${offerData['vehicleId']}');
-          print('Transport ID being accessed: ${offerData['transporterId']}');
+          // Debug logs removed for production
 
           return FutureBuilder(
             future: Future.wait([
@@ -454,58 +474,139 @@ class OfferSummaryPage extends StatelessWidget {
                 final transporterData =
                     innerSnapshot.data![1] as Map<String, dynamic>;
 
-                print('Vehicle Data: $vehicleData');
-                print('Transporter Data: $transporterData');
+                // Debug logs removed for production
+
+                // Resolve viewer role more robustly: prefer matching offer party IDs, then fall back to userRole
+                final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                String viewerRole =
+                    (userData['userRole']?.toString().toLowerCase().trim()) ??
+                        '';
+                if (currentUid != null) {
+                  if (offerData['dealerId'] == currentUid) {
+                    viewerRole = 'dealer';
+                  } else if (offerData['transporterId'] == currentUid) {
+                    viewerRole = 'transporter';
+                  }
+                }
+
+                // Admin default: dealer view, unless override chosen
+                final userRoleLower =
+                    (userData['userRole']?.toString().toLowerCase().trim()) ??
+                        '';
+                if (userRoleLower == 'admin' && _overrideRole == null) {
+                  viewerRole = 'dealer';
+                }
+                if (_overrideRole != null) viewerRole = _overrideRole!;
 
                 return Scaffold(
                   body: GradientBackground(
-                    child: FutureBuilder<File?>(
-                      future: _generatePdf(
-                        context,
-                        offerData,
-                        userData,
-                        vehicleData,
-                        transporterData,
-                      ),
-                      builder: (context, pdfSnapshot) {
-                        if (pdfSnapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
+                    child: Column(
+                      children: [
+                        // Admin-only toggle row
+                        if (userRoleLower == 'admin')
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                top: 16, left: 16, right: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() => _overrideRole = 'dealer');
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        (_overrideRole ?? 'dealer') == 'dealer'
+                                            ? const Color(0xFFFF4E00)
+                                            : Colors.black54,
+                                  ),
+                                  child: const Text('Dealer Summary'),
+                                ),
+                                const SizedBox(width: 12),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(
+                                        () => _overrideRole = 'transporter');
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        _overrideRole == 'transporter'
+                                            ? const Color(0xFFFF4E00)
+                                            : Colors.black54,
+                                  ),
+                                  child: const Text('Transporter Summary'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Expanded(
+                          child: FutureBuilder<File?>(
+                            future: _generatePdf(
+                              context,
+                              offerData,
+                              userData,
+                              vehicleData,
+                              transporterData,
+                              viewerRole,
+                            ),
+                            builder: (context, pdfSnapshot) {
+                              if (pdfSnapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              }
 
-                        if (pdfSnapshot.hasError) {
-                          return Center(
-                            child: Text(
-                                'Error generating PDF: ${pdfSnapshot.error}'),
-                          );
-                        }
+                              if (pdfSnapshot.hasError) {
+                                return Center(
+                                  child: Text(
+                                      'Error generating PDF: ${pdfSnapshot.error}'),
+                                );
+                              }
 
-                        final file = pdfSnapshot.data;
+                              final file = pdfSnapshot.data;
 
-                        return file == null && kIsWeb
-                            ? const Center(
-                                child: Text('File downloaded successfully!'))
-                            : file == null
-                                ? const Center(
-                                    child: Text('Failed to generate PDF'))
-                                : PDFView(
-                                    filePath: file.path,
-                                    autoSpacing: true,
-                                    swipeHorizontal: true,
-                                    pageFling: true,
-                                  );
-                      },
+                              return file == null && kIsWeb
+                                  ? const Center(
+                                      child:
+                                          Text('File downloaded successfully!'))
+                                  : file == null
+                                      ? const Center(
+                                          child: Text('Failed to generate PDF'))
+                                      : PDFView(
+                                          filePath: file.path,
+                                          autoSpacing: true,
+                                          swipeHorizontal: true,
+                                          pageFling: true,
+                                        );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   floatingActionButton: FloatingActionButton(
                     onPressed: () async {
+                      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                      String viewerRole = (userData['userRole']
+                              ?.toString()
+                              .toLowerCase()
+                              .trim()) ??
+                          '';
+                      if (currentUid != null) {
+                        if (offerData['dealerId'] == currentUid) {
+                          viewerRole = 'dealer';
+                        } else if (offerData['transporterId'] == currentUid) {
+                          viewerRole = 'transporter';
+                        }
+                      }
+                      if (_overrideRole != null) viewerRole = _overrideRole!;
                       final file = await _generatePdf(
                         context,
                         offerData,
                         userData,
                         vehicleData,
                         transporterData,
+                        viewerRole,
                       );
                       if (file != null) {
                         final xFile = XFile(file.path);

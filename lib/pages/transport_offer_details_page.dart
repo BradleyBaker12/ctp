@@ -13,6 +13,7 @@ import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:provider/provider.dart'; // Import CustomButton
 import 'package:ctp/utils/navigation.dart';
+import 'package:ctp/pages/offer_summary_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 // Removed unused imports for url launching and web blobs
@@ -291,7 +292,8 @@ class _TransporterOfferDetailsPageState
     }
     final snapshot = await uploadTask;
     final url = await snapshot.ref.getDownloadURL();
-    // Atomically update both vehicle and offer documents with invoice URL
+    final uploadedAt = FieldValue.serverTimestamp();
+    // Atomically update both vehicle and offer documents with invoice URL and metadata
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final vehicleRef = FirebaseFirestore.instance
           .collection('vehicles')
@@ -299,9 +301,32 @@ class _TransporterOfferDetailsPageState
       final offerRef = FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offer.offerId);
-      transaction.update(vehicleRef, {'transporterInvoice': url});
-      transaction.update(offerRef, {'transporterInvoice': url});
+      transaction.update(vehicleRef, {
+        'transporterInvoice': url,
+        'transporterInvoiceUploadedAt': uploadedAt,
+      });
+      transaction.update(offerRef, {
+        'transporterInvoice': url,
+        'transporterInvoiceUploadedAt': uploadedAt,
+        'transporterInvoiceStatus': 'submitted',
+      });
     });
+    // Notify admins/sales reps
+    try {
+      final adminSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userRole', whereIn: ['admin', 'sales representative']).get();
+      for (var doc in adminSnapshot.docs) {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'userId': doc.id,
+          'offerId': widget.offer.offerId,
+          'type': 'transporterInvoiceSubmitted',
+          'createdAt': FieldValue.serverTimestamp(),
+          'message':
+              'Transporter uploaded an invoice for offer ${widget.offer.offerId}.',
+        });
+      }
+    } catch (_) {}
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Invoice saved successfully')),
     );
@@ -325,49 +350,25 @@ class _TransporterOfferDetailsPageState
 
   Future<void> _handleAccept() async {
     try {
-      // Use transaction to ensure atomic updates
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        // Get all offers for this vehicle
-        final offersQuery = await FirebaseFirestore.instance
-            .collection('offers')
-            .where('vehicleId', isEqualTo: widget.vehicle.id)
-            .get();
+      final offerProvider = Provider.of<OfferProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await offerProvider.acceptOffer(
+        widget.offer.offerId,
+        widget.vehicle.id,
+        userProvider: userProvider,
+      );
 
-        // Update the accepted offer
-        transaction.update(
-            FirebaseFirestore.instance
-                .collection('offers')
-                .doc(widget.offer.offerId),
-            {'offerStatus': 'accepted'});
-
-        // Update vehicle status
-        transaction.update(
-            FirebaseFirestore.instance
-                .collection('vehicles')
-                .doc(widget.vehicle.id),
-            {
-              'isAccepted': true,
-              'acceptedOfferId': widget.offer.offerId,
-            });
-
-        // Update all other offers for this vehicle to rejected
-        for (var doc in offersQuery.docs) {
-          if (doc.id != widget.offer.offerId) {
-            transaction.update(
-                FirebaseFirestore.instance.collection('offers').doc(doc.id),
-                {'offerStatus': 'rejected'});
-          }
-        }
-      });
-
+      if (!mounted) return;
       setState(() {
         _hasResponded = true;
         _responseMessage = 'You have accepted the offer';
       });
     } catch (e) {
-      print('Error handling offer acceptance: $e');
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed to accept offer: $e')));
+      debugPrint('Error handling offer acceptance: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to accept offer: $e')),
+      );
     }
   }
 
@@ -471,7 +472,9 @@ class _TransporterOfferDetailsPageState
     // For demonstration, you may want to fetch or pass this in properly
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.userRole;
-    final role = userRole.toLowerCase().trim();
+    final role = userRole.toLowerCase();
+    final isOemManager = userProvider.isOemManager;
+    final acceptEnabled = role != 'oem' || isOemManager;
 
     return Scaffold(
       appBar: AppBar(
@@ -542,10 +545,11 @@ class _TransporterOfferDetailsPageState
 
           // Capture existing transporter invoice URL if present
           _existingInvoiceUrl = offerData['transporterInvoice'] as String?;
-          print('DEBUG: existingInvoiceUrl = $_existingInvoiceUrl');
+          // print('DEBUG: existingInvoiceUrl = $_existingInvoiceUrl');
 
-          String offerStatus = offerData['offerStatus'] ?? 'in-progress';
-          // Normalize offerStatus for comparison
+          // Current offer status
+          final String offerStatus =
+              (offerData['offerStatus'] ?? '').toString().toLowerCase();
 
           // Get inspection and collection details from the offer document
           bool hasInspectionDetails = offerData['inspectionDetails'] != null;
@@ -624,6 +628,7 @@ class _TransporterOfferDetailsPageState
 
                 // Show inspection/collection setup/status only if NOT dealer and offer is not in-progress or rejected
                 if ((role == 'transporter' ||
+                        role == 'oem' ||
                         role == 'admin' ||
                         role == 'sales representative') &&
                     offerStatus != 'in-progress' &&
@@ -648,13 +653,18 @@ class _TransporterOfferDetailsPageState
                             ),
                           ),
                         const SizedBox(height: 16),
-                        if (!hasCollectionDetails)
+                        // Show Setup Collection only when allowed:
+                        // - Always allowed for admin/sales rep
+                        // - For transporter, only after payment is marked as 'paid'
+                        if (!hasCollectionDetails &&
+                            ((role != 'transporter' && role != 'oem') ||
+                                offerStatus == 'paid'))
                           CustomButton(
                             text: 'Setup Collection',
                             borderColor: Colors.blue,
                             onPressed: _setupCollection,
                           )
-                        else
+                        else if (hasCollectionDetails)
                           Center(
                             child: Text(
                               'Collection has been set up',
@@ -687,7 +697,9 @@ class _TransporterOfferDetailsPageState
                 ),
 
                 // Admins and transporters see invoice section only when offerStatus is 'paymentOptions'
-                if ((role == 'transporter' || role == 'admin') &&
+                if ((role == 'transporter' ||
+                        role == 'oem' ||
+                        role == 'admin') &&
                     offerStatus == 'payment options') ...[
                   // Invoice addressing instructions
                   Padding(
@@ -728,6 +740,25 @@ class _TransporterOfferDetailsPageState
                               customFont(14, FontWeight.normal, Colors.white),
                         ),
                       ],
+                    ),
+                  ),
+                  // Offer Summary button (placed directly above the upload invoice block)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: CustomButton(
+                      text: 'OFFER SUMMARY',
+                      borderColor: Colors.blue,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OfferSummaryPage(
+                              offerId: widget.offer.offerId,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   // Transporter invoice upload section
@@ -934,6 +965,7 @@ class _TransporterOfferDetailsPageState
 
                 // Accept and Reject Buttons (not shown to dealers)
                 if ((role == 'transporter' ||
+                        role == 'oem' ||
                         role == 'admin' ||
                         role == 'sales representative') &&
                     offerStatus == 'in-progress' &&
@@ -948,7 +980,7 @@ class _TransporterOfferDetailsPageState
                           child: CustomButton(
                             text: 'Accept',
                             borderColor: Colors.blue,
-                            onPressed: _handleAccept,
+                            onPressed: acceptEnabled ? _handleAccept : null,
                           ),
                         ),
                         const SizedBox(width: 16),

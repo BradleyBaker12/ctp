@@ -10,8 +10,10 @@ import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
-import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/components/web_navigation_bar.dart' as ctp_nav;
 import 'package:ctp/utils/navigation.dart';
+import 'package:ctp/pages/collectionPages/collection_details_page.dart'
+    show CollectionDetailsPage;
 
 import 'package:auto_route/auto_route.dart';
 
@@ -62,31 +64,29 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
     final userRole = userProvider.getUserRole;
     final bool showBottomNav = !_isLargeScreen && !kIsWeb;
 
-    List<NavigationItem> navigationItems = userRole == 'dealer'
+    List<ctp_nav.NavigationItem> navigationItems = userRole == 'dealer'
         ? [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
-            NavigationItem(title: 'Wishlist', route: '/wishlist'),
-            NavigationItem(title: 'Pending Offers', route: '/offers'),
+            ctp_nav.NavigationItem(title: 'Home', route: '/home'),
+            ctp_nav.NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            ctp_nav.NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            ctp_nav.NavigationItem(title: 'Pending Offers', route: '/offers'),
           ]
         : [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
-            NavigationItem(title: 'Your Offers', route: '/offers'),
-            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+            ctp_nav.NavigationItem(title: 'Home', route: '/home'),
+            ctp_nav.NavigationItem(
+                title: 'Your Trucks', route: '/transporterList'),
+            ctp_nav.NavigationItem(title: 'Your Offers', route: '/offers'),
+            ctp_nav.NavigationItem(title: 'In-Progress', route: '/in-progress'),
           ];
 
-    FirebaseFirestore.instance
-        .collection('offers')
-        .doc(widget.offerId)
-        .update({'offerStatus': 'paid', 'paymentStatus': 'approved'});
+    // Do not mutate status on view; status should have been updated by admin verification flow.
 
     return Scaffold(
       key: _scaffoldKey,
       appBar: kIsWeb
           ? PreferredSize(
               preferredSize: const Size.fromHeight(70),
-              child: WebNavigationBar(
+              child: ctp_nav.WebNavigationBar(
                 isCompactNavigation: _isCompactNavigation(context),
                 currentRoute: '/offers',
                 onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
@@ -129,7 +129,8 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                     ),
                     Expanded(
                       child: ListView(
-                        children: navigationItems.map((item) {
+                        children:
+                            navigationItems.map((ctp_nav.NavigationItem item) {
                           bool isActive = '/offers' == item.route;
                           return ListTile(
                             title: Text(
@@ -173,11 +174,6 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
             final offerData = offerSnapshot.data!;
             final vehicleId = offerData['vehicleId'] as String;
 
-            FirebaseFirestore.instance
-                .collection('vehicles')
-                .doc(vehicleId)
-                .update({'vehicleStatus': 'Sold'});
-
             return FutureBuilder<Map<String, dynamic>>(
               future: _fetchVehicleData(vehicleId),
               builder: (context, vehicleSnapshot) {
@@ -205,6 +201,51 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                     offerData['dealerSelectedCollectionLocation'] ??
                         'Unknown Location';
 
+                final bool hasDealerSelection =
+                    offerData['dealerSelectedCollectionDate'] != null &&
+                        offerData['dealerSelectedCollectionTime'] != null &&
+                        (offerData['dealerSelectedCollectionLocation'] ?? '')
+                            .toString()
+                            .isNotEmpty;
+
+                // If dealer hasn't selected collection yet, prompt navigation to selection page
+                if (userRole == 'dealer' && !hasDealerSelection) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Please select your collection date and time.',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          CustomButton(
+                            text: 'Select Collection Slot',
+                            borderColor: Colors.blue,
+                            onPressed: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => CollectionDetailsPage(
+                                    offerId: widget.offerId,
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
                 return SingleChildScrollView(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -226,11 +267,21 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                             child: Image.asset('lib/assets/CTPLogo.png')),
                         const SizedBox(height: 32),
                         const Text(
-                          'Payment Approved',
+                          'Collection Ready',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Your vehicle is now ready for collection. Please review the details below and proceed when you are ready.',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
                           ),
                           textAlign: TextAlign.center,
                         ),

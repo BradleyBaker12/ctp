@@ -47,8 +47,20 @@ class VehicleProvider with ChangeNotifier {
         .collection('vehicles')
         .orderBy('createdAt', descending: true);
 
-    if (userId != null && userId.isNotEmpty) {
-      query = query.where('userId', isEqualTo: userId);
+    // If OEM role, scope by manager relationship; else userId
+    final role = userProvider.getUserRole.toLowerCase();
+    if (role == 'oem') {
+      // If the current user is a manager, show vehicles where managerUserId == current user
+      if (userProvider.isOemManager && userId != null && userId.isNotEmpty) {
+        query = query.where('managerUserId', isEqualTo: userId);
+      } else if (userId != null && userId.isNotEmpty) {
+        // Employees see their own vehicles by userId
+        query = query.where('userId', isEqualTo: userId);
+      }
+    } else {
+      if (userId != null && userId.isNotEmpty) {
+        query = query.where('userId', isEqualTo: userId);
+      }
     }
 
     _vehiclesSubscription = query.snapshots().listen((snapshot) {

@@ -24,7 +24,7 @@ if (!sgKey) {
 const placesApi = require("./src/places-api");
 
 // Import HTTP trigger helper for v2 functions
-const { onRequest } = require("firebase-functions/v2/https");
+const { onRequest, onCall } = require("firebase-functions/v2/https");
 
 // Export all places API functions as HTTP triggers in europe-west3
 exports.placesAutocomplete = onRequest(
@@ -35,6 +35,186 @@ exports.getPlaceDetails = onRequest(
   { region: "europe-west3" },
   placesApi.getPlaceDetails
 );
+// Callable function: OEM manager creates an OEM employee under their company.
+// The new user is set to isVerified=false (admin approval required).
+exports.createCompanyEmployee = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    try {
+      const ctx = request.auth;
+      if (!ctx || !ctx.uid) {
+        throw new functions.https.HttpsError(
+          "unauthenticated",
+          "Authentication required"
+        );
+      }
+
+      const {
+        email,
+        firstName,
+        lastName,
+        phoneNumber,
+        companyId: reqCompanyId,
+      } = request.data || {};
+      if (!email || typeof email !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "Missing or invalid 'email'"
+        );
+      }
+
+      // Fetch caller (manager) profile
+      const managerDoc = await db.collection("users").doc(ctx.uid).get();
+      if (!managerDoc.exists) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Manager profile not found"
+        );
+      }
+      const manager = managerDoc.data() || {};
+
+      const callerRole = String(manager.userRole || "").toLowerCase();
+      const isAdmin =
+        callerRole === "admin" || callerRole === "sales representative";
+      const isOemManager =
+        callerRole === "oem" && manager.isOemManager === true;
+      if (!isAdmin && !isOemManager) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only admins or OEM managers can create company users"
+        );
+      }
+
+      const companyId = isAdmin
+        ? reqCompanyId || manager.companyId
+        : manager.companyId;
+      if (!companyId && !isAdmin) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Manager is missing companyId"
+        );
+      }
+
+      // Create the auth user (with a random password and send reset link)
+      const randomPassword = Math.random().toString(36).slice(-12) + "Aa1!";
+      const userRecord = await admin.auth().createUser({
+        email,
+        emailVerified: false,
+        displayName: [firstName, lastName].filter(Boolean).join(" "),
+        password: randomPassword,
+        disabled: false,
+        phoneNumber:
+          phoneNumber && typeof phoneNumber === "string"
+            ? phoneNumber
+            : undefined,
+      });
+
+      const newUid = userRecord.uid;
+
+      // Create Firestore profile with pending approval
+      const profile = {
+        email,
+        firstName: firstName || "",
+        lastName: lastName || "",
+        phoneNumber: phoneNumber || "",
+        userRole: "oem",
+        isOemManager: false,
+        isVerified: false, // admin approval pending
+        accountStatus: "pending",
+        managerId: isAdmin
+          ? manager.managerId || manager.uid || ctx.uid
+          : ctx.uid,
+        companyId: isAdmin ? manager.companyId || companyId || null : companyId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      await db.collection("users").doc(newUid).set(profile, { merge: true });
+
+      // Send password reset link
+      try {
+        const resetLink = await admin.auth().generatePasswordResetLink(email);
+        if (sgMail && resetLink) {
+          await sgMail.send({
+            from: "admin@ctpapp.co.za",
+            to: email,
+            subject: "You're invited to CTP Portal",
+            html: `
+            <p>Hello${firstName ? " " + firstName : ""},</p>
+            <p>Your account has been created by ${
+              isAdmin ? "an administrator" : "your company manager"
+            }.</p>
+            <p>Please set your password here:</p>
+            <p><a href="${resetLink}">Set Password</a></p>
+            <p>Once set, your account will remain pending until an admin approves it.</p>
+          `,
+          });
+        }
+      } catch (e) {
+        console.warn("createCompanyEmployee: Failed to send reset link", e);
+      }
+
+      return { uid: newUid };
+    } catch (err) {
+      console.error("createCompanyEmployee error", err);
+      if (err instanceof functions.https.HttpsError) throw err;
+      throw new functions.https.HttpsError(
+        "internal",
+        String(err?.message || err)
+      );
+    }
+  }
+);
+
+// Callable function: Elevate all existing OEM users to managers.
+// Admin-only. Optionally backfills companyId when missing.
+exports.elevateAllOemToManagers = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    try {
+      const ctx = request.auth;
+      if (!ctx || !ctx.uid) {
+        throw new functions.https.HttpsError(
+          "unauthenticated",
+          "Authentication required"
+        );
+      }
+      const callerDoc = await db.collection("users").doc(ctx.uid).get();
+      const role = String(callerDoc.data()?.userRole || "").toLowerCase();
+      if (!(role === "admin" || role === "sales representative")) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only admins or sales representatives can run this migration"
+        );
+      }
+
+      const snap = await db
+        .collection("users")
+        .where("userRole", "==", "oem")
+        .get();
+      let updated = 0;
+      const batch = db.batch();
+      snap.forEach((doc) => {
+        const data = doc.data() || {};
+        const updates = { isOemManager: true };
+        if (!data.companyId) {
+          updates.companyId = doc.id; // backfill with self uid as companyId
+        }
+        batch.set(doc.ref, updates, { merge: true });
+        updated++;
+      });
+      if (updated > 0) {
+        await batch.commit();
+      }
+      return { updated };
+    } catch (err) {
+      console.error("elevateAllOemToManagers error", err);
+      if (err instanceof functions.https.HttpsError) throw err;
+      throw new functions.https.HttpsError(
+        "internal",
+        String(err?.message || err)
+      );
+    }
+  }
+);
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -43,6 +223,296 @@ const express = require("express");
 const app = express();
 
 // Notify transporter when a dealer makes an offer on their vehicle
+// Scheduled: 2-hour pre-inspection reminders to dealer and transporter
+exports.sendTwoHourPreInspectionReminders = onSchedule(
+  {
+    schedule: "*/15 * * * *", // Every 15 minutes
+    timeZone: "Africa/Johannesburg",
+    region: "us-central1",
+  },
+  async () => {
+    console.log("[sendTwoHourPreInspectionReminders] Job start");
+    try {
+      const now = new Date();
+      const nowMs = now.getTime();
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+      const windowMs = 20 * 60 * 1000; // ±20 minutes window
+      const targetStart = nowMs + twoHoursMs - windowMs;
+      const targetEnd = nowMs + twoHoursMs + windowMs;
+
+      // Build a search window from start of today to end of tomorrow
+      const startOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const endOfTomorrow = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        23,
+        59,
+        59,
+        999
+      );
+
+      const offersSnapshot = await db
+        .collection("offers")
+        .where("dealerSelectedInspectionDate", ">=", startOfToday)
+        .where("dealerSelectedInspectionDate", "<=", endOfTomorrow)
+        .get();
+
+      if (offersSnapshot.empty) {
+        console.log(
+          "[sendTwoHourPreInspectionReminders] No offers with inspections in the window"
+        );
+        return;
+      }
+
+      let sent = 0;
+      for (const offerDoc of offersSnapshot.docs) {
+        const offer = offerDoc.data();
+        const offerId = offerDoc.id;
+
+        try {
+          // Skip if missing required fields or already completed
+          if (
+            !offer.dealerSelectedInspectionDate ||
+            !offer.dealerSelectedInspectionTime
+          )
+            continue;
+          if (
+            offer.inspectionStatus === "completed" ||
+            offer.dealerInspectionComplete ||
+            offer.transporterInspectionComplete
+          )
+            continue;
+
+          // Compose a Date from date + time string (e.g., "08:00 AM")
+          const dateVal = offer.dealerSelectedInspectionDate.toDate
+            ? offer.dealerSelectedInspectionDate.toDate()
+            : new Date(offer.dealerSelectedInspectionDate);
+
+          const timeStr = String(offer.dealerSelectedInspectionTime);
+          const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+          if (!timeMatch) {
+            // Try 24h fallback e.g. "13:30"
+            const timeMatch24 = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+            if (!timeMatch24) continue;
+            const h = parseInt(timeMatch24[1], 10);
+            const m = parseInt(timeMatch24[2], 10);
+            const scheduled = new Date(
+              dateVal.getFullYear(),
+              dateVal.getMonth(),
+              dateVal.getDate(),
+              h,
+              m,
+              0,
+              0
+            );
+            const scheduledMs = scheduled.getTime();
+            if (scheduledMs < targetStart || scheduledMs > targetEnd) continue;
+            // Dedupe key
+            const appointmentKey = `${dateVal
+              .toISOString()
+              .slice(0, 10)} ${timeStr}`;
+            if (offer.lastPreInspectionReminderFor === appointmentKey) continue;
+            await sendPreInspectionReminder(
+              db,
+              admin,
+              sgMail,
+              offer,
+              offerId,
+              scheduled,
+              appointmentKey
+            );
+            sent++;
+            continue;
+          }
+
+          let hour = parseInt(timeMatch[1], 10);
+          const minute = parseInt(timeMatch[2], 10);
+          const ampm = timeMatch[3].toUpperCase();
+          if (ampm === "PM" && hour !== 12) hour += 12;
+          if (ampm === "AM" && hour === 12) hour = 0;
+          const scheduled = new Date(
+            dateVal.getFullYear(),
+            dateVal.getMonth(),
+            dateVal.getDate(),
+            hour,
+            minute,
+            0,
+            0
+          );
+          const scheduledMs = scheduled.getTime();
+          if (scheduledMs < targetStart || scheduledMs > targetEnd) continue;
+
+          const appointmentKey = `${dateVal
+            .toISOString()
+            .slice(0, 10)} ${timeStr}`;
+          if (offer.lastPreInspectionReminderFor === appointmentKey) continue;
+
+          await sendPreInspectionReminder(
+            db,
+            admin,
+            sgMail,
+            offer,
+            offerId,
+            scheduled,
+            appointmentKey
+          );
+          sent++;
+        } catch (innerErr) {
+          console.error(
+            "[sendTwoHourPreInspectionReminders] Error per-offer",
+            offerId,
+            innerErr
+          );
+        }
+      }
+
+      console.log(
+        `[sendTwoHourPreInspectionReminders] Done. Sent ${sent} reminders`
+      );
+    } catch (e) {
+      console.error("[sendTwoHourPreInspectionReminders] Error", e);
+    }
+  }
+);
+
+async function sendPreInspectionReminder(
+  db,
+  adminLib,
+  sg,
+  offer,
+  offerId,
+  scheduledDate,
+  appointmentKey
+) {
+  // Fetch parties
+  const [dealerDoc, transporterDoc, vehicleDoc] = await Promise.all([
+    db.collection("users").doc(offer.dealerId).get(),
+    db.collection("users").doc(offer.transporterId).get(),
+    db.collection("vehicles").doc(offer.vehicleId).get(),
+  ]);
+
+  const dealer = dealerDoc.exists ? dealerDoc.data() : {};
+  const transporter = transporterDoc.exists ? transporterDoc.data() : {};
+  const vehicle = vehicleDoc.exists ? vehicleDoc.data() : {};
+
+  const vehicleName = `${
+    vehicle.brands?.join(", ") || vehicle.brand || "Vehicle"
+  } ${vehicle.makeModel || vehicle.model || ""} ${vehicle.year || ""}`.trim();
+
+  const dateStr = scheduledDate.toLocaleDateString();
+  const timeStr = offer.dealerSelectedInspectionTime;
+  const location = offer.dealerSelectedInspectionLocation || "Location TBD";
+  const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+  // Push: dealer
+  if (dealer?.fcmToken) {
+    try {
+      await adminLib.messaging().send({
+        notification: {
+          title: "🔔 Inspection in 2 hours",
+          body: `Reminder: Your inspection for ${vehicleName} is at ${timeStr} today.`,
+        },
+        data: {
+          notificationType: "inspection_2h_dealer",
+          offerId,
+          vehicleId: offer.vehicleId || "",
+          inspectionDate: dateStr,
+          inspectionTime: timeStr,
+          inspectionLocation: location,
+          timestamp: new Date().toISOString(),
+        },
+        token: dealer.fcmToken,
+      });
+    } catch (e) {
+      console.error("[sendTwoHourPreInspectionReminders] Dealer push error", e);
+    }
+  }
+
+  // Push: transporter
+  if (transporter?.fcmToken) {
+    try {
+      await adminLib.messaging().send({
+        notification: {
+          title: "🔔 Inspection in 2 hours",
+          body: `Reminder: Inspection for your ${vehicleName} is at ${timeStr} today.`,
+        },
+        data: {
+          notificationType: "inspection_2h_transporter",
+          offerId,
+          vehicleId: offer.vehicleId || "",
+          inspectionDate: dateStr,
+          inspectionTime: timeStr,
+          inspectionLocation: location,
+          timestamp: new Date().toISOString(),
+        },
+        token: transporter.fcmToken,
+      });
+    } catch (e) {
+      console.error(
+        "[sendTwoHourPreInspectionReminders] Transporter push error",
+        e
+      );
+    }
+  }
+
+  // Optional emails
+  if (sg) {
+    const dealerEmail = dealer?.email;
+    const transporterEmail = transporter?.email;
+    const subject = `🔔 2-hour Reminder: Inspection at ${timeStr} - ${vehicleName}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color:#2F7FFF;">Inspection in 2 hours</h2>
+        <p>This is a friendly reminder of your upcoming inspection.</p>
+        <div style="background:#f8f9fa;padding:16px;border-radius:8px;">
+          <p><strong>Vehicle:</strong> ${vehicleName}</p>
+          <p><strong>Date:</strong> ${dateStr}</p>
+          <p><strong>Time:</strong> ${timeStr}</p>
+          <p><strong>Location:</strong> ${location}</p>
+        </div>
+        <div style="margin:20px 0;text-align:center;">
+          <a href="${offerLink}" style="background:#2F7FFF;color:#fff;padding:10px 16px;text-decoration:none;border-radius:4px;">View Details</a>
+        </div>
+        <p style="color:#666;font-size:12px;">You received this because an inspection is scheduled soon.</p>
+      </div>`;
+    try {
+      if (dealerEmail) {
+        await sg.send({
+          from: "admin@ctpapp.co.za",
+          to: dealerEmail,
+          subject,
+          html,
+        });
+      }
+      if (transporterEmail) {
+        await sg.send({
+          from: "admin@ctpapp.co.za",
+          to: transporterEmail,
+          subject,
+          html,
+        });
+      }
+    } catch (e) {
+      console.error("[sendTwoHourPreInspectionReminders] Email error", e);
+    }
+  }
+
+  // Mark reminder sent for this appointment
+  await db.collection("offers").doc(offerId).set(
+    {
+      lastPreInspectionReminderAt:
+        adminLib.firestore.FieldValue.serverTimestamp(),
+      lastPreInspectionReminderFor: appointmentKey,
+    },
+    { merge: true }
+  );
+}
+
 // 3) Notify admins when transporter invoice uploaded
 exports.notifyAdminsOnTransporterInvoiceUpload = onDocumentUpdated(
   {
@@ -112,6 +582,136 @@ exports.notifyAdminsOnTransporterInvoiceUpload = onDocumentUpdated(
     }
   }
 );
+
+// Trigger: After dealer confirms collection, notify admins to release payment to transporter
+exports.notifyAdminsToReleasePaymentOnCollectionConfirmation =
+  onDocumentUpdated(
+    { document: "offers/{offerId}", region: "us-central1" },
+    async (event) => {
+      const before = event.data.before.data();
+      const after = event.data.after.data();
+      if (!before || !after) return;
+
+      const beforeStatus = (before.offerStatus || "").toLowerCase();
+      const afterStatus = (after.offerStatus || "").toLowerCase();
+
+      const collectionJustConfirmed =
+        (!before.collectionConfirmed && !!after.collectionConfirmed) ||
+        (beforeStatus !== "collected" && afterStatus === "collected");
+
+      if (!collectionJustConfirmed) return;
+
+      // Dedupe
+      if (after.releasePaymentPromptAt) return;
+
+      const offerId = event.params.offerId;
+      try {
+        // Fetch parties and vehicle
+        const [dealerDoc, transporterDoc, vehicleDoc] = await Promise.all([
+          db.collection("users").doc(after.dealerId).get(),
+          db.collection("users").doc(after.transporterId).get(),
+          db.collection("vehicles").doc(after.vehicleId).get(),
+        ]);
+        const dealer = dealerDoc.exists ? dealerDoc.data() : {};
+        const transporter = transporterDoc.exists ? transporterDoc.data() : {};
+        const vehicle = vehicleDoc.exists ? vehicleDoc.data() : {};
+        const dealerName =
+          `${dealer.firstName || ""} ${dealer.lastName || ""}`.trim() ||
+          dealer.companyName ||
+          "Dealer";
+        const transporterName =
+          `${transporter.firstName || ""} ${
+            transporter.lastName || ""
+          }`.trim() ||
+          transporter.companyName ||
+          "Transporter";
+        const vehicleName = `${
+          vehicle.brands?.join(", ") || vehicle.brand || "Vehicle"
+        } ${vehicle.makeModel || vehicle.model || ""} ${
+          vehicle.year || ""
+        }`.trim();
+        const offerLink = `https://ctpapp.co.za/offer/${offerId}`;
+
+        const adminUsersSnapshot = await db
+          .collection("users")
+          .where("userRole", "in", ["admin", "sales representative"])
+          .get();
+
+        // Push notifications
+        for (const adminDoc of adminUsersSnapshot.docs) {
+          const a = adminDoc.data();
+          if (!a?.fcmToken) continue;
+          try {
+            await admin.messaging().send({
+              notification: {
+                title: "💸 Release Payment to Transporter",
+                body: `Dealer ${dealerName} confirmed collection of ${vehicleName}. Please release payout to ${transporterName}.`,
+              },
+              data: {
+                notificationType: "release_payment_prompt",
+                offerId,
+                vehicleId: after.vehicleId || "",
+                dealerId: after.dealerId || "",
+                transporterId: after.transporterId || "",
+                timestamp: new Date().toISOString(),
+              },
+              token: a.fcmToken,
+            });
+          } catch (pushErr) {
+            console.error(
+              "[notifyAdminsToReleasePaymentOnCollectionConfirmation] Push error",
+              pushErr
+            );
+          }
+        }
+
+        // Email
+        if (sgMail) {
+          const adminEmails = adminUsersSnapshot.docs
+            .map((d) => d.data().email)
+            .filter(Boolean);
+          if (adminEmails.length) {
+            try {
+              await sgMail.send({
+                from: "admin@ctpapp.co.za",
+                to: adminEmails,
+                subject: `💸 Action Required: Release Payment - ${vehicleName}`,
+                html: `
+                <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+                  <h2 style="color:#28a745;">Collection Confirmed</h2>
+                  <p>Dealer <strong>${dealerName}</strong> has confirmed collection of <strong>${vehicleName}</strong>.</p>
+                  <p>Please release the payout to <strong>${transporterName}</strong> in your admin panel.</p>
+                  <div style="margin:20px 0;text-align:center;">
+                    <a href="${offerLink}" style="background:#28a745;color:#fff;padding:10px 16px;text-decoration:none;border-radius:4px;">Open Offer</a>
+                  </div>
+                  <p style="color:#666;font-size:12px;">You are receiving this because you are listed as an admin/sales representative.</p>
+                </div>`,
+              });
+            } catch (emailErr) {
+              console.error(
+                "[notifyAdminsToReleasePaymentOnCollectionConfirmation] Email error",
+                emailErr
+              );
+            }
+          }
+        }
+
+        // Mark prompt sent
+        await db.collection("offers").doc(offerId).set(
+          {
+            releasePaymentPromptAt:
+              admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (e) {
+        console.error(
+          "[notifyAdminsToReleasePaymentOnCollectionConfirmation] Error",
+          e
+        );
+      }
+    }
+  );
 
 // Immediate: when an offer is accepted and no transporter invoice exists, ask transporter to upload invoice
 exports.notifyTransporterToUploadInvoiceOnAcceptance = onDocumentUpdated(
@@ -1207,6 +1807,14 @@ exports.notifyAdminsOnLiveVehicleUpdate = onDocumentUpdated(
       "[notifyAdminsOnLiveVehicleUpdate] Triggered for vehicleId:",
       event.params.vehicleId
     );
+
+    // Disabled: Do not send notifications when a live vehicle is edited.
+    // Rationale: Users were receiving notifications on every edit of a live vehicle.
+    // Status-change notifications (e.g., to "live" or "pending") are handled elsewhere.
+    console.log(
+      "[notifyAdminsOnLiveVehicleUpdate] Disabled – suppressing notifications for live vehicle edits"
+    );
+    return;
 
     const before = event.data.before.data();
     const after = event.data.after.data();

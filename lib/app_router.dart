@@ -48,6 +48,7 @@ import 'package:ctp/pages/payment_approved.dart';
 import 'package:ctp/pages/payment_options_page.dart';
 import 'package:ctp/pages/payment_pending_page.dart';
 import 'package:ctp/pages/pdf_viewer_page.dart';
+import 'package:ctp/pages/oem_invite_employee_page.dart';
 import 'package:ctp/pages/pending_offers_page.dart';
 import 'package:ctp/pages/phone_number_page.dart';
 import 'package:ctp/pages/prefered_brands.dart';
@@ -145,6 +146,8 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: PaymentOptionsRoute.page),
         AutoRoute(page: PaymentPendingRoute.page),
         AutoRoute(page: PdfViewerRoute.page),
+        AutoRoute(
+            page: OemInviteEmployeeRoute.page, path: '/oemInviteEmployee'),
         AutoRoute(page: ProfileRoute.page),
         AutoRoute(page: RateDealerRoute.page),
         AutoRoute(page: RateTransporterRoute.page),

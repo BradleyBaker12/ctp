@@ -6,6 +6,7 @@ import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'user_detail_page.dart';
@@ -115,52 +116,7 @@ class _UsersTabState extends State<UsersTab> {
     super.dispose();
   }
 
-  /// Determines if a user document matches the search text and filters.
-  bool _matchesSearch(Map<String, dynamic> userData) {
-    String firstName = (userData['firstName'] ?? '').toLowerCase();
-    String lastName = (userData['lastName'] ?? '').toLowerCase();
-    String email = (userData['email'] ?? '').toLowerCase();
-    String role = (userData['userRole'] ?? '').toLowerCase();
-    String status = (userData['accountStatus'] ?? '').toLowerCase();
-    String companyName = (userData['companyName'] ?? '').toLowerCase();
-    String tradingAs = (userData['tradingAs'] ?? '').toLowerCase();
-
-    bool matchesSearchText = _searchQuery.isEmpty
-        ? true
-        : (firstName.contains(_searchQuery.toLowerCase()) ||
-            lastName.contains(_searchQuery.toLowerCase()) ||
-            email.contains(_searchQuery.toLowerCase()) ||
-            role.contains(_searchQuery.toLowerCase()) ||
-            status.contains(_searchQuery.toLowerCase()) ||
-            companyName.contains(_searchQuery.toLowerCase()) ||
-            tradingAs.contains(_searchQuery.toLowerCase()));
-
-    if (_selectedFilters.isEmpty || _selectedFilters.contains('All Users')) {
-      return matchesSearchText;
-    } else {
-      bool matchesFilter = false;
-      if (_selectedFilters.contains('Dealers') && role == 'dealer') {
-        matchesFilter = true;
-      }
-      if (_selectedFilters.contains('Transporters') && role == 'transporter') {
-        matchesFilter = true;
-      }
-      if (_selectedFilters.contains('Admin') && role == 'admin') {
-        matchesFilter = true;
-      }
-      if (_selectedFilters.contains('Active Users') && status == 'active') {
-        matchesFilter = true;
-      }
-      if (_selectedFilters.contains('Pending Users') && status == 'inactive') {
-        matchesFilter = true;
-      }
-      if (_selectedFilters.contains('Suspended Users') &&
-          status == 'suspended') {
-        matchesFilter = true;
-      }
-      return matchesSearchText && matchesFilter;
-    }
-  }
+  // _matchesSearch was unused; removed for cleanliness.
 
   bool _matchesFiltersAndSearch(Map<String, dynamic> userData) {
     // Only do text-based matching here.
@@ -376,7 +332,7 @@ class _UsersTabState extends State<UsersTab> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String currentUserRole = userProvider.getUserRole;
     final bool isAdmin = currentUserRole == 'admin';
-    final String? currentUserId = userProvider.userId;
+    // currentUserId not used in this widget; remove to avoid analyzer warnings.
 
     List<DocumentSnapshot> filteredUsers = _users.where((doc) {
       var data = doc.data() as Map<String, dynamic>;
@@ -423,7 +379,7 @@ class _UsersTabState extends State<UsersTab> {
             children: [
               // Search, Sort, and Filter Row.
               Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
                     Expanded(
@@ -624,6 +580,79 @@ class _UsersTabState extends State<UsersTab> {
                       },
                       tooltip: 'Filter Users',
                     ),
+                    if (isAdmin)
+                      IconButton(
+                        icon: const Icon(Icons.upgrade, color: Colors.white),
+                        tooltip: 'Make all OEM users managers',
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: Colors.grey[900],
+                              title: Text('Elevate OEM Users',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white)),
+                              content: Text(
+                                'This will set isOemManager=true for all OEM users. Continue?',
+                                style: GoogleFonts.montserrat(
+                                    color: Colors.white70),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: Text('Cancel',
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white70)),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: Text('Confirm',
+                                      style: GoogleFonts.montserrat(
+                                          color: const Color(0xFFFF4E00))),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed != true) return;
+                          try {
+                            final callable = FirebaseFunctions.instance
+                                .httpsCallable('elevateAllOemToManagers');
+                            final result = await callable.call();
+                            final updated = (result.data is Map &&
+                                    result.data['updated'] is int)
+                                ? result.data['updated'] as int
+                                : null;
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    updated != null
+                                        ? 'Updated $updated OEM users.'
+                                        : 'OEM users elevated.',
+                                    style: GoogleFonts.montserrat(),
+                                  ),
+                                ),
+                              );
+                              setState(() {
+                                _users.clear();
+                                _lastDocument = null;
+                                _hasMore = true;
+                              });
+                              _fetchUsers();
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: $e',
+                                      style: GoogleFonts.montserrat()),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -872,6 +901,10 @@ class _UsersTabState extends State<UsersTab> {
     final tradingAsController = TextEditingController();
     // OEM brand input (only used when role is OEM)
     final oemBrandController = TextEditingController();
+    // OEM org fields
+    // Company ID is now auto-generated for OEM managers; no manual input needed.
+    bool isOemManagerFlag = false;
+    String? selectedOemManagerId;
 
     // Get current user's role and ID.
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -903,6 +936,7 @@ class _UsersTabState extends State<UsersTab> {
     }
 
     final GlobalKey<FormState> createUserFormKey = GlobalKey<FormState>();
+    List<String> selectedEmployeeIds = <String>[];
 
     await showDialog(
       context: context,
@@ -927,6 +961,107 @@ class _UsersTabState extends State<UsersTab> {
                         controller: firstNameController,
                       ),
                       const SizedBox(height: 16),
+                      // OEM org controls
+                      if (isAdmin && selectedRole == 'oem') ...[
+                        SwitchListTile(
+                          value: isOemManagerFlag,
+                          onChanged: (v) {
+                            setStateDialog(() {
+                              isOemManagerFlag = v;
+                              if (v) selectedOemManagerId = null;
+                            });
+                          },
+                          title: Text('Is OEM Manager?',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          activeColor: const Color(0xFFFF4E00),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        const SizedBox(height: 8),
+                        if (isOemManagerFlag)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[850],
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Text(
+                              'This account will be created as an OEM manager.',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white70),
+                            ),
+                          )
+                        else
+                          FutureBuilder<QuerySnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('users')
+                                .where('userRole', isEqualTo: 'oem')
+                                .where('isOemManager', isEqualTo: true)
+                                .get(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const CircularProgressIndicator();
+                              }
+                              final docs = snapshot.data?.docs ?? [];
+                              if (docs.isEmpty) {
+                                return Text(
+                                  'No OEM Managers available. Create a manager first.',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                );
+                              }
+                              final items = docs.map((d) {
+                                final data = d.data() as Map<String, dynamic>;
+                                final name = ((data['firstName'] ?? '') +
+                                        ' ' +
+                                        (data['lastName'] ?? ''))
+                                    .trim();
+                                return DropdownMenuItem<String>(
+                                  value: d.id,
+                                  child: Text(
+                                    name.isEmpty ? d.id : name,
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                  ),
+                                );
+                              }).toList();
+                              return DropdownButtonFormField<String>(
+                                value: selectedOemManagerId,
+                                dropdownColor: Colors.grey[850],
+                                style:
+                                    GoogleFonts.montserrat(color: Colors.white),
+                                decoration: InputDecoration(
+                                  labelText: 'Assign OEM Manager',
+                                  labelStyle: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                  enabledBorder: const UnderlineInputBorder(
+                                    borderSide:
+                                        BorderSide(color: Colors.white70),
+                                  ),
+                                  focusedBorder: const UnderlineInputBorder(
+                                    borderSide:
+                                        BorderSide(color: Color(0xFFFF4E00)),
+                                  ),
+                                ),
+                                items: items,
+                                onChanged: (v) => setStateDialog(
+                                    () => selectedOemManagerId = v),
+                                validator: (v) {
+                                  if (!isOemManagerFlag &&
+                                      (v == null || v.isEmpty)) {
+                                    return 'Select an OEM manager for employee accounts';
+                                  }
+                                  return null;
+                                },
+                              );
+                            },
+                          ),
+                        const SizedBox(height: 16),
+                      ],
                       CustomTextField(
                         hintText: 'COMPANY NAME',
                         controller: companyNameController,
@@ -996,6 +1131,92 @@ class _UsersTabState extends State<UsersTab> {
                           controller: oemBrandController,
                         ),
                       const SizedBox(height: 16),
+                      if (isAdmin && selectedRole == 'oem' && isOemManagerFlag)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Assign employees to this manager (optional):',
+                              style: GoogleFonts.montserrat(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            FutureBuilder<QuerySnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .where('userRole', isEqualTo: 'oem')
+                                  .where('isOemManager', isEqualTo: false)
+                                  .get(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const CircularProgressIndicator();
+                                }
+                                final docs = snapshot.data?.docs ?? [];
+                                if (docs.isEmpty) {
+                                  return Text(
+                                    'No OEM employees available.',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white70),
+                                  );
+                                }
+                                return ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(maxHeight: 220),
+                                  child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: docs.length,
+                                    itemBuilder: (context, idx) {
+                                      final d = docs[idx];
+                                      final data =
+                                          d.data() as Map<String, dynamic>;
+                                      final name = ((data['firstName'] ?? '') +
+                                              ' ' +
+                                              (data['lastName'] ?? ''))
+                                          .trim();
+                                      final email =
+                                          (data['email'] ?? '').toString();
+                                      final id = d.id;
+                                      final isSelected =
+                                          selectedEmployeeIds.contains(id);
+                                      return CheckboxListTile(
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        value: isSelected,
+                                        onChanged: (val) {
+                                          setStateDialog(() {
+                                            if (val == true) {
+                                              if (!selectedEmployeeIds
+                                                  .contains(id)) {
+                                                selectedEmployeeIds.add(id);
+                                              }
+                                            } else {
+                                              selectedEmployeeIds.remove(id);
+                                            }
+                                          });
+                                        },
+                                        title: Text(
+                                          name.isEmpty ? email : name,
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white),
+                                        ),
+                                        subtitle: email.isNotEmpty
+                                            ? Text(email,
+                                                style: GoogleFonts.montserrat(
+                                                    color: Colors.white70))
+                                            : null,
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       if (isAdmin &&
                           (selectedRole == 'transporter' ||
                               selectedRole == 'dealer' ||
@@ -1159,6 +1380,32 @@ class _UsersTabState extends State<UsersTab> {
                           return;
                         }
                         newUserData['oemBrand'] = brand;
+
+                        // Manager/employee assignment
+                        if (isAdmin) {
+                          if (isOemManagerFlag) {
+                            // Create OEM manager without companyId field
+                            newUserData['isOemManager'] = true;
+                            newUserData['managerId'] = null;
+                          } else {
+                            if (selectedOemManagerId == null ||
+                                selectedOemManagerId!.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Please select an OEM Manager for this employee.',
+                                    style: GoogleFonts.montserrat(),
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                            // No company linkage persisted; just set managerId
+                            newUserData['isOemManager'] = false;
+                            newUserData['managerId'] = selectedOemManagerId;
+                          }
+                        }
                       }
 
                       if (selectedRole == 'transporter' ||
@@ -1175,6 +1422,23 @@ class _UsersTabState extends State<UsersTab> {
                           .collection('users')
                           .doc(userCredential.user!.uid)
                           .set(newUserData);
+
+                      // If OEM manager created and employees selected, assign them
+                      if (selectedRole == 'oem' &&
+                          isOemManagerFlag &&
+                          selectedEmployeeIds.isNotEmpty) {
+                        final batch = FirebaseFirestore.instance.batch();
+                        for (final empId in selectedEmployeeIds) {
+                          final ref = FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(empId);
+                          batch.update(ref, {
+                            'managerId': userCredential.user!.uid,
+                            'isOemManager': false,
+                          });
+                        }
+                        await batch.commit();
+                      }
 
                       Navigator.pop(context);
                       setState(() {

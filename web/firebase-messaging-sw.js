@@ -6,13 +6,13 @@ importScripts(
   "https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"
 );
 
-// Initialize Firebase in the service worker context
+// Initialize Firebase in the service worker context (use real project config)
 firebase.initializeApp({
-  apiKey: "AIzaSyExampleAPIKey1234567890",
-  authDomain: "myapp-example.firebaseapp.com",
-  projectId: "myapp-example",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef123456",
+  apiKey: "AIzaSyA6C6DRdzG674nFLiRJYugQ8hRlHUp8T0I",
+  authDomain: "ctp-central-database.firebaseapp.com",
+  projectId: "ctp-central-database",
+  messagingSenderId: "656287296553",
+  appId: "1:656287296553:web:75f8a76bd7a63a96408038",
 });
 
 const messaging = firebase.messaging();

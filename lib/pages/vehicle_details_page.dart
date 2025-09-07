@@ -724,7 +724,32 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       String dealerId =
           (isAdmin || isSalesRep) ? _selectedDealer!.id : user.uid;
       String vehicleId = widget.vehicle.id;
+      // Determine who should be assigned on the transporter side.
+      // For OEM-owned vehicles, assign the OEM user (if assignedTransporterId is set, use that; else fallback to userId).
       String transporterId = widget.vehicle.userId;
+      try {
+        final vehSnap = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(vehicleId)
+            .get();
+        if (vehSnap.exists) {
+          final v = vehSnap.data() as Map<String, dynamic>;
+          final ownerRole = (v['ownerRole'] ?? '').toString().toLowerCase();
+          final assigned = (v['assignedTransporterId'] ?? '').toString();
+          if (ownerRole == 'oem') {
+            // Ensure OEM is assigned when the vehicle belongs to an OEM user
+            final fallback = (v['userId'] ?? '').toString();
+            if (fallback.isNotEmpty) {
+              transporterId = fallback;
+            }
+          } else if (assigned.isNotEmpty) {
+            // For non-OEM owners, prefer explicitly assigned transporter
+            transporterId = assigned;
+          }
+        }
+      } catch (_) {
+        // Ignore and keep default transporterId
+      }
       DateTime createdAt = DateTime.now();
 
       DocumentReference docRef =

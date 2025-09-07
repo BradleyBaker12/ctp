@@ -5,15 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/pages/payment_approved.dart';
+import 'package:ctp/pages/collectionPages/collection_details_page.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart'; // Ensure this import is correct
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/components/web_navigation_bar.dart' as ctp_nav;
 import 'package:ctp/utils/navigation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class PaymentPendingPage extends StatefulWidget {
+
+@RoutePage()
+class PaymentPendingPage extends StatefulWidget {
   final String offerId;
 
   const PaymentPendingPage({super.key, required this.offerId});
@@ -27,6 +31,10 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
   int _selectedIndex =
       0; // Variable to keep track of the selected bottom nav item
   bool _proofOfPaymentUploaded = false; // Track proof of payment status
+
+  // Cache admin/sales rep contacts for Help dialog
+  List<Map<String, dynamic>> _adminContacts = [];
+  bool _loadingAdmins = false;
 
   // Add getter for compact navigation
   bool _isCompactNavigation(BuildContext context) =>
@@ -73,10 +81,19 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
               .doc(widget.offerId)
               .update({'offerStatus': 'paid'});
 
-          await MyNavigator.pushReplacement(
-            context,
-            PaymentApprovedPage(offerId: widget.offerId),
-          );
+          final userRole =
+              Provider.of<UserProvider>(context, listen: false).getUserRole;
+          if (userRole == 'dealer') {
+            await MyNavigator.pushReplacement(
+              context,
+              CollectionDetailsPage(offerId: widget.offerId),
+            );
+          } else {
+            await MyNavigator.pushReplacement(
+              context,
+              PaymentApprovedPage(offerId: widget.offerId),
+            );
+          }
         } else {
           // Keep checking the payment status if not yet accepted
           Future.delayed(const Duration(seconds: 5), _checkPaymentStatus);
@@ -105,6 +122,202 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
     }
   }
 
+  Future<void> _loadAdminContacts() async {
+    if (_adminContacts.isNotEmpty || _loadingAdmins) return;
+    setState(() => _loadingAdmins = true);
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userRole', whereIn: ['admin', 'sales representative']).get();
+      setState(() {
+        _adminContacts = snapshot.docs.map((d) {
+          final data = d.data();
+          return {
+            'id': d.id,
+            'name': ((data['firstName'] ?? '') + ' ' + (data['lastName'] ?? ''))
+                .trim(),
+            'tradingName': data['tradingName'] ?? '',
+            'email': data['email'] ?? '',
+            'phone': data['phoneNumber'] ?? '',
+            'role': data['userRole'] ?? '',
+          };
+        }).toList();
+      });
+    } catch (e) {
+      // ignore silently; help panel will show empty state
+    } finally {
+      if (mounted) setState(() => _loadingAdmins = false);
+    }
+  }
+
+  Future<void> _notifyAdminsSupport({String? note}) async {
+    try {
+      // Ensure we have admin contacts to notify
+      if (_adminContacts.isEmpty) {
+        await _loadAdminContacts();
+      }
+
+      final now = FieldValue.serverTimestamp();
+      // Create a support request record
+      await FirebaseFirestore.instance.collection('supportRequests').add({
+        'offerId': widget.offerId,
+        'createdAt': now,
+        'status': 'open',
+        'source': 'PaymentPendingPage',
+        'note': note ?? 'Dealer requested help on payment pending.',
+      });
+
+      // Create a notification for each admin/sales rep
+      for (final admin in _adminContacts) {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'userId': admin['id'],
+          'offerId': widget.offerId,
+          'type': 'supportRequest',
+          'createdAt': now,
+          'message': 'Help requested for offer ${widget.offerId}',
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('CTP has been notified. Someone will contact you.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to notify support: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showHelpSheet() async {
+    await _loadAdminContacts();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F1520),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Need help?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Contact CTP or notify an admin to assist you.',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 16),
+                if (_loadingAdmins)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                else if (_adminContacts.isEmpty)
+                  const Text(
+                    'Admin contacts are currently unavailable.',
+                    style: TextStyle(color: Colors.white70),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _adminContacts.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(color: Colors.white24),
+                      itemBuilder: (context, index) {
+                        final a = _adminContacts[index];
+                        final trading = (a['tradingName'] ?? '') as String;
+                        final name = (a['name'] ?? '') as String;
+                        final displayName = trading.isNotEmpty
+                            ? trading
+                            : (name.isNotEmpty ? name : 'CTP Admin');
+                        final email = a['email'] as String? ?? '';
+                        final phone = a['phone'] as String? ?? '';
+                        return ListTile(
+                          title: Text(displayName,
+                              style: const TextStyle(color: Colors.white)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (email.isNotEmpty)
+                                InkWell(
+                                  onTap: () async {
+                                    final uri =
+                                        Uri(scheme: 'mailto', path: email);
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    }
+                                  },
+                                  child: Text(email,
+                                      style: const TextStyle(
+                                          color: Colors.lightBlueAccent)),
+                                ),
+                              if (phone.isNotEmpty)
+                                InkWell(
+                                  onTap: () async {
+                                    final uri = Uri(scheme: 'tel', path: phone);
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    }
+                                  },
+                                  child: Text(phone,
+                                      style: const TextStyle(
+                                          color: Colors.lightBlueAccent)),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF4E00),
+                        ),
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          await _notifyAdminsSupport();
+                        },
+                        child: const Text('Notify CTP'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -125,18 +338,19 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
     final bool showBottomNav = !_isLargeScreen && !kIsWeb;
 
     // Define navigation items based on user role
-    List<NavigationItem> navigationItems = userRole == 'dealer'
+    List<ctp_nav.NavigationItem> navigationItems = userRole == 'dealer'
         ? [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
-            NavigationItem(title: 'Wishlist', route: '/wishlist'),
-            NavigationItem(title: 'Pending Offers', route: '/offers'),
+            ctp_nav.NavigationItem(title: 'Home', route: '/home'),
+            ctp_nav.NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            ctp_nav.NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            ctp_nav.NavigationItem(title: 'Pending Offers', route: '/offers'),
           ]
         : [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
-            NavigationItem(title: 'Your Offers', route: '/offers'),
-            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+            ctp_nav.NavigationItem(title: 'Home', route: '/home'),
+            ctp_nav.NavigationItem(
+                title: 'Your Trucks', route: '/transporterList'),
+            ctp_nav.NavigationItem(title: 'Your Offers', route: '/offers'),
+            ctp_nav.NavigationItem(title: 'In-Progress', route: '/in-progress'),
           ];
 
     return Scaffold(
@@ -144,7 +358,7 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
       appBar: kIsWeb
           ? PreferredSize(
               preferredSize: const Size.fromHeight(70),
-              child: WebNavigationBar(
+              child: ctp_nav.WebNavigationBar(
                 isCompactNavigation: _isCompactNavigation(context),
                 currentRoute: '/offers',
                 onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
@@ -187,7 +401,8 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                     ),
                     Expanded(
                       child: ListView(
-                        children: navigationItems.map((item) {
+                        children:
+                            navigationItems.map((ctp_nav.NavigationItem item) {
                           bool isActive = '/offers' == item.route;
                           return ListTile(
                             title: Text(
@@ -284,7 +499,7 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                           onPressed: () async {
                             await MyNavigator.push(
                               context,
-                             UploadProofOfPaymentPage(offerId: widget.offerId),
+                              UploadProofOfPaymentPage(offerId: widget.offerId),
                             ).then((_) {
                               // Refresh the proof of payment status when returning
                               _checkProofOfPayment();
@@ -305,10 +520,15 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                           ),
                         ),
                       CustomButton(
+                        text: 'HELP',
+                        borderColor: Colors.blueAccent,
+                        onPressed: _showHelpSheet,
+                      ),
+                      CustomButton(
                         text: 'REPORT AN ISSUE',
                         borderColor: const Color(0xFFFF4E00),
                         onPressed: () async {
-                         await MyNavigator.push(
+                          await MyNavigator.push(
                             context,
                             ReportIssuePage(
                               offerId: widget.offerId,

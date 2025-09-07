@@ -28,9 +28,10 @@ class TrianglePainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final path = Path();
-    path.moveTo(0, size.height / 2);
-    path.lineTo(size.width, size.height);
-    path.lineTo(size.width, 0);
+    // Draw a left-pointing triangle
+    path.moveTo(size.width, size.height / 2);
+    path.lineTo(0, size.height);
+    path.lineTo(0, 0);
     path.close();
 
     canvas.drawPath(path, paint);

@@ -38,8 +38,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   bool _isCompactNavigation(BuildContext context) =>
       MediaQuery.of(context).size.width <= 1100;
 
-  // Add getter for large screen
-  bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
+  // Large screen helper removed (unused)
 
   int _selectedLocation = 0;
   DateTime _focusedDay = DateTime.now();
@@ -72,6 +71,13 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
   bool _deliveryConfirmed = false;
   String _fullDeliveryAddress = '';
   LatLng? _deliveryLatLng;
+
+  // Collector details (dealer-provided)
+  final TextEditingController _collectorNameController =
+      TextEditingController();
+  final TextEditingController _collectorIdController = TextEditingController();
+  final TextEditingController _collectorLicenseController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -124,6 +130,16 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
 
       final List<dynamic>? locationsArray =
           collectionDetails['locations'] as List<dynamic>?;
+
+      // Pre-fill collector details if already present (read for display or editing)
+      final Map<String, dynamic>? collector =
+          collectionDetails['collector'] as Map<String, dynamic>?;
+      if (collector != null) {
+        _collectorNameController.text = (collector['name'] ?? '').toString();
+        _collectorIdController.text = (collector['idNumber'] ?? '').toString();
+        _collectorLicenseController.text =
+            (collector['licenseNumber'] ?? '').toString();
+      }
 
       if (locationsArray == null || locationsArray.isEmpty) {
         setState(() {
@@ -308,6 +324,21 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
       return;
     }
 
+    // Validate collector for dealers
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userRole = userProvider.getUserRole;
+    if (userRole == 'dealer') {
+      if (_collectorNameController.text.trim().isEmpty ||
+          _collectorIdController.text.trim().isEmpty ||
+          _collectorLicenseController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Please enter collector name, ID and license.')),
+        );
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -324,6 +355,13 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
             _latLngs[_selectedLocation].longitude,
           ),
           'dealerSelectedDelivery': false,
+          if (userRole == 'dealer')
+            'collectionDetails.collector': {
+              'name': _collectorNameController.text.trim(),
+              'idNumber': _collectorIdController.text.trim(),
+              'licenseNumber': _collectorLicenseController.text.trim(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
         },
         SetOptions(merge: true),
       );
@@ -632,6 +670,81 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 40),
+                        // Collector details section
+                        Builder(
+                          builder: (context) {
+                            final userRole =
+                                Provider.of<UserProvider>(context).getUserRole;
+                            final bool isDealer = userRole == 'dealer';
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'COLLECTOR DETAILS',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 12),
+                                if (isDealer) ...[
+                                  _buildTextField(
+                                    controller: _collectorNameController,
+                                    hintText: 'Collector Full Name',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildTextField(
+                                    controller: _collectorIdController,
+                                    hintText: 'Collector ID/Passport Number',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildTextField(
+                                    controller: _collectorLicenseController,
+                                    hintText: 'Collector License Number',
+                                  ),
+                                  const SizedBox(height: 24),
+                                ] else ...[
+                                  // Read-only view for transporter/admin
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Name: ${_collectorNameController.text.isEmpty ? '—' : _collectorNameController.text}',
+                                          style: const TextStyle(
+                                              color: Colors.white),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'ID/Passport: ${_collectorIdController.text.isEmpty ? '—' : _collectorIdController.text}',
+                                          style: const TextStyle(
+                                              color: Colors.white),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'License: ${_collectorLicenseController.text.isEmpty ? '—' : _collectorLicenseController.text}',
+                                          style: const TextStyle(
+                                              color: Colors.white),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 8),
                         const Text(
                           'SELECT LOCATION',
                           style: TextStyle(

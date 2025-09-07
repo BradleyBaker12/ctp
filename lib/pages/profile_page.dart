@@ -17,6 +17,7 @@ import 'package:ctp/components/web_footer.dart'; // Add this import
 import 'package:ctp/utils/navigation.dart';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:ctp/app_router.dart';
 
 @RoutePage()
 class ProfilePage extends StatelessWidget {
@@ -54,7 +55,7 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userProvider = context.watch<UserProvider>();
     final String userRole = userProvider.getUserRole;
     // Define the roles
     final bool isAdmin = userRole.toLowerCase() == 'admin';
@@ -62,6 +63,8 @@ class ProfilePage extends StatelessWidget {
     final bool isDealer = userRole.toLowerCase() == 'dealer';
     final bool isTransporter = userRole.toLowerCase() == 'transporter' ||
         userRole.toLowerCase() == 'oem';
+    final bool isOemManager =
+        userRole.toLowerCase() == 'oem' && userProvider.isOemManager;
 
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
@@ -269,14 +272,12 @@ class ProfilePage extends StatelessWidget {
                                                   context, EditProfilePage());
                                               print("Back from page");
                                             },
-                                            child: Text(
-                                              'Edit Profile'.toUpperCase(),
-                                              style: const TextStyle(
-                                                fontSize: 16,
+                                            child: const Tooltip(
+                                              message: 'Edit profile',
+                                              child: Icon(
+                                                Icons.edit,
                                                 color: Colors.white,
-                                                decoration:
-                                                    TextDecoration.underline,
-                                                decorationColor: Colors.white,
+                                                size: 20,
                                               ),
                                             ),
                                           ),
@@ -424,6 +425,40 @@ class ProfilePage extends StatelessWidget {
                               'https://firebasestorage.googleapis.com/v0/b/ctp-central-database.appspot.com/o/Product%20Terms%20.pdf?alt=media&token=8f27f138-afe2-4b82-83a6-9b49564b4d48',
                               Icons.visibility,
                               context,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                          if (isAdmin || userRole.toLowerCase() == 'oem') ...[
+                            const Padding(
+                              padding: EdgeInsets.only(left: 16.0),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'TEAM',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Divider(color: Colors.white),
+                            _buildProfileAction(
+                              'INVITE EMPLOYEE',
+                              Icons.group_add,
+                              () {
+                                if (isAdmin || isOemManager) {
+                                  context.router
+                                      .push(const OemInviteEmployeeRoute());
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Only OEM managers can invite employees.')),
+                                  );
+                                }
+                              },
                             ),
                             const SizedBox(height: 20),
                           ],

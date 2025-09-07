@@ -3,6 +3,7 @@ import 'dart:ui'; // Required for the AppBar's blur effect
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/pages/profile_page.dart'; // Import the ProfilePage
+import 'package:ctp/components/custom_back_button.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double height;
@@ -11,17 +12,39 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
     return PreferredSize(
       preferredSize: Size.fromHeight(height), // Set desired height
       child: AppBar(
-        automaticallyImplyLeading: false, // Removes the default back button
+        automaticallyImplyLeading:
+            false, // We'll handle the back button manually
+        leadingWidth: canPop ? 56 : null,
+        leading: canPop
+            ? Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Center(
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: const Center(child: CustomBackButton()),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : null,
         backgroundColor: Colors.transparent,
         elevation: 0,
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
             child: Container(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
             ),
           ),
         ),
@@ -29,7 +52,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Padding(
-              padding: EdgeInsets.only(left: 35.0), // Space on the left
+              padding: EdgeInsets.only(
+                  left: canPop
+                      ? 8.0
+                      : 35.0), // Space on the left (reduced when back button is present)
               child: Image.asset(
                 'lib/assets/CTPLogo.png',
                 width: 60,
@@ -65,7 +91,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   as ImageProvider,
                           onBackgroundImageError: (exception, stackTrace) {
                             // Log the error
-                            print('Error loading profile image: $exception');
+                            debugPrint(
+                                'Error loading profile image: $exception');
                           },
                           child: (profileImageUrl.isEmpty)
                               ? const Icon(Icons.person,

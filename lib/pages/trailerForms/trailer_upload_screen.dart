@@ -3430,6 +3430,10 @@ class _TrailerUploadScreenState extends State<TrailerUploadScreen> {
         'oemBrand': (role == 'oem')
             ? (oemBrand ?? (brands.isNotEmpty ? brands.first : ''))
             : null,
+        // OEM scoping via manager/employee relationship
+        'managerUserId': userProvider.isOemManager
+            ? currentUser?.uid
+            : userProvider.managerId,
         'adminData': {
           'settlementAmount': _sellingPriceController.text,
           'requireSettlement': false,

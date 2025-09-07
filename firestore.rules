@@ -10,7 +10,22 @@ service cloud.firestore {
         // Owner can write their own vehicle
         request.auth.uid == resource.data.userId ||
         // Admins can write any vehicle
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userRole in ['admin', 'sales representative']
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userRole in ['admin', 'sales representative'] ||
+        // OEM users (manager or employee) can write vehicles owned by their company
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userRole == 'oem' &&
+          (
+            // Prefer explicit ownerCompanyId match if present
+            (
+              resource.data.ownerCompanyId is string &&
+              resource.data.ownerCompanyId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId
+            ) ||
+            // Fallback: compare owner's company
+            (
+              get(/databases/$(database)/documents/users/$(resource.data.userId)).data.companyId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId
+            )
+          )
+        )
       );
       // Subcollections (e.g., tyres, truckConditions)
       match /{subCollection=**}/{docId} {
@@ -33,10 +48,33 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth != null && (
         (
-          // Dealer, transporter, or admin
+          // Dealer, transporter, or admin can update general fields (not acceptance)
           request.auth.uid == resource.data.dealerId ||
           request.auth.uid == resource.data.transporterId ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userRole in ['admin', 'sales representative']
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userRole in ['admin', 'sales representative'] ||
+          // For setting offerStatus to 'accepted', allow OEM manager of vehicle owner's company
+          (
+            request.resource.data.offerStatus == 'accepted' &&
+            resource.data.offerStatus != 'accepted' &&
+            // Look up vehicle owner company
+            (
+              // Get the vehicle doc
+              (
+                // Resolve vehicle company via explicit field
+                (
+                  get(/databases/$(database)/documents/vehicles/$(resource.data.vehicleId)).data.ownerCompanyId is string &&
+                  get(/databases/$(database)/documents/vehicles/$(resource.data.vehicleId)).data.ownerCompanyId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId
+                ) ||
+                // Fallback via vehicle.userId -> users.companyId
+                (
+                  get(/databases/$(database)/documents/users/$(get(/databases/$(database)/documents/vehicles/$(resource.data.vehicleId)).data.userId)).data.companyId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId
+                )
+              ) &&
+              // And the acting user is OEM manager
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userRole == 'oem' &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOemManager == true
+            )
+          )
         )
         && (
           // If updating POP fields, require an admin invoice to exist

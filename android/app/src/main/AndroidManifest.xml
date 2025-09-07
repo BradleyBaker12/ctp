@@ -36,6 +36,7 @@
         android:label="CTP"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+    android:extractNativeLibs="false"
         android:requestLegacyExternalStorage="true"
         android:enableOnBackInvokedCallback="true">
         

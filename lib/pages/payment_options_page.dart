@@ -1,8 +1,5 @@
 // lib/adminScreens/payment_options_page.dart
 
-import 'package:ctp/models/user_model.dart';
-import 'package:ctp/pages/payment_approved.dart';
-import 'package:ctp/pages/payment_pending_page.dart';
 import 'package:ctp/pages/offer_summary_page.dart';
 import 'package:ctp/pages/upload_pop.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
@@ -47,8 +44,7 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
   bool _isCompactNavigation(BuildContext context) =>
       MediaQuery.of(context).size.width <= 1100;
 
-  // Add getter for large screen
-  bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
+  // Large screen detection not used here anymore
 
   @override
   void initState() {
@@ -76,28 +72,26 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
     }
   }
 
-  /// Navigate based on payment status
-  Future<void> _navigateBasedOnStatus(
-      BuildContext context, String? paymentStatus) async {
-    if (paymentStatus == 'approved') {
-      await MyNavigator.push(
-        context,
-        PaymentApprovedPage(offerId: widget.offerId),
-      );
-    } else if (paymentStatus == 'pending') {
-      await MyNavigator.push(
-          context, PaymentPendingPage(offerId: widget.offerId));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unknown payment status: $paymentStatus'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+  // Navigation based on payment status handled in other pages
 
   Future<void> _requestInvoice() async {
+    // Prevent request if transporter invoice not verified
+    final offerSnap = await FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .get();
+    final offer = offerSnap.data();
+    final invoiceStatus = offer?['transporterInvoiceStatus'] as String?;
+    if (invoiceStatus != null && invoiceStatus != 'verified') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Waiting for CTP to verify transporter invoice before requesting dealer invoice.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     final offerRef =
         FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
     // Mark that an invoice has been requested
@@ -233,8 +227,7 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
     // Constants for API
     const String apiKey = 'D95FB388-B362-4348-B582-F12159170FCD';
     const String companyId = '15464';
-    const String baseUrl =
-        'https://resellers.accounting.sageone.co.za/api/2.0.0';
+    // const String baseUrl = 'https://resellers.accounting.sageone.co.za/api/2.0.0';
     const String username = 'cajunbeeby@gmail.com';
     const String password = 'SageAccounting@1';
 
@@ -284,8 +277,7 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
             'Unable to determine customer name for invoice creation.');
       }
 
-      final String customerEmail =
-          userProvider.getUserEmail ?? currentUser.email ?? '';
+      final String customerEmail = userProvider.getUserEmail;
 
       // For contact name, use personal name or fall back to customer name
       String customerContact = '';
@@ -573,83 +565,6 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
     }
   }
 
-  // Helper method to generate an invoice in Sage
-  Future<String> _generateSageInvoice(
-      int customerId,
-      int itemId,
-      String itemDescription,
-      double itemTotal,
-      String basicAuth,
-      String apiKey,
-      String companyId) async {
-    final Uri invoiceUrl = Uri.parse(
-        'https://resellers.accounting.sageone.co.za/api/2.0.0/TaxInvoice/Save?apikey=$apiKey&companyId=$companyId&useSystemDocumentNumber=true');
-
-    // Calculate dates
-    final DateTime now = DateTime.now();
-    final DateTime dueDate = now.add(const Duration(days: 7)); // Due in 7 days
-
-    // Format dates as required by the API (yyyy-MM-dd)
-    final String formattedDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final String formattedDueDate =
-        "${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}";
-
-    // Prepare invoice data with correct pricing
-    final Map<String, dynamic> invoiceData = {
-      'CustomerId': customerId,
-      'Date': formattedDate,
-      'DueDate': formattedDueDate,
-      'Inclusive': true, // This means the prices include VAT
-      'DiscountPercentage': 0,
-      'Message': 'Invoice for offer ${widget.offerId}',
-      'Lines': [
-        {
-          'SelectionId': itemId,
-          'TaxTypeId': 139728, // As specified in requirements
-          'LineType': 0,
-          'Description': itemDescription,
-          'Quantity': 1,
-          'Unit': 'Unit',
-          // Calculate exclusive price (before VAT)
-          'UnitPriceExclusive': itemTotal / 1.15,
-          // Total price including VAT
-          'UnitPriceInclusive': itemTotal,
-          'TaxPercentage': 15.0,
-          'DiscountPercentage': 0,
-          'Exclusive': itemTotal / 1.15, // Price excluding VAT
-          'Tax': itemTotal - (itemTotal / 1.15), // VAT amount
-          'Total': itemTotal, // Total price including VAT
-          'Comments': 'Generated from CTP App',
-        }
-      ],
-    };
-
-    print('DEBUG: Creating invoice with payload: ${jsonEncode(invoiceData)}');
-    final response = await http.post(
-      invoiceUrl,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': basicAuth,
-      },
-      body: jsonEncode(invoiceData),
-    );
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = jsonDecode(response.body);
-      print('DEBUG: Created invoice with ID: ${data['ID']}');
-      // Use the correct URL format to get the PDF from Sage
-      final String invoicePdfUrl =
-          'https://resellers.accounting.sageone.co.za/api/2.0.0/TaxInvoice/Export/GET?apikey=$apiKey&companyId=$companyId&id=${data['ID']}';
-
-      return invoicePdfUrl;
-    } else {
-      print(
-          'DEBUG: Failed to create invoice: ${response.statusCode} ${response.body}');
-      throw Exception('Failed to create invoice');
-    }
-  }
-
   // Modified method to generate an invoice with multiple items
   Future<String> _generateSageInvoiceWithMultipleItems(
       int customerId,
@@ -753,8 +668,8 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
 
       // Parse the API key and company ID from the URL
       final Uri uri = Uri.parse(sageUrl);
-      final String apiKey = uri.queryParameters['apikey'] ?? '';
-      final String companyId = uri.queryParameters['companyId'] ?? '';
+      // final String apiKey = uri.queryParameters['apikey'] ?? '';
+      // final String companyId = uri.queryParameters['companyId'] ?? '';
       final String invoiceId = uri.queryParameters['id'] ?? '';
 
       // Create basic auth header (same as used for other Sage API calls)
@@ -992,24 +907,9 @@ Please contact support for assistance.
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final UserModel? currentUser = userProvider.currentUser;
     final userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
-    final bool showBottomNav = !_isLargeScreen && !kIsWeb;
-
-    List<NavigationItem> navigationItems = userRole == 'dealer'
-        ? [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
-            NavigationItem(title: 'Wishlist', route: '/wishlist'),
-            NavigationItem(title: 'Pending Offers', route: '/offers'),
-          ]
-        : [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
-            NavigationItem(title: 'Your Offers', route: '/offers'),
-            NavigationItem(title: 'In-Progress', route: '/in-progress'),
-          ];
+    // final bool showBottomNav = !_isLargeScreen && !kIsWeb;
 
     return Scaffold(
       // This ensures the body extends behind the AppBar (if present)
@@ -1125,25 +1025,32 @@ Please contact support for assistance.
 
               final offerData = snapshot.data!.data() as Map<String, dynamic>;
 
-              final String offerStatus = offerData['offerStatus'] ?? '';
+              // final String offerStatus = offerData['offerStatus'] ?? '';
               final String? externalInvoice = offerData['externalInvoice'];
-              final String? paymentStatus = offerData['paymentStatus'];
+              // final String? paymentStatus = offerData['paymentStatus'];
               final bool needsInvoice = offerData['needsInvoice'] ?? false;
+              final String transporterInvoiceStatus =
+                  (offerData['transporterInvoiceStatus'] ?? 'none') as String;
 
               // Determine button state and text
-              String invoiceButtonText =
-                  externalInvoice != null && externalInvoice.isNotEmpty
-                      ? 'VIEW INVOICE'
-                      : needsInvoice
-                          ? 'INVOICE REQUESTED'
-                          : 'REQUEST INVOICE';
+              // String invoiceButtonText =
+              //     externalInvoice != null && externalInvoice.isNotEmpty
+              //         ? 'VIEW INVOICE'
+              //         : needsInvoice
+              //             ? 'INVOICE REQUESTED'
+              //             : 'REQUEST INVOICE';
               // Determine button state and text
-              bool isInvoiceButtonEnabled =
-                  (externalInvoice != null && externalInvoice.isNotEmpty) ||
-                      !needsInvoice;
-              // Enable Continue as soon as an invoice has been requested or is available
-              bool isContinueEnabled = needsInvoice ||
-                  (externalInvoice != null && externalInvoice.isNotEmpty);
+              // bool isInvoiceButtonEnabled =
+              //   ((externalInvoice != null && externalInvoice.isNotEmpty) ||
+              //       !needsInvoice) &&
+              //     (transporterInvoiceStatus == 'verified' ||
+              //       transporterInvoiceStatus == 'approved');
+              // Continue should only be available once the admin has uploaded their invoice
+              // (i.e., an externalInvoice URL exists) AND transporter invoice is verified/approved
+              bool isContinueEnabled =
+                  (externalInvoice != null && externalInvoice.isNotEmpty) &&
+                      (transporterInvoiceStatus == 'verified' ||
+                          transporterInvoiceStatus == 'approved');
 
               return SingleChildScrollView(
                 child: Padding(
@@ -1196,6 +1103,18 @@ Please contact support for assistance.
                       ),
                       const SizedBox(height: 32), // Spacing before buttons
 
+                      // Show transporter invoice verification status
+                      if (transporterInvoiceStatus != 'verified' &&
+                          transporterInvoiceStatus != 'approved')
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: Text(
+                            'CTP is verifying the transporter invoice. You\'ll be able to request your invoice once that\'s done.',
+                            style: TextStyle(color: Colors.orangeAccent),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+
                       /// **Step 1 & Step 2 Buttons**
                       // Step 1: Request invoice if not yet requested
                       if (!needsInvoice && externalInvoice == null) ...[
@@ -1246,24 +1165,28 @@ Please contact support for assistance.
                       const SizedBox(height: 16),
 
                       /// **"Continue" Button**
-                      if (!isAdmin) ...[
+                      // Hide the button entirely until the admin has uploaded their invoice
+                      if (!isAdmin && isContinueEnabled) ...[
                         CustomButton(
                           text: 'CONTINUE',
                           borderColor: const Color(0xFFFF4E00),
-                          onPressed: isContinueEnabled
-                              ? () {
-                                  MyNavigator.push(
-                                    context,
-                                    UploadProofOfPaymentPage(
-                                        offerId: widget.offerId),
-                                  );
-                                }
-                              : null, // Disable if invoice not uploaded
-                          // Optionally, adjust appearance when disabled
-                          disabledColor: Colors.grey,
+                          onPressed: () {
+                            MyNavigator.push(
+                              context,
+                              UploadProofOfPaymentPage(offerId: widget.offerId),
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                       ],
+                      if (isAdmin) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Transporter Invoice Status: ${transporterInvoiceStatus.toUpperCase()}',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
+                      ]
                     ],
                   ),
                 ),

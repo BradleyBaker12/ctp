@@ -211,6 +211,24 @@ class _UploadProofOfPaymentPageState extends State<UploadProofOfPaymentPage> {
         'uploadTimestamp': FieldValue.serverTimestamp(),
       });
 
+      // Notify admins and sales reps about PoP upload
+      try {
+        final adminSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userRole',
+                whereIn: ['admin', 'sales representative']).get();
+        for (var doc in adminSnapshot.docs) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': doc.id,
+            'offerId': widget.offerId,
+            'type': 'popUploaded',
+            'createdAt': FieldValue.serverTimestamp(),
+            'message':
+                'Dealer uploaded proof of payment for offer ${widget.offerId}.',
+          });
+        }
+      } catch (_) {}
+
       setState(() {
         _isUploaded = true;
         _isLoading = false;

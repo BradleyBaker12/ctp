@@ -286,20 +286,43 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       return;
     }
 
+    // Determine actor for notifications
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String actorRole = userProvider.getUserRole;
+    final bool actorIsTransporter =
+        actorRole == 'transporter' || actorRole == 'oem';
+
     setState(() => _isLoading = true);
 
     try {
-      // Format data according to schema
+      final bool actorIsDealer = actorRole == 'dealer';
+
+      // Fetch offer to get party IDs for notifications
+      final offerDoc = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .get();
+      final offerData = offerDoc.data() ?? {};
+      final String? dealerId = offerData['dealerId'] as String?;
+      // Keep for future use if needed: transporterId
+      // final String? transporterId =
+      //     (offerData['transporterId'] ?? offerData['transportId']) as String?;
+
+      // Build collection details without collector info (dealer captures this later)
+      final Map<String, dynamic> collectionDetails = {
+        'locations': _locations,
+        'offerDeliveryService': _offerDeliveryOption,
+      };
+
       Map<String, dynamic> updateData = {
         'collectionLocation': _locations[0]['address'], // Primary location
         'collectionDates': _locations
             .map((loc) => loc['dates'].map((date) => date.toString()).toList())
             .toList()
             .first,
-        'collectionDetails': {
-          'locations': _locations,
-          'offerDeliveryService': _offerDeliveryOption,
-        },
+        'collectionDetails': collectionDetails,
+        // Move the offer into the dealer selection step
+        'offerStatus': 'collection details',
       };
 
       // Update offer document
@@ -307,6 +330,39 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
           .collection('offers')
           .doc(widget.offerId)
           .update(updateData);
+
+      // Notify admins and sales reps that collection details are set (role-aware message)
+      try {
+        final adminSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userRole',
+                whereIn: ['admin', 'sales representative']).get();
+        for (var doc in adminSnapshot.docs) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': doc.id,
+            'offerId': widget.offerId,
+            'type': 'collectionScheduled',
+            'createdAt': FieldValue.serverTimestamp(),
+            'message': actorIsDealer
+                ? 'Dealer set collection details for offer ${widget.offerId}.'
+                : 'Transporter set collection details for offer ${widget.offerId}.',
+          });
+        }
+      } catch (_) {}
+
+      // Notify dealer to select/confirm a collection slot if transporter set the details
+      try {
+        if (actorIsTransporter && dealerId != null && dealerId.isNotEmpty) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': dealerId,
+            'offerId': widget.offerId,
+            'type': 'collectionDetailsReady',
+            'createdAt': FieldValue.serverTimestamp(),
+            'message':
+                'Collection options are ready for your offer ${widget.offerId}. Please select your collection date & time.',
+          });
+        }
+      } catch (_) {}
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Collection details saved!')),
@@ -513,7 +569,9 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    // ignore: unused_local_variable
     final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    // ignore: unused_local_variable
     final bool isTransporter =
         userRole == 'transporter' || userRole == 'oem'; // Transporter-like
     return Stack(
@@ -590,6 +648,8 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                 },
                               ),
                               const SizedBox(height: 16),
+                              // Collector details removed from setup page; dealer will provide on Collection Details page.
+                              const SizedBox(height: 8),
                               // CheckboxListTile(
                               //   title: const Text(
                               //     "Offer delivery service to dealer's preferred address?",

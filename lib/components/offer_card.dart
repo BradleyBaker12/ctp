@@ -473,14 +473,25 @@ class _OfferCardState extends State<OfferCard> {
         _navigateToRespectivePage(userRole);
         break;
       case 'paid':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PaymentApprovedPage(
-              offerId: widget.offer.offerId,
+        if (userRole == 'dealer') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CollectionDetailsPage(
+                offerId: widget.offer.offerId,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentApprovedPage(
+                offerId: widget.offer.offerId,
+              ),
+            ),
+          );
+        }
         break;
       case 'collection details':
         Navigator.push(

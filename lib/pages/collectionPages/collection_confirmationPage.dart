@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
-import 'package:ctp/pages/payment_options_page.dart';
+import 'package:ctp/pages/payment_approved.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -110,7 +110,8 @@ class _CollectionConfirmationPageState
 
   /// If no valid coordinates were obtained from the offer, geocode widget.address.
   Future<void> _getCoordinatesFromAddress() async {
-    if (_latLng != null && !(_latLng!.latitude == 0 && _latLng!.longitude == 0)) {
+    if (_latLng != null &&
+        !(_latLng!.latitude == 0 && _latLng!.longitude == 0)) {
       return;
     }
     try {
@@ -379,10 +380,10 @@ class _CollectionConfirmationPageState
                           text: _doneButtonText,
                           borderColor: const Color(0xFFFF4E00),
                           onPressed: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => PaymentOptionsPage(
+                                builder: (context) => PaymentApprovedPage(
                                   offerId: widget.offerId,
                                 ),
                               ),

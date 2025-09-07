@@ -51,6 +51,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
   final TextEditingController _vatNumberController = TextEditingController();
   // OEM brand controller (only used when role is 'oem')
   final TextEditingController _oemBrandController = TextEditingController();
+  // OEM org fields (companyId removed)
+  bool _isOemManagerFlag = false;
+  String? _selectedOemManagerId;
 
   // Dropdown state variables.
   String _accountStatus = 'active'; // default value.
@@ -190,11 +193,19 @@ class _UserDetailPageState extends State<UserDetailPage> {
           updateData['assignedSalesRep'] = null;
         }
 
-        // Persist OEM brand when applicable; clear it otherwise
+        // Persist OEM brand and org fields when applicable; clear it otherwise
         if (_userRole == 'oem') {
           updateData['oemBrand'] = _oemBrandController.text;
+          updateData['isOemManager'] = _isOemManagerFlag;
+          if (_isOemManagerFlag) {
+            updateData['managerId'] = null;
+          } else {
+            updateData['managerId'] = _selectedOemManagerId;
+          }
         } else {
           updateData['oemBrand'] = null;
+          updateData['isOemManager'] = null;
+          updateData['managerId'] = null;
         }
 
         if (profileImageUrl != null) {
@@ -474,6 +485,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
 
               // Initialize OEM brand
               _oemBrandController.text = data['oemBrand']?.toString() ?? '';
+              // Initialize OEM org fields
+              _isOemManagerFlag = data['isOemManager'] == true;
+              _selectedOemManagerId = data['managerId']?.toString();
 
               // Ensure role dropdown shows 'oem' for non-admins when viewing an OEM account
               if (!isAdmin &&
@@ -775,8 +789,8 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                 },
                               ),
                             ),
-                            // OEM Brand field (required when role is 'oem')
-                            if (_userRole == 'oem')
+                            // OEM Brand and Org fields (when role is 'oem')
+                            if (_userRole == 'oem') ...[
                               Padding(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 10.0),
@@ -803,6 +817,93 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                   },
                                 ),
                               ),
+                              SwitchListTile(
+                                value: _isOemManagerFlag,
+                                onChanged: isAdmin
+                                    ? (v) {
+                                        setState(() {
+                                          _isOemManagerFlag = v;
+                                          if (v) _selectedOemManagerId = null;
+                                        });
+                                      }
+                                    : null,
+                                title: Text('Is OEM Manager?',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white)),
+                                activeColor: const Color(0xFFFF4E00),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              if (!_isOemManagerFlag)
+                                FutureBuilder<QuerySnapshot>(
+                                  future: FirebaseFirestore.instance
+                                      .collection('users')
+                                      .where('userRole', isEqualTo: 'oem')
+                                      .where('isOemManager', isEqualTo: true)
+                                      .get(),
+                                  builder: (context, snap) {
+                                    if (snap.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const CircularProgressIndicator();
+                                    }
+                                    final docs = snap.data?.docs ?? [];
+                                    if (docs.isEmpty) {
+                                      return Text('No OEM Managers available.',
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white));
+                                    }
+                                    final items = docs.map((d) {
+                                      final m =
+                                          d.data() as Map<String, dynamic>;
+                                      final name = ((m['firstName'] ?? '') +
+                                              ' ' +
+                                              (m['lastName'] ?? ''))
+                                          .trim();
+                                      return DropdownMenuItem<String>(
+                                        value: d.id,
+                                        child: Text(
+                                          name.isEmpty ? d.id : name,
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white),
+                                        ),
+                                      );
+                                    }).toList();
+                                    return DropdownButtonFormField<String>(
+                                      value: _selectedOemManagerId,
+                                      dropdownColor: Colors.grey[850],
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'Assign OEM Manager',
+                                        labelStyle: GoogleFonts.montserrat(
+                                            color: Colors.white),
+                                        enabledBorder:
+                                            const UnderlineInputBorder(
+                                          borderSide:
+                                              BorderSide(color: Colors.white70),
+                                        ),
+                                        focusedBorder:
+                                            const UnderlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: Color(0xFFFF4E00)),
+                                        ),
+                                      ),
+                                      items: items,
+                                      onChanged: isAdmin
+                                          ? (v) => setState(
+                                              () => _selectedOemManagerId = v)
+                                          : null,
+                                      validator: (v) {
+                                        if (_userRole == 'oem' &&
+                                            !_isOemManagerFlag &&
+                                            (v == null || v.isEmpty)) {
+                                          return 'Select OEM Manager for employee';
+                                        }
+                                        return null;
+                                      },
+                                    );
+                                  },
+                                ),
+                            ],
                             _buildEditableField(
                                 'VAT Number', _vatNumberController, false),
                             SizedBox(height: 20),

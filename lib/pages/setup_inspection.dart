@@ -289,6 +289,18 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       return;
     }
 
+    // Enforce at least 3 distinct inspection days across all locations
+    final Set<String> allDates = {};
+    for (final loc in _locations) {
+      final dates = (loc['dates'] as List<dynamic>?)?.cast<String>() ?? [];
+      allDates.addAll(dates);
+    }
+    if (allDates.length < 3) {
+      _showErrorDialog(
+          'Please select at least 3 different days with time slots.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -325,6 +337,26 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
           backgroundColor: Colors.green,
         ),
       );
+
+      // Notify admins and sales reps that inspection has been scheduled
+      try {
+        final adminSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userRole',
+                whereIn: ['admin', 'sales representative']).get();
+        for (var doc in adminSnapshot.docs) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': doc.id,
+            'offerId': widget.offerId,
+            'type': 'inspectionScheduled',
+            'createdAt': FieldValue.serverTimestamp(),
+            'message':
+                'Inspection scheduled with ${allDates.length} days proposed.',
+          });
+        }
+      } catch (e) {
+        // Silent failure; do not block UX on notification errors
+      }
 
       Navigator.pop(context);
     } catch (e) {
@@ -418,6 +450,13 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       _isAddingLocation = false;
       _showBackToFormButton = true;
     });
+
+    // Enforce at least 3 days per location
+    if (_selectedDays.length < 3) {
+      _showErrorDialog(
+          'Please select at least 3 different days for this location.');
+      return;
+    }
 
     // Save location to Firestore under user's profile
     await _saveLocationToUserProfile({
@@ -550,6 +589,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSavedLocationsDropdown() {
     if (_savedLocations.isEmpty) {
       return Container(); // Return empty container if no saved locations
@@ -623,8 +663,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     // Add UserProvider at the top
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
+    // ignore: unused_local_variable
     final bool isAdmin = userRole == 'admin'; // Check if the user is an admin
+    // ignore: unused_local_variable
     final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
+    // ignore: unused_local_variable
     final bool isTransporter =
         userRole == 'transporter' || userRole == 'oem'; // Transporter-like
     const bool isWeb = kIsWeb;

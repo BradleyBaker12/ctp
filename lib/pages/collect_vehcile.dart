@@ -168,6 +168,24 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         final String userRole = userProvider.getUserRole;
 
+        // Notify admins and sales reps that vehicle collection was confirmed
+        try {
+          final adminSnapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .where('userRole',
+                  whereIn: ['admin', 'sales representative']).get();
+          for (var doc in adminSnapshot.docs) {
+            await FirebaseFirestore.instance.collection('notifications').add({
+              'userId': doc.id,
+              'offerId': widget.offerId,
+              'type': 'releasePaymentToTransporter',
+              'createdAt': FieldValue.serverTimestamp(),
+              'message':
+                  'Dealer confirmed vehicle collected for offer ${widget.offerId}. Please release payment to transporter.',
+            });
+          }
+        } catch (_) {}
+
         // Update offer provider to refresh status
         if (mounted) {
           await offerProvider.fetchOffers(userProvider.userId ?? '',

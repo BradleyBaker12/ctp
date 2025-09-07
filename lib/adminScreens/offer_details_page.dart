@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ctp/adminScreens/viewer_page.dart';
 import 'package:ctp/pages/payment_options_page.dart';
+import 'package:ctp/pages/offer_summary_page.dart';
 import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/pages/setup_inspection.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +40,6 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
   late TextEditingController _vehicleYearController;
   late TextEditingController _vehicleMileageController;
   late TextEditingController _vehicleTransmissionController;
-  PlatformFile? _selectedTransporterInvoice;
   String? _existingTransporterInvoiceUrl;
   bool _isLoadingVehicleDetails = false;
 
@@ -158,7 +158,8 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                                 color: Colors.white)),
                         const SizedBox(height: 10),
                         if (_existingTransporterInvoiceUrl != null &&
-                            _existingTransporterInvoiceUrl!.isNotEmpty)
+                            _existingTransporterInvoiceUrl!.isNotEmpty) ...[
+                          // Document preview
                           GestureDetector(
                             onTap: () => Navigator.push(
                               context,
@@ -187,8 +188,135 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                                 ],
                               ),
                             ),
-                          )
-                        else
+                          ),
+                          const SizedBox(height: 8),
+                          // Controls moved under the document
+                          StreamBuilder<DocumentSnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('offers')
+                                .doc(widget.offer.offerId)
+                                .snapshots(),
+                            builder: (context, snap) {
+                              if (!snap.hasData) return const SizedBox.shrink();
+                              final data =
+                                  snap.data!.data() as Map<String, dynamic>? ??
+                                      {};
+                              final String tStatus =
+                                  (data['transporterInvoiceStatus'] ?? 'none')
+                                      as String;
+                              final String? tInvoice =
+                                  data['transporterInvoice'] as String?;
+                              if (tInvoice == null || tInvoice.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  CustomButton(
+                                    text:
+                                        'View Transporter Invoice (${tStatus.toUpperCase()})',
+                                    borderColor: Colors.blue,
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ViewerPage(url: tInvoice),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (tStatus != 'verified')
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: CustomButton(
+                                            text: 'Verify Transporter Invoice',
+                                            borderColor: Colors.green,
+                                            onPressed: () async {
+                                              await FirebaseFirestore.instance
+                                                  .collection('offers')
+                                                  .doc(widget.offer.offerId)
+                                                  .update({
+                                                'transporterInvoiceStatus':
+                                                    'verified',
+                                                'transporterInvoiceVerifiedAt':
+                                                    FieldValue
+                                                        .serverTimestamp(),
+                                              });
+                                              try {
+                                                final offerDoc =
+                                                    await FirebaseFirestore
+                                                        .instance
+                                                        .collection('offers')
+                                                        .doc(widget
+                                                            .offer.offerId)
+                                                        .get();
+                                                final transporterId = offerDoc
+                                                        .data()?[
+                                                    'transporterId'] as String?;
+                                                if (transporterId != null) {
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection(
+                                                          'notifications')
+                                                      .add({
+                                                    'userId': transporterId,
+                                                    'offerId':
+                                                        widget.offer.offerId,
+                                                    'type':
+                                                        'transporterInvoiceVerified',
+                                                    'createdAt': FieldValue
+                                                        .serverTimestamp(),
+                                                    'message':
+                                                        'Your invoice has been verified.',
+                                                  });
+                                                }
+                                              } catch (_) {}
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                      'Transporter invoice verified.'),
+                                                  backgroundColor: Colors.green,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: CustomButton(
+                                            text: 'Reject Transporter Invoice',
+                                            borderColor: Colors.red,
+                                            onPressed: () async {
+                                              await FirebaseFirestore.instance
+                                                  .collection('offers')
+                                                  .doc(widget.offer.offerId)
+                                                  .update({
+                                                'transporterInvoiceStatus':
+                                                    'rejected',
+                                              });
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                      'Transporter invoice marked as rejected.'),
+                                                  backgroundColor:
+                                                      Colors.orange,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ] else
                           CustomButton(
                               text: 'Upload Transporter Invoice',
                               borderColor: Colors.green,
@@ -651,56 +779,144 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                 },
               ),
             ),
+            const SizedBox(height: 12),
+            // Transporter invoice controls are now colocated under the document preview below
             const SizedBox(height: 20),
-            // Verify/Reject payment buttons
+            // Verify/Reject payment buttons (hidden until dealer uploads proof of payment)
             SizedBox(
               width: double.infinity,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  CustomButton(
-                    text: 'Verify Payment',
-                    borderColor: Colors.green,
-                    onPressed: () async {
-                      await offerProvider.updateOfferStatus(
-                        widget.offer.offerId,
-                        'paid',
-                      );
-                      setState(() {
-                        widget.offer.offerStatus = 'paid';
-                      });
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Payment verified successfully.'),
-                          backgroundColor: Colors.green,
-                        ),
+                  FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    future: FirebaseFirestore.instance
+                        .collection('offers')
+                        .doc(widget.offer.offerId)
+                        .get(),
+                    builder: (context, snap) {
+                      final data = snap.data?.data() ?? {};
+                      final hasProof =
+                          (data['proofOfPaymentUrl'] as String?)?.isNotEmpty ==
+                              true;
+                      if (!hasProof) return const SizedBox.shrink();
+                      return CustomButton(
+                        text: 'Verify Payment',
+                        borderColor: Colors.green,
+                        onPressed: () async {
+                          await offerProvider.updateOfferStatus(
+                            widget.offer.offerId,
+                            'paid',
+                          );
+                          setState(() {
+                            widget.offer.offerStatus = 'paid';
+                          });
+                          // notify transporter and dealer to proceed
+                          try {
+                            final offerDoc = await FirebaseFirestore.instance
+                                .collection('offers')
+                                .doc(widget.offer.offerId)
+                                .get();
+                            final dealerId =
+                                offerDoc.data()?['dealerId'] as String?;
+                            final transporterId =
+                                offerDoc.data()?['transporterId'] as String?;
+                            for (final uid in [dealerId, transporterId]) {
+                              if (uid == null) continue;
+                              await FirebaseFirestore.instance
+                                  .collection('notifications')
+                                  .add({
+                                'userId': uid,
+                                'offerId': widget.offer.offerId,
+                                'type': 'paymentVerified',
+                                'createdAt': FieldValue.serverTimestamp(),
+                                'message': 'Payment verified by CTP.',
+                              });
+                            }
+                          } catch (_) {}
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Payment verified successfully.'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
                   const SizedBox(height: 16),
-                  CustomButton(
-                    text: 'Reject Payment',
-                    borderColor: Colors.red,
-                    onPressed: () async {
-                      await offerProvider.updateOfferStatus(
-                        widget.offer.offerId,
-                        'payment_rejected',
-                      );
-                      setState(() {
-                        widget.offer.offerStatus = 'payment_rejected';
-                      });
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Payment has been rejected.'),
-                          backgroundColor: Colors.red,
-                        ),
+                  FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    future: FirebaseFirestore.instance
+                        .collection('offers')
+                        .doc(widget.offer.offerId)
+                        .get(),
+                    builder: (context, snap) {
+                      final data = snap.data?.data() ?? {};
+                      final hasProof =
+                          (data['proofOfPaymentUrl'] as String?)?.isNotEmpty ==
+                              true;
+                      if (!hasProof) return const SizedBox.shrink();
+                      return CustomButton(
+                        text: 'Reject Payment',
+                        borderColor: Colors.red,
+                        onPressed: () async {
+                          await offerProvider.updateOfferStatus(
+                            widget.offer.offerId,
+                            'payment_rejected',
+                          );
+                          setState(() {
+                            widget.offer.offerStatus = 'payment_rejected';
+                          });
+                          // notify dealer about rejection
+                          try {
+                            final offerDoc = await FirebaseFirestore.instance
+                                .collection('offers')
+                                .doc(widget.offer.offerId)
+                                .get();
+                            final dealerId =
+                                offerDoc.data()?['dealerId'] as String?;
+                            if (dealerId != null) {
+                              await FirebaseFirestore.instance
+                                  .collection('notifications')
+                                  .add({
+                                'userId': dealerId,
+                                'offerId': widget.offer.offerId,
+                                'type': 'paymentRejected',
+                                'createdAt': FieldValue.serverTimestamp(),
+                                'message':
+                                    'Payment rejected by CTP. Please re-upload proof or contact support.',
+                              });
+                            }
+                          } catch (_) {}
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Payment has been rejected.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+            // Admin: Downloadable dealer summary
+            CustomButton(
+              text: 'Download Dealer Summary',
+              borderColor: Colors.teal,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OfferSummaryPage(
+                      offerId: widget.offer.offerId,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         );
@@ -815,52 +1031,78 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
         const SizedBox(height: 20),
 
-        /// Payment Action Buttons
+        /// Payment Action Buttons (hidden until dealer uploads proof of payment)
         SizedBox(
           width: double.infinity,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CustomButton(
-                text: 'Verify Payment',
-                borderColor: Colors.green,
-                onPressed: () async {
-                  // debugText('"Verify Payment" button tapped!');
-                  await offerProvider.updateOfferStatus(
-                    widget.offer.offerId,
-                    'paid',
-                  );
-                  setState(() {
-                    widget.offer.offerStatus = 'paid';
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Payment verified successfully.'),
-                      backgroundColor: Colors.green,
-                    ),
+              FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('offers')
+                    .doc(widget.offer.offerId)
+                    .get(),
+                builder: (context, snap) {
+                  final data = snap.data?.data() ?? {};
+                  final hasProof =
+                      (data['proofOfPaymentUrl'] as String?)?.isNotEmpty ==
+                          true;
+                  if (!hasProof) return const SizedBox.shrink();
+                  return CustomButton(
+                    text: 'Verify Payment',
+                    borderColor: Colors.green,
+                    onPressed: () async {
+                      // debugText('"Verify Payment" button tapped!');
+                      await offerProvider.updateOfferStatus(
+                        widget.offer.offerId,
+                        'paid',
+                      );
+                      setState(() {
+                        widget.offer.offerStatus = 'paid';
+                      });
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Payment verified successfully.'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    },
                   );
                 },
               ),
               const SizedBox(height: 16),
-              CustomButton(
-                text: 'Reject Payment',
-                borderColor: Colors.red,
-                onPressed: () async {
-                  // debugText('"Reject Payment" button tapped!');
-                  await offerProvider.updateOfferStatus(
-                    widget.offer.offerId,
-                    'payment_rejected',
-                  );
-                  setState(() {
-                    widget.offer.offerStatus = 'payment_rejected';
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Payment has been rejected.'),
-                      backgroundColor: Colors.red,
-                    ),
+              FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('offers')
+                    .doc(widget.offer.offerId)
+                    .get(),
+                builder: (context, snap) {
+                  final data = snap.data?.data() ?? {};
+                  final hasProof =
+                      (data['proofOfPaymentUrl'] as String?)?.isNotEmpty ==
+                          true;
+                  if (!hasProof) return const SizedBox.shrink();
+                  return CustomButton(
+                    text: 'Reject Payment',
+                    borderColor: Colors.red,
+                    onPressed: () async {
+                      // debugText('"Reject Payment" button tapped!');
+                      await offerProvider.updateOfferStatus(
+                        widget.offer.offerId,
+                        'payment_rejected',
+                      );
+                      setState(() {
+                        widget.offer.offerStatus = 'payment_rejected';
+                      });
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Payment has been rejected.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    },
                   );
                 },
               ),

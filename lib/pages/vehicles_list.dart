@@ -17,7 +17,6 @@ import 'package:ctp/components/custom_app_bar.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart';
 import 'package:ctp/utils/navigation.dart';
-import 'package:ctp/components/custom_button.dart';
 import 'dart:ui';
 
 import 'package:auto_route/auto_route.dart';
@@ -292,19 +291,8 @@ class _VehiclesListPageState extends State<VehiclesListPage>
             ],
           ),
         ),
-        floatingActionButton: (kIsWeb ||
-                userProvider.getUserRole == 'admin' ||
-                userProvider.getUserRole == 'sales representative')
-            ? null
-            : FloatingActionButton.extended(
-                onPressed: _showVehicleTypeSelectionDialog,
-                backgroundColor: const Color(0xFFFF4E00),
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text(
-                  'Upload',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
+        // Hide Upload button on this page
+        floatingActionButton: null,
         bottomNavigationBar: (kIsWeb ||
                 userProvider.getUserRole == 'admin' ||
                 userProvider.getUserRole == 'sales representative')
@@ -418,40 +406,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
     );
   }
 
-  void _showVehicleTypeSelectionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(
-          'Select Vehicle Type',
-          style: GoogleFonts.montserrat(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CustomButton(
-              text: 'Truck',
-              borderColor: const Color(0xFFFF4E00),
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/truckUploadForm');
-              },
-            ),
-            const SizedBox(height: 16),
-            CustomButton(
-              text: 'Trailer',
-              borderColor: AppColors.blue,
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/trailerUploadForm');
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Upload dialog removed since Upload button is hidden on this page.
 }
 
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {

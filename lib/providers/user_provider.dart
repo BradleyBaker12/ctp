@@ -10,6 +10,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/user_model.dart';
 import '../services/notification_service.dart';
 
@@ -28,6 +29,10 @@ class UserProvider extends ChangeNotifier {
   // OEM brand assignment (for OEM users restricted to a single brand)
   String? _oemBrand;
 
+  // OEM hierarchy
+  String? _managerId; // For employees, the manager's userId
+  bool _isOemManager = false; // Whether this OEM user is a manager
+
   // Add this line with the other field declarations
   String? _taxCertificateUrl;
 
@@ -35,6 +40,8 @@ class UserProvider extends ChangeNotifier {
   bool get isVerified => _isVerified;
   // OEM brand getter
   String? get oemBrand => _oemBrand;
+  String? get managerId => _managerId;
+  bool get isOemManager => _isOemManager;
 
   // User details
   String? _companyName;
@@ -108,6 +115,34 @@ class UserProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Error updating terms acceptance: $e');
+      rethrow;
+    }
+  }
+
+  // Manager creates an employee (OEM) under their company via Cloud Function.
+  Future<String?> createCompanyEmployee({
+    required String email,
+    String? firstName,
+    String? lastName,
+    String? phoneNumber,
+  }) async {
+    if (_user == null) throw Exception('Not authenticated');
+    try {
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('createCompanyEmployee');
+      final result = await callable.call({
+        'email': email,
+        if (firstName != null) 'firstName': firstName,
+        if (lastName != null) 'lastName': lastName,
+        if (phoneNumber != null) 'phoneNumber': phoneNumber,
+      });
+      final data = result.data;
+      if (data is Map && data['uid'] is String) {
+        return data['uid'] as String;
+      }
+      return null;
+    } catch (e) {
+      print('Error creating company employee: $e');
       rethrow;
     }
   }
@@ -374,6 +409,10 @@ class UserProvider extends ChangeNotifier {
           // Read OEM brand assignment if present
           _oemBrand = data['oemBrand'];
 
+          // Read OEM hierarchy if present
+          _managerId = data['managerId'];
+          _isOemManager = (data['isOemManager'] == true);
+
           // Fix: Update userName to use the firstName instead of remaining as 'Guest'
           _userName = _firstName ?? 'Guest';
 
@@ -407,6 +446,37 @@ class UserProvider extends ChangeNotifier {
     } catch (e) {
       print('Error fetching user data: $e');
       _clearUserData();
+    }
+  }
+
+  // Removed company assignment API; companyId no longer used.
+
+  /// Returns true if the current user (OEM) is the manager of the vehicle owner
+  /// or the current user is the owner themselves. Uses managerId only.
+  Future<bool> isCurrentUserOemManagerForOwner(String ownerUserId) async {
+    try {
+      if (_user == null) return false;
+      if (_userRole.toLowerCase() != 'oem') return false;
+      if (_isOemManager && _user!.uid == ownerUserId) return true;
+
+      // Fetch owner user to compare company
+      final ownerDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(ownerUserId)
+          .get();
+      if (!ownerDoc.exists) return false;
+      final data = ownerDoc.data() as Map<String, dynamic>;
+      final ownerManagerId = data['managerId'];
+      // Manager can accept if they are referenced as manager or owner has no manager (legacy)
+      if (_isOemManager) {
+        return _user!.uid == ownerManagerId || ownerManagerId == null;
+      }
+
+      // Employees cannot accept
+      return false;
+    } catch (e) {
+      print('Error checking manager permission: $e');
+      return false;
     }
   }
 
@@ -569,6 +639,8 @@ class UserProvider extends ChangeNotifier {
     _adminApproval = null;
     _taxCertificateUrl = null;
     _oemBrand = null;
+    _managerId = null;
+    _isOemManager = false;
     _isLoading = false;
     notifyListeners();
   }

@@ -159,11 +159,15 @@ class OffersPageState extends State<OffersPage> with RouteAware {
   /// 5. REJECTED: Show only "rejected".
   ///
   List<dynamic> _filterOffers(String status) {
-    // First, filter out any sold offers
-    final offers = _offerProvider.offers.where((offer) {
-      final lowerStatus = offer.offerStatus.toLowerCase();
-      return lowerStatus != 'sold';
-    }).toList();
+    // For most tabs, filter out 'sold'; but for SUCCESSFUL we include them.
+    final upper = status.toUpperCase();
+    final base = _offerProvider.offers;
+    final offers = upper == 'SUCCESSFUL'
+        ? base
+        : base.where((offer) {
+            final lowerStatus = offer.offerStatus.toLowerCase();
+            return lowerStatus != 'sold';
+          }).toList();
 
     switch (status.toUpperCase()) {
       case 'ALL':

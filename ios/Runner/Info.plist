@@ -54,10 +54,14 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required only for profile picture updates to help other users identify you.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is only needed if you capture videos. We do not record audio otherwise.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Location access is needed only while using the map feature to show nearby services. We don't track your location in the background.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo library access is required only for selecting profile pictures and to upload truck image. We don't access or store other photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We may save captured or edited photos to your library if you choose. We won't modify other photos.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

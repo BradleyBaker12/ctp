@@ -23,6 +23,7 @@ import 'dart:io' as io;
 // import 'package:universal_html/html.dart' as html;
 import 'package:http/http.dart' as http;
 import 'package:universal_html/html.dart' as html;
+import 'package:permission_handler/permission_handler.dart';
 import '../editTruckForms/basic_information_edit.dart';
 import 'custom_text_field.dart';
 import 'custom_radio_button.dart';
@@ -482,6 +483,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
                 title: const Text('Camera'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
+                  // Give iOS a brief moment after dialog dismissal before opening camera
+                  await Future.delayed(const Duration(milliseconds: 150));
                   final imageBytes = await capturePhoto(context);
                   if (imageBytes != null) {
                     setState(() {
@@ -493,6 +496,57 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
                     // Start background upload
                     unawaited(_uploadAndUpdateNatisRc1Document(
                         imageBytes, _natisRc1FileName!));
+                  } else {
+                    // If camera permission is denied on iOS, offer to open Settings and retry
+                    final status = await Permission.camera.status;
+                    if (status.isDenied || status.isRestricted) {
+                      if (!mounted) return;
+                      await showDialog(
+                        context: context,
+                        builder: (dCtx) => AlertDialog(
+                          title: const Text('Camera Permission Needed'),
+                          content: const Text(
+                              'Camera access is currently blocked. Please allow access in Settings to take a photo of your NATIS/RC1 document.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(dCtx).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                Navigator.of(dCtx).pop();
+                                await openAppSettings();
+                                await Future.delayed(
+                                    const Duration(milliseconds: 500));
+                                final postStatus =
+                                    await Permission.camera.status;
+                                if (postStatus.isGranted && mounted) {
+                                  final retry = await capturePhoto(context);
+                                  if (retry != null) {
+                                    setState(() {
+                                      _natisRc1File = retry;
+                                      _natisRc1FileName =
+                                          "captured_natisRc1.png";
+                                      _isUploadingNatis = true;
+                                    });
+                                    unawaited(_uploadAndUpdateNatisRc1Document(
+                                        retry, _natisRc1FileName!));
+                                  }
+                                }
+                              },
+                              child: const Text('Open Settings'),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Unable to open camera. Please try again or pick from Gallery.'),
+                        ),
+                      );
+                    }
                   }
                 },
               ),
@@ -1800,6 +1854,10 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
         'oemBrand': (role == 'oem')
             ? (oemBrand ?? (enforcedBrands?.first ?? ''))
             : null,
+        // OEM scoping via manager/employee relationship
+        'managerUserId': userProvider.isOemManager
+            ? currentUser?.uid
+            : userProvider.managerId,
         // Placeholder URLs that will be updated
         'mainImageUrl': null,
         'rc1NatisFile': null,

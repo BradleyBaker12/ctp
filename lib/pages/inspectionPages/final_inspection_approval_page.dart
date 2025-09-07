@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ctp/pages/rating_pages/rate_dealer_page_two.dart';
-import 'package:ctp/pages/rating_pages/rate_transporter_page.dart';
+import 'dart:async';
+// Removed direct navigation to rating pages; branching is handled inline
 // Import RateDealerPage
 import 'package:ctp/pages/report_issue.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +11,8 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:ctp/pages/setup_collection.dart';
+import 'package:ctp/pages/payment_options_page.dart';
 
 import 'package:auto_route/auto_route.dart';
 
@@ -39,6 +41,10 @@ class _FinalInspectionApprovalPageState
   bool _isLoading = false;
   bool dealerInspectionApproval = false;
   bool transporterInspectionApproval = false;
+  bool _bothApproved = false;
+  String? _collectionOption; // 'immediate' | 'scheduled'
+  StreamSubscription<DocumentSnapshot>? _offerSub;
+  bool _navigated = false;
 
   // Add this getter for consistent breakpoint
   bool _isCompactNavigation(BuildContext context) =>
@@ -49,8 +55,54 @@ class _FinalInspectionApprovalPageState
     super.initState();
     _updateOfferStatus();
     _checkApprovalStatus();
+    _listenToOffer();
     print(
         'Initial state - Dealer approval: $dealerInspectionApproval, Transporter approval: $transporterInspectionApproval');
+  }
+
+  void _listenToOffer() {
+    _offerSub = FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .snapshots()
+        .listen((offerSnapshot) {
+      if (!mounted) return;
+      final Map<String, dynamic>? data = offerSnapshot.data();
+      if (data == null) return;
+      final dealerApproved = data['dealerApproved'] ?? false;
+      final transporterApproved = data['transporterApproved'] ?? false;
+      final collectionOption =
+          (data['collectionOption'] as String?)?.toLowerCase();
+
+      setState(() {
+        dealerInspectionApproval = dealerApproved;
+        transporterInspectionApproval = transporterApproved;
+        _bothApproved = dealerApproved && transporterApproved;
+        _collectionOption = collectionOption;
+      });
+
+      // If both approved, navigate transporter/OEM to setup when dealer chooses scheduled
+      if (_bothApproved && !_navigated) {
+        final userRole =
+            Provider.of<UserProvider>(context, listen: false).getUserRole;
+        if ((userRole == 'transporter' || userRole == 'oem') &&
+            _collectionOption == 'scheduled') {
+          _navigated = true;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SetupCollectionPage(offerId: widget.offerId),
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _offerSub?.cancel();
+    super.dispose();
   }
 
   void _onItemTapped(int index) {
@@ -88,48 +140,17 @@ class _FinalInspectionApprovalPageState
       Map<String, dynamic> data = offerSnapshot.data() as Map<String, dynamic>;
       bool dealerApproved = data['dealerApproved'] ?? false;
       bool transporterApproved = data['transporterApproved'] ?? false;
+      final collectionOption =
+          (data['collectionOption'] as String?)?.toLowerCase();
 
       print(
           'Checked approval status - Dealer: $dealerApproved, Transporter: $transporterApproved');
 
-      // If both are approved, navigate to appropriate rating page
-      if (dealerApproved && transporterApproved) {
-        print('Both approvals detected, preparing for navigation');
-
-        if (!mounted) return;
-
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        final userRole = userProvider.getUserRole;
-
-        print('User role for navigation: $userRole');
-
-        if (userRole == 'dealer') {
-          print('Navigating dealer to rate transporter');
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RateTransporterPage(
-                offerId: widget.offerId,
-                fromCollectionPage: false,
-              ),
-            ),
-          );
-        } else {
-          print('Navigating transporter to rate dealer');
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RateDealerPageTwo(
-                offerId: widget.offerId,
-              ),
-            ),
-          );
-        }
-      }
-
       setState(() {
         dealerInspectionApproval = dealerApproved;
         transporterInspectionApproval = transporterApproved;
+        _bothApproved = dealerApproved && transporterApproved;
+        _collectionOption = collectionOption;
       });
     } catch (e) {
       print('Failed to check approval status: $e');
@@ -165,9 +186,10 @@ class _FinalInspectionApprovalPageState
       print(
           'Current approval status - Dealer: $dealerApproved, Transporter: $transporterApproved');
 
-      // If both have approved, update status and navigate
+      // If both have approved, update status and show next-step options
       if (dealerApproved && transporterApproved) {
-        print('Both parties have approved - updating offer status');
+        print(
+            'Both parties have approved - updating offer status and enabling next steps');
 
         await FirebaseFirestore.instance
             .collection('offers')
@@ -176,29 +198,9 @@ class _FinalInspectionApprovalPageState
 
         if (!mounted) return;
 
-        // Navigate based on user role
-        if (userRole == 'dealer') {
-          print('Navigating dealer to rate transporter page');
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RateTransporterPage(
-                offerId: widget.offerId,
-                fromCollectionPage: false,
-              ),
-            ),
-          );
-        } else {
-          print('Navigating transporter to rate dealer page');
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RateDealerPageTwo(
-                offerId: widget.offerId,
-              ),
-            ),
-          );
-        }
+        setState(() {
+          _bothApproved = true;
+        });
       } else {
         // Update local state for UI
         setState(() {
@@ -236,6 +238,98 @@ class _FinalInspectionApprovalPageState
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _selectImmediateCollection() async {
+    try {
+      final now = DateTime.now();
+      final dueBy = now.add(const Duration(hours: 48));
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({
+        'collectionOption': 'immediate',
+        'immediateCollectionSelectedAt': FieldValue.serverTimestamp(),
+        'paymentWindowHours': 48,
+        'paymentDueBy': Timestamp.fromDate(dueBy),
+        'offerStatus': 'payment options',
+      });
+
+      if (mounted) {
+        setState(() {
+          _collectionOption = 'immediate';
+        });
+      }
+
+      // Notify admins/sales reps
+      try {
+        final adminSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userRole',
+                whereIn: ['admin', 'sales representative']).get();
+        for (var doc in adminSnapshot.docs) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': doc.id,
+            'offerId': widget.offerId,
+            'type': 'immediateCollectionSelected',
+            'createdAt': FieldValue.serverTimestamp(),
+            'message':
+                'Dealer selected Immediate Collection. Payment due within 48h.',
+          });
+        }
+      } catch (_) {}
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentOptionsPage(offerId: widget.offerId),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to select immediate collection: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _selectScheduledCollection() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .update({
+        'collectionOption': 'scheduled',
+        'scheduledCollectionSelectedAt': FieldValue.serverTimestamp(),
+        'offerStatus': 'payment options',
+      });
+
+      if (mounted) {
+        setState(() {
+          _collectionOption = 'scheduled';
+        });
+      }
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentOptionsPage(offerId: widget.offerId),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to proceed to collection setup: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -398,10 +492,15 @@ class _FinalInspectionApprovalPageState
                       SizedBox(height: spacing),
                       Column(
                         children: [
-                          if (userRole == 'dealer' &&
-                                  !dealerInspectionApproval ||
-                              userRole == 'transporter' &&
-                                  !transporterInspectionApproval)
+                          // Hide Approve while selecting or after choosing collection option
+                          if (!((_bothApproved && userRole == 'dealer') ||
+                                  (_collectionOption == 'immediate' ||
+                                      _collectionOption == 'scheduled')) &&
+                              ((userRole == 'dealer' &&
+                                      !dealerInspectionApproval) ||
+                                  ((userRole == 'transporter' ||
+                                          userRole == 'oem') &&
+                                      !transporterInspectionApproval)))
                             CustomButton(
                               text: 'APPROVE',
                               borderColor: Colors.blue,
@@ -409,10 +508,12 @@ class _FinalInspectionApprovalPageState
                                 _approveInspection(userRole);
                               },
                             ),
-                          if ((userRole == 'dealer' &&
-                                  dealerInspectionApproval) ||
-                              (userRole == 'transporter' &&
-                                  transporterInspectionApproval))
+                          if (!_bothApproved &&
+                              ((userRole == 'dealer' &&
+                                      dealerInspectionApproval) ||
+                                  ((userRole == 'transporter' ||
+                                          userRole == 'oem') &&
+                                      transporterInspectionApproval)))
                             const Padding(
                               padding: EdgeInsets.all(16.0),
                               child: Text(
@@ -425,6 +526,45 @@ class _FinalInspectionApprovalPageState
                                 textAlign: TextAlign.center,
                               ),
                             ),
+                          if (_bothApproved &&
+                              (userRole == 'transporter' || userRole == 'oem'))
+                            const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Text(
+                                'Both parties have approved. Waiting for the dealer to choose collection.',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          // Show next-step options when both have approved
+                          if (_bothApproved && userRole == 'dealer') ...[
+                            const SizedBox(height: 20),
+                            const Text(
+                              'Choose how you\'d like to proceed with collection:',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            CustomButton(
+                              text: 'IMMEDIATE COLLECTION (PAY WITHIN 48H)',
+                              borderColor: Colors.orange,
+                              onPressed: _selectImmediateCollection,
+                            ),
+                            const SizedBox(height: 12),
+                            CustomButton(
+                              text: 'SCHEDULE COLLECTION LATER',
+                              borderColor: Colors.blue,
+                              onPressed: _selectScheduledCollection,
+                            ),
+                          ],
                           CustomButton(
                             text: 'REPORT AN ISSUE',
                             borderColor: const Color(0xFFFF4E00),
