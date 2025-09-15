@@ -396,7 +396,7 @@ class _FleetDetailPageState extends State<FleetDetailPage> {
                   children: [
                     // Company Name (dropdown)
                     DropdownButtonFormField<String>(
-                      value: _selectedCompanyId,
+                      initialValue: _selectedCompanyId,
                       isExpanded: true,
                       dropdownColor: Colors.grey[900],
                       decoration: InputDecoration(
@@ -445,7 +445,7 @@ class _FleetDetailPageState extends State<FleetDetailPage> {
                     const SizedBox(height: 16),
                     // Fleet Status (dropdown)
                     DropdownButtonFormField<String>(
-                      value: _fleetStatus,
+                      initialValue: _fleetStatus,
                       dropdownColor: Colors.grey[900],
                       decoration: InputDecoration(
                         labelText: 'Fleet Status',

@@ -898,7 +898,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   const SizedBox(height: 16),
                   // ▼ Updated DropdownButtonFormField<int> with "No Lifespan" option first ▼
                   DropdownButtonFormField<int>(
-                    value: _selectedLifespan,
+                    initialValue: _selectedLifespan,
                     dropdownColor: const Color(0xFF101828),
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
@@ -2720,7 +2720,7 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                   return nameA.toLowerCase().compareTo(nameB.toLowerCase());
                 });
                 return DropdownButtonFormField<Dealer>(
-                  value: _selectedDealer,
+                  initialValue: _selectedDealer,
                   isExpanded: true,
                   items: sortedDealers.map((Dealer dealer) {
                     String displayName = (dealer.firstName.trim().isNotEmpty &&

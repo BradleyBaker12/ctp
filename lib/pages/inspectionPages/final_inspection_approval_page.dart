@@ -11,7 +11,6 @@ import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
-import 'package:ctp/pages/setup_collection.dart';
 import 'package:ctp/pages/payment_options_page.dart';
 
 import 'package:auto_route/auto_route.dart';

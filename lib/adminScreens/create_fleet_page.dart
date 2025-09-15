@@ -300,7 +300,7 @@ class _CreateFleetPageState extends State<CreateFleetPage> {
                     fillColor: Colors.grey[800],
                   ),
                   dropdownColor: Colors.grey[900],
-                  value: _selectedCompanyId,
+                  initialValue: _selectedCompanyId,
                   items: _companies.map((company) {
                     return DropdownMenuItem<String>(
                       value: company['id'] as String,

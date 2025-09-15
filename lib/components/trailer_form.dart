@@ -167,7 +167,7 @@ class _TrailerFormState extends State<TrailerForm> {
             decoration: const InputDecoration(labelText: 'Warranty Details'),
           ),
           DropdownButtonFormField<String>(
-            value: _selectedTrailerType,
+            initialValue: _selectedTrailerType,
             decoration: const InputDecoration(labelText: 'Trailer Type'),
             items: const [
               DropdownMenuItem(value: 'Superlink', child: Text('Superlink')),

@@ -517,10 +517,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                                 borderColor: Colors.blue,
                                 onPressed: () async {
                                   final latLng = widget.latLng;
-                                  final String url = latLng != null
-                                      ? 'https://www.google.com/maps/search/?api=1&query=${latLng.latitude},${latLng.longitude}'
-                                      : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(
-                                              inspectionAddress)}';
+                                  final String url = 'https://www.google.com/maps/search/?api=1&query=${latLng.latitude},${latLng.longitude}';
                                   final uri = Uri.parse(url);
                                   final ok = await canLaunchUrl(uri);
                                   if (ok) {

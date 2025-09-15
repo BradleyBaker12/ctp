@@ -1049,7 +1049,7 @@ class _UsersTabState extends State<UsersTab> {
                           title: Text('Is OEM Manager?',
                               style:
                                   GoogleFonts.montserrat(color: Colors.white)),
-                          activeColor: const Color(0xFFFF4E00),
+                          activeThumbColor: const Color(0xFFFF4E00),
                           contentPadding: EdgeInsets.zero,
                         ),
                         const SizedBox(height: 8),
@@ -1105,7 +1105,7 @@ class _UsersTabState extends State<UsersTab> {
                                 );
                               }).toList();
                               return DropdownButtonFormField<String>(
-                                value: selectedOemManagerId,
+                                initialValue: selectedOemManagerId,
                                 dropdownColor: Colors.grey[850],
                                 style:
                                     GoogleFonts.montserrat(color: Colors.white),
@@ -1161,7 +1161,7 @@ class _UsersTabState extends State<UsersTab> {
                       const SizedBox(height: 16),
 
                       DropdownButtonFormField<String>(
-                        value: selectedRole,
+                        initialValue: selectedRole,
                         dropdownColor: Colors.grey[850],
                         style: GoogleFonts.montserrat(color: Colors.white),
                         decoration: InputDecoration(
@@ -1252,7 +1252,7 @@ class _UsersTabState extends State<UsersTab> {
                               );
                             }).toList();
                             return DropdownButtonFormField<String>(
-                              value: selectedSalesRep,
+                              initialValue: selectedSalesRep,
                               dropdownColor: Colors.grey[850],
                               style:
                                   GoogleFonts.montserrat(color: Colors.white),
@@ -1308,7 +1308,7 @@ class _UsersTabState extends State<UsersTab> {
                           title: Text('Is Trade-In Manager?',
                               style:
                                   GoogleFonts.montserrat(color: Colors.white)),
-                          activeColor: const Color(0xFFFF4E00),
+                          activeThumbColor: const Color(0xFFFF4E00),
                           contentPadding: EdgeInsets.zero,
                         ),
                         const SizedBox(height: 8),
@@ -1347,7 +1347,7 @@ class _UsersTabState extends State<UsersTab> {
                                 );
                               }).toList();
                               return DropdownButtonFormField<String>(
-                                value: selectedOemManagerId != null &&
+                                initialValue: selectedOemManagerId != null &&
                                         items.any((it) =>
                                             it.value == selectedOemManagerId)
                                     ? selectedOemManagerId

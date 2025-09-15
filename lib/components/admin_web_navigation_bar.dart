@@ -124,10 +124,7 @@ class AdminWebNavigationBar extends StatelessWidget {
                     onTap: () => Navigator.pushNamed(context, '/profile'),
                     child: CircleAvatar(
                       radius: 18,
-                      backgroundImage: userProvider.getProfileImageUrl != null
-                          ? NetworkImage(userProvider.getProfileImageUrl)
-                          : const AssetImage('lib/assets/default_profile.png')
-                              as ImageProvider,
+                      backgroundImage: NetworkImage(userProvider.getProfileImageUrl),
                     ),
                   ),
                 ],
@@ -206,10 +203,7 @@ class AdminWebNavigationBar extends StatelessWidget {
                     onTap: () => Navigator.pushNamed(context, '/profile'),
                     child: CircleAvatar(
                       radius: 18,
-                      backgroundImage: userProvider.getProfileImageUrl != null
-                          ? NetworkImage(userProvider.getProfileImageUrl)
-                          : const AssetImage('lib/assets/default_profile.png')
-                              as ImageProvider,
+                      backgroundImage: NetworkImage(userProvider.getProfileImageUrl),
                     ),
                   ),
                 ],

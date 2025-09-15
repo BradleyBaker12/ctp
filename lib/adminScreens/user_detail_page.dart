@@ -699,7 +699,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                       ),
                                       SizedBox(height: 5),
                                       DropdownButtonFormField<String>(
-                                        value: _accountStatusOptions
+                                        initialValue: _accountStatusOptions
                                                 .contains(_accountStatus)
                                             ? _accountStatus
                                             : _accountStatusOptions.first,
@@ -777,7 +777,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                           ),
                                           const SizedBox(width: 10),
                                           Switch(
-                                            activeColor: AppColors.orange,
+                                            activeThumbColor: AppColors.orange,
                                             activeTrackColor:
                                                 AppColors.orange.withAlpha(150),
                                             inactiveThumbColor: Colors.grey,
@@ -869,7 +869,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                               padding:
                                   const EdgeInsets.symmetric(vertical: 10.0),
                               child: DropdownButtonFormField<String>(
-                                value: roleOptions.contains(_userRole)
+                                initialValue: roleOptions.contains(_userRole)
                                     ? _userRole
                                     : roleOptions.first,
                                 dropdownColor: Colors.grey[800],
@@ -962,7 +962,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                 title: Text('Is OEM Manager?',
                                     style: GoogleFonts.montserrat(
                                         color: Colors.white)),
-                                activeColor: const Color(0xFFFF4E00),
+                                activeThumbColor: const Color(0xFFFF4E00),
                                 contentPadding: EdgeInsets.zero,
                               ),
                               if (!_isOemManagerFlag)
@@ -1022,7 +1022,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                       });
                                     }
                                     return DropdownButtonFormField<String>(
-                                      value: safeValue,
+                                      initialValue: safeValue,
                                       dropdownColor: Colors.grey[850],
                                       style: GoogleFonts.montserrat(
                                           color: Colors.white),
@@ -1109,7 +1109,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                 title: Text('Is Trade-In Manager?',
                                     style: GoogleFonts.montserrat(
                                         color: Colors.white)),
-                                activeColor: const Color(0xFFFF4E00),
+                                activeThumbColor: const Color(0xFFFF4E00),
                                 contentPadding: EdgeInsets.zero,
                               ),
                               if (!_isTradeInManagerFlag)
@@ -1167,7 +1167,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                       });
                                     }
                                     return DropdownButtonFormField<String>(
-                                      value: safeValue,
+                                      initialValue: safeValue,
                                       dropdownColor: Colors.grey[850],
                                       style: GoogleFonts.montserrat(
                                           color: Colors.white),
@@ -1254,7 +1254,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 10.0),
                                     child: DropdownButtonFormField<String>(
-                                      value: _selectedSalesRep != null &&
+                                      initialValue: _selectedSalesRep != null &&
                                               salesRepItems.any((item) =>
                                                   item.value ==
                                                   _selectedSalesRep)

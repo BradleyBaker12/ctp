@@ -54,7 +54,7 @@ class CustomDropdown extends StatelessWidget {
           hintColor: Colors.white,
         ),
         child: DropdownButtonFormField<String>(
-          value: validValue,
+          initialValue: validValue,
           onChanged: enabled ? onChanged : null,
           validator: validator,
           dropdownColor: Colors.grey[900],

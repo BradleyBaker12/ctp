@@ -274,7 +274,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                           Center(
                                             child:
                                                 DropdownButtonFormField<String>(
-                                              value: _selectedCountryCode,
+                                              initialValue: _selectedCountryCode,
                                               icon: const Icon(
                                                   Icons.arrow_drop_down,
                                                   color: Colors.white),

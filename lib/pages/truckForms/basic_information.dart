@@ -490,7 +490,7 @@ class _BasicInformationFormState extends State<BasicInformationForm> {
                         ),
                       ),
                       child: DropdownButtonFormField<String>(
-                        value: configuration,
+                        initialValue: configuration,
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
                               horizontal: 16, vertical: 16),
