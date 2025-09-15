@@ -34,7 +34,10 @@ class CustomBottomNavigation extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const HomePage()),
           );
         } else if (index == 1) {
-          if (userRole == 'transporter' || userRole == 'oem') {
+          if (userRole == 'transporter' ||
+              userRole == 'oem' ||
+              userRole == 'tradein' ||
+              userRole == 'trade-in') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const VehiclesListPage()),
@@ -48,13 +51,19 @@ class CustomBottomNavigation extends StatelessWidget {
             );
           }
         } else if (index == 2 &&
-            (userRole == 'transporter' || userRole == 'oem')) {
+            (userRole == 'transporter' ||
+                userRole == 'oem' ||
+                ((userRole == 'tradein' || userRole == 'trade-in') &&
+                    userProvider.isManagerForRole('tradein')))) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const OffersPage()),
           );
         } else if (index == 3 &&
-            !(userRole == 'transporter' || userRole == 'oem')) {
+            !(userRole == 'transporter' ||
+                userRole == 'oem' ||
+                userRole == 'tradein' ||
+                userRole == 'trade-in')) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const WishlistPage()),
@@ -93,6 +102,7 @@ class CustomBottomNavigation extends StatelessWidget {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
         final userRole = userProvider.getUserRole;
+        final lowerRole = (userRole.toString()).toLowerCase();
         final bool isAuthenticated = userProvider.getUser != null;
 
         List<Widget> navBarItems = [];
@@ -133,7 +143,9 @@ class CustomBottomNavigation extends StatelessWidget {
           ),
         ));
 
-        if (userRole == 'transporter' || userRole == 'oem') {
+        if (lowerRole == 'transporter' ||
+            ((lowerRole == 'tradein' || lowerRole == 'trade-in') &&
+                userProvider.isManagerForRole('tradein'))) {
           navBarItems.add(_buildVerticalDivider());
           // Transporter Offers Icon - Only for transporters
           navBarItems.add(Expanded(
@@ -152,7 +164,11 @@ class CustomBottomNavigation extends StatelessWidget {
           ));
         }
 
-        if (!(userRole == 'transporter' || userRole == 'oem')) {
+        // Show wishlist for users who are not transporters or OEM/trade-in users
+        if (!(lowerRole == 'transporter' ||
+            lowerRole == 'oem' ||
+            lowerRole == 'tradein' ||
+            lowerRole == 'trade-in')) {
           navBarItems.add(_buildVerticalDivider());
           // Wishlist Icon - Only for non-transporters
           navBarItems.add(Expanded(
@@ -171,7 +187,7 @@ class CustomBottomNavigation extends StatelessWidget {
           ));
         }
 
-        if (userRole == 'dealer') {
+        if (lowerRole == 'dealer') {
           navBarItems.add(_buildVerticalDivider());
           // Dealer Offers Icon - Only for dealers
           navBarItems.add(Expanded(
@@ -190,7 +206,7 @@ class CustomBottomNavigation extends StatelessWidget {
           ));
         }
 
-        if (userRole != 'dealer' && isAuthenticated) {
+        if (lowerRole != 'dealer' && isAuthenticated) {
           navBarItems.add(_buildVerticalDivider());
           // Profile Icon - Only for non-dealers
           navBarItems.add(Expanded(
@@ -209,13 +225,27 @@ class CustomBottomNavigation extends StatelessWidget {
           ));
         }
 
-        return Container(
-          height: 80,
-          color: const Color(0xFF2F7FFF),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: navBarItems,
+        // Use SafeArea to avoid the phone's native navigation bar/gestures.
+        // Also read bottom padding from MediaQuery so the bar sits above
+        // system UI on devices with soft navigation or gesture insets.
+        final double bottomInset = MediaQuery.of(context).viewPadding.bottom;
+        final double computedHeight = 56 + (bottomInset > 0 ? bottomInset : 24);
+
+        return SafeArea(
+          top: false,
+          left: false,
+          right: false,
+          bottom: true,
+          child: Container(
+            // Make height flexible to include the system bottom inset
+            height: computedHeight,
+            color: const Color(0xFF2F7FFF),
+            padding: EdgeInsets.only(
+                top: 8, bottom: bottomInset > 0 ? bottomInset : 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: navBarItems,
+            ),
           ),
         );
       },

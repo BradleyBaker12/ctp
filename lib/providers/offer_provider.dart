@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart'; // Added for the widget
 import 'package:ctp/providers/user_provider.dart';
+import 'package:ctp/utils/offer_status.dart';
 
 /// The Offer model representing each offer from Firestore.
 class Offer extends ChangeNotifier {
@@ -123,7 +124,9 @@ class Offer extends ChangeNotifier {
           ? (data['createdAt'] as Timestamp).toDate()
           : null,
       vehicleBrand: data['brands'] is List
-          ? (data['brands'] as List).first.toString()
+          ? ((data['brands'] as List).isNotEmpty
+              ? (data['brands'] as List).first.toString()
+              : null)
           : data['brands']?.toString(),
       variant: data['variant']?.toString(), // Add this mapping
       vehicleRef: data['vehicleRef']?.toString(), // Add this mapping
@@ -239,6 +242,11 @@ class OfferProvider with ChangeNotifier {
   StreamSubscription<QuerySnapshot>? _transporterSub;
   StreamSubscription<QuerySnapshot>? _adminSub;
 
+  // Keep latest snapshots for merged listening
+  QuerySnapshot? _latestTransporterSnap;
+  QuerySnapshot? _latestDealerSnap;
+  QuerySnapshot? _latestLegacyTransporterSnap;
+
   /// Automatically mark offers as rejected if past expirationDate
   Future<void> expireOffers() async {
     final now = DateTime.now();
@@ -257,25 +265,28 @@ class OfferProvider with ChangeNotifier {
 
       // All of these are on “hold” when checking expiration:
       final skipStatuses = <String>{
-        'inspection pending',
-        'inspection done',
-        'payment pending',
-        'collection location confirmation',
-        'set location and time',
-        'confirm location',
-        'confirm collection',
-        'payment options',
-        'accepted',
-        'paid',
-        'collection details',
-        'sold', // added to prevent sold offers from being marked rejected
+        OfferStatuses.inspectionPending,
+        OfferStatuses.inspectionDone,
+        OfferStatuses.paymentPending,
+        OfferStatuses.collectionLocationConfirmation,
+        OfferStatuses.setLocationAndTime,
+        OfferStatuses.confirmLocation,
+        OfferStatuses.confirmCollection,
+        OfferStatuses.paymentOptions,
+        OfferStatuses.accepted,
+        OfferStatuses.paid,
+        OfferStatuses.collectionDetails,
+        OfferStatuses.sold,
+        OfferStatuses.archived,
+        OfferStatuses.transporterInvoicePending,
+        OfferStatuses.adminInvoicePending,
       };
 
       // If it’s not already rejected and not in the “skip” list, expire it:
       if (currentStatus.isNotEmpty &&
           !skipStatuses.contains(currentStatus) &&
-          currentStatus != 'rejected') {
-        await doc.reference.update({'offerStatus': 'rejected'});
+          currentStatus != OfferStatuses.rejected) {
+        await doc.reference.update({'offerStatus': OfferStatuses.rejected});
       }
     }
   }
@@ -347,8 +358,8 @@ class OfferProvider with ChangeNotifier {
 
     try {
       final base = _firestore.collection('offers');
-      if (userRole.toLowerCase() == 'admin' ||
-          userRole.toLowerCase() == 'sales representative') {
+      final roleLower = userRole.toLowerCase();
+      if (roleLower == 'admin' || roleLower == 'sales representative') {
         // Admins see all offers
         _adminSub = base
             .orderBy('createdAt', descending: true)
@@ -359,25 +370,31 @@ class OfferProvider with ChangeNotifier {
           _errorMessage = 'Failed to listen to offers: $e';
           notifyListeners();
         });
-      } else if (userRole.toLowerCase() == 'oem') {
-        // OEM sees both transporterId and dealerId matches
+      } else if (roleLower == 'oem' ||
+          roleLower == 'tradein' ||
+          roleLower == 'trade-in') {
+        // OEM/Trade-in: listen to both transporterId and dealerId live, merge updates
+        _latestTransporterSnap = null;
+        _latestDealerSnap = null;
+
+        void emit() {
+          final snaps = <QuerySnapshot>[
+            if (_latestTransporterSnap != null) _latestTransporterSnap!,
+            if (_latestDealerSnap != null) _latestDealerSnap!,
+          ];
+          if (snaps.isNotEmpty) {
+            // fire and forget, but we await to serialize calls
+            process(snaps);
+          }
+        }
+
         _transporterSub = base
             .where('transporterId', isEqualTo: userId)
             .orderBy('createdAt', descending: true)
             .snapshots()
             .listen((transporterSnap) async {
-          // Wait for dealer snap too if active
-          QuerySnapshot? latestDealer;
-          try {
-            latestDealer = await base
-                .where('dealerId', isEqualTo: userId)
-                .orderBy('createdAt', descending: true)
-                .get();
-          } catch (_) {}
-          await process([
-            transporterSnap,
-            if (latestDealer != null) latestDealer,
-          ]);
+          _latestTransporterSnap = transporterSnap;
+          emit();
         }, onError: (e) {
           _errorMessage = 'Failed to listen to offers: $e';
           notifyListeners();
@@ -388,17 +405,8 @@ class OfferProvider with ChangeNotifier {
             .orderBy('createdAt', descending: true)
             .snapshots()
             .listen((dealerSnap) async {
-          QuerySnapshot? latestTransporter;
-          try {
-            latestTransporter = await base
-                .where('transporterId', isEqualTo: userId)
-                .orderBy('createdAt', descending: true)
-                .get();
-          } catch (_) {}
-          await process([
-            dealerSnap,
-            if (latestTransporter != null) latestTransporter,
-          ]);
+          _latestDealerSnap = dealerSnap;
+          emit();
         }, onError: (e) {
           _errorMessage = 'Failed to listen to offers: $e';
           notifyListeners();
@@ -421,44 +429,40 @@ class OfferProvider with ChangeNotifier {
           });
         } else {
           // Transporter: include both correct field 'transporterId' and legacy 'transportId'
+          _latestTransporterSnap = null;
+          _latestLegacyTransporterSnap = null;
+
+          void emit() {
+            final snaps = <QuerySnapshot>[
+              if (_latestTransporterSnap != null) _latestTransporterSnap!,
+              if (_latestLegacyTransporterSnap != null)
+                _latestLegacyTransporterSnap!,
+            ];
+            if (snaps.isNotEmpty) {
+              process(snaps);
+            }
+          }
+
           _transporterSub = base
               .where('transporterId', isEqualTo: userId)
               .orderBy('createdAt', descending: true)
               .snapshots()
               .listen((transporterSnap) async {
-            QuerySnapshot? legacySnap;
-            try {
-              legacySnap = await base
-                  .where('transportId', isEqualTo: userId)
-                  .orderBy('createdAt', descending: true)
-                  .get();
-            } catch (_) {}
-            await process([
-              transporterSnap,
-              if (legacySnap != null) legacySnap,
-            ]);
+            _latestTransporterSnap = transporterSnap;
+            emit();
           }, onError: (e) {
             _errorMessage = 'Failed to listen to offers: $e';
             notifyListeners();
           });
 
-          // Also listen to legacy field updates (defensive for older docs)
+          // Legacy field live listener
           _dealerSub = base
               .where('transportId', isEqualTo: userId)
               .orderBy('createdAt', descending: true)
               .snapshots()
               .listen((legacyLiveSnap) async {
-            QuerySnapshot? currentSnap;
-            try {
-              currentSnap = await base
-                  .where('transporterId', isEqualTo: userId)
-                  .orderBy('createdAt', descending: true)
-                  .get();
-            } catch (_) {}
-            await process([
-              legacyLiveSnap,
-              if (currentSnap != null) currentSnap,
-            ]);
+            _latestLegacyTransporterSnap = legacyLiveSnap;
+            emit();
           }, onError: (e) {
             _errorMessage = 'Failed to listen to offers: $e';
             notifyListeners();
@@ -472,7 +476,10 @@ class OfferProvider with ChangeNotifier {
   }
 
   /// Fetches the initial batch of offers based on user ID and role.
-  Future<void> fetchOffers(String userId, String userRole, {int? limit}) async {
+  /// Fetch offers for a user. If `isTradeInManager` is true and `tradeInBrand` is provided,
+  /// the query will be restricted to offers that match the trade-in company brand or userId.
+  Future<void> fetchOffers(String userId, String userRole,
+      {int? limit, bool isTradeInManager = false, String? tradeInBrand}) async {
     // Ensure expired offers are marked rejected before fetching
     await expireOffers();
     if (userId.isEmpty) {
@@ -534,6 +541,40 @@ class OfferProvider with ChangeNotifier {
       } else {
         // Default path for other roles
         final role = userRole.toLowerCase();
+        // If the user is a trade-in manager, restrict server-side to offers matching their brand or id
+        if ((role == 'tradein' || role == 'trade-in') && isTradeInManager) {
+          Query base = _firestore
+              .collection('offers')
+              .orderBy('createdAt', descending: true);
+          // Prefer filtering by brand if available
+          if (tradeInBrand != null && tradeInBrand.isNotEmpty) {
+            base = base.where('brands', arrayContains: tradeInBrand);
+          } else {
+            // Fallback: match dealerId or transporterId to userId
+            base = base.where('dealerId', isEqualTo: userId);
+          }
+
+          if (limit != null) base = base.limit(limit);
+          QuerySnapshot querySnapshot = await base.get();
+
+          _offers = await Future.wait(querySnapshot.docs.map((doc) async {
+            Offer offer = Offer.fromFirestore(doc);
+            await offer.fetchVehicleDetails();
+            return offer;
+          }));
+
+          if (_offers.isNotEmpty && limit != null) {
+            _lastDocument = querySnapshot.docs.last;
+            _hasMore = querySnapshot.docs.length >= limit;
+          } else {
+            _hasMore = false;
+          }
+
+          _offersController.add(_offers);
+          _isFetching = false;
+          notifyListeners();
+          return;
+        }
 
         if (role == 'transporter') {
           // Merge current and legacy transporter fields
@@ -683,10 +724,11 @@ class OfferProvider with ChangeNotifier {
     // print('DEBUG: Building query for userId: $userId, role: $userRole');
     Query query = _firestore.collection('offers');
 
-    if (userRole != 'admin') {
-      if (userRole == 'dealer') {
+    final role = userRole.toLowerCase();
+    if (role != 'admin') {
+      if (role == 'dealer') {
         query = query.where('dealerId', isEqualTo: userId);
-      } else if (userRole == 'transporter' || userRole == 'oem') {
+      } else if (role == 'transporter' || role == 'oem' || role == 'tradein' || role == 'trade-in') {
         query = query.where('transporterId', isEqualTo: userId);
       }
     }
@@ -716,10 +758,15 @@ class OfferProvider with ChangeNotifier {
         }
 
         // Otherwise proceed with update
+        final updates = <String, dynamic>{'offerStatus': newStatus};
+        // When verifying payment, also mark paymentStatus approved for consistency
+        if (newStatus.toLowerCase() == 'paid') {
+          updates['paymentStatus'] = 'approved';
+        }
         await FirebaseFirestore.instance
             .collection('offers')
             .doc(offerId)
-            .update({'offerStatus': newStatus});
+            .update(updates);
       }
     } catch (e) {
       print('Error updating offer status: $e');
@@ -729,11 +776,11 @@ class OfferProvider with ChangeNotifier {
   /// Deletes an offer from Firestore and updates the local list.
   Future<void> deleteOffer(String offerId) async {
     try {
-      // Instead of deleting the document, update its offerStatus to "Archived".
+      // Instead of deleting the document, update its offerStatus to "archived".
       await _firestore
           .collection('offers')
           .doc(offerId)
-          .update({'offerStatus': 'Archived'});
+          .update({'offerStatus': 'archived'});
 
       // Update local state
       _offers.removeWhere((offer) => offer.offerId == offerId);
@@ -794,13 +841,20 @@ class OfferProvider with ChangeNotifier {
   /// Fetches offers related to a specific vehicle.
   Future<List<Offer>> fetchOffersForVehicle(String vehicleId) async {
     try {
-      QuerySnapshot offersSnapshot = await _firestore
-          .collection('offers')
-          .where('vehicleId', isEqualTo: vehicleId)
-          .get();
+      final base = _firestore.collection('offers');
+      // Some offers may store a single vehicleId, some may store an array vehicleIds (bulk offers)
+      final singleSnap = await base.where('vehicleId', isEqualTo: vehicleId).get();
+      final bulkSnap = await base.where('vehicleIds', arrayContains: vehicleId).get();
 
-      List<Offer> vehicleOffers =
-          offersSnapshot.docs.map((doc) => Offer.fromFirestore(doc)).toList();
+      final Map<String, Offer> merged = {};
+      for (final doc in singleSnap.docs) {
+        merged[doc.id] = Offer.fromFirestore(doc);
+      }
+      for (final doc in bulkSnap.docs) {
+        merged[doc.id] = Offer.fromFirestore(doc);
+      }
+
+      final List<Offer> vehicleOffers = merged.values.toList();
 
       // Fetch related vehicle details for each offer
       for (Offer offer in vehicleOffers) {
@@ -842,10 +896,17 @@ class OfferProvider with ChangeNotifier {
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         // Get all offers for this vehicle
-        final offersQuery = await FirebaseFirestore.instance
-            .collection('offers')
+        final offersColl = FirebaseFirestore.instance.collection('offers');
+        final singleSnap = await offersColl
             .where('vehicleId', isEqualTo: vehicleId)
             .get();
+        final bulkSnap = await offersColl
+            .where('vehicleIds', arrayContains: vehicleId)
+            .get();
+        final allDocs = <QueryDocumentSnapshot>{
+          ...singleSnap.docs,
+          ...bulkSnap.docs,
+        };
 
         // Update the accepted offer
         transaction.update(
@@ -885,7 +946,7 @@ class OfferProvider with ChangeNotifier {
             vehicleUpdates);
 
         // Update all other offers for this vehicle to rejected
-        for (var doc in offersQuery.docs) {
+        for (var doc in allDocs) {
           if (doc.id != offerId) {
             transaction.update(
                 FirebaseFirestore.instance.collection('offers').doc(doc.id),

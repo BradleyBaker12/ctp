@@ -18,6 +18,8 @@ import 'package:ctp/utils/navigation.dart';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:ctp/app_router.dart';
+import 'package:ctp/pages/oem_invite_employee_page.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 @RoutePage()
 class ProfilePage extends StatelessWidget {
@@ -62,22 +64,34 @@ class ProfilePage extends StatelessWidget {
     final bool isSalesRep = userRole.toLowerCase() == 'sales representative';
     final bool isDealer = userRole.toLowerCase() == 'dealer';
     final bool isTransporter = userRole.toLowerCase() == 'transporter' ||
-        userRole.toLowerCase() == 'oem';
+        userRole.toLowerCase() == 'oem' ||
+        userRole.toLowerCase() == 'tradein' ||
+        userRole.toLowerCase() == 'trade-in';
     final bool isOemManager =
         userRole.toLowerCase() == 'oem' && userProvider.isOemManager;
-
+    final bool isOemEmployee = userRole.toLowerCase() == 'oem' && !isOemManager;
+    final bool isTradeInManager = (userRole.toLowerCase() == 'tradein' ||
+            userRole.toLowerCase() == 'trade-in') &&
+        userProvider.isTradeInManager;
+    final bool isTradeInEmployee = (userRole.toLowerCase() == 'tradein' ||
+            userRole.toLowerCase() == 'trade-in') &&
+        !isTradeInManager;
+    final bool isRoleEmployeeBlocked = isOemEmployee || isTradeInEmployee;
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
             NavigationItem(title: 'Home', route: '/home'),
             NavigationItem(title: 'Search Trucks', route: '/truckPage'),
             NavigationItem(title: 'Wishlist', route: '/wishlist'),
-            NavigationItem(title: 'Pending Offers', route: '/offers'),
+            if (!isRoleEmployeeBlocked)
+              NavigationItem(title: 'Pending Offers', route: '/offers'),
           ]
         : [
             NavigationItem(title: 'Home', route: '/home'),
             NavigationItem(title: 'Your Trucks', route: '/transporterList'),
-            NavigationItem(title: 'Your Offers', route: '/offers'),
-            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+            if (!isRoleEmployeeBlocked)
+              NavigationItem(title: 'Your Offers', route: '/offers'),
+            if (!isRoleEmployeeBlocked)
+              NavigationItem(title: 'In-Progress', route: '/in-progress'),
           ];
 
     var screenSize = MediaQuery.of(context).size;
@@ -444,22 +458,53 @@ class ProfilePage extends StatelessWidget {
                               ),
                             ),
                             const Divider(color: Colors.white),
-                            _buildProfileAction(
-                              'INVITE EMPLOYEE',
-                              Icons.group_add,
-                              () {
-                                if (isAdmin || isOemManager) {
-                                  context.router
-                                      .push(const OemInviteEmployeeRoute());
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Only OEM managers can invite employees.')),
-                                  );
-                                }
-                              },
-                            ),
+                            if (isAdmin || isOemManager)
+                              _buildProfileAction(
+                                'INVITE EMPLOYEE',
+                                Icons.group_add,
+                                () {
+                                  if (isAdmin || isOemManager) {
+                                    try {
+                                      final router = AutoRouter.of(context);
+                                      router
+                                          .push(const OemInviteEmployeeRoute());
+                                    } catch (_) {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const OemInviteEmployeePage(),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              )
+                            else
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 8),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Builder(
+                                    builder: (context) {
+                                      final companyName =
+                                          (userProvider.getCompanyName ?? '')
+                                              .trim();
+                                      final displayName = companyName.isEmpty
+                                          ? 'your OEM company'
+                                          : companyName;
+                                      return Text(
+                                        'You are part of $displayName (managed by your OEM manager).',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white70,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
                             const SizedBox(height: 20),
                           ],
                           ElevatedButton(
@@ -531,21 +576,40 @@ class ProfilePage extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          FutureBuilder<String>(
-                            future: DefaultAssetBundle.of(context)
-                                .loadString('lib/assets/version.json')
-                                .then((jsonStr) {
-                              final Map<String, dynamic> versionData =
-                                  json.decode(jsonStr);
-                              return "${versionData['type']} Version ${versionData['version']}";
-                            }),
+                          FutureBuilder<PackageInfo>(
+                            future: PackageInfo.fromPlatform(),
                             builder: (context, snapshot) {
-                              return Text(
-                                snapshot.data ?? 'Loading...',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
+                              if (snapshot.hasData) {
+                                final info = snapshot.data!;
+                                final String display =
+                                    'App Version ${info.version}+${info.buildNumber}';
+                                return Text(
+                                  display,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                );
+                              }
+
+                              // Fallback to asset if package_info_plus isn't available yet
+                              return FutureBuilder<String>(
+                                future: DefaultAssetBundle.of(context)
+                                    .loadString('lib/assets/version.json')
+                                    .then((jsonStr) {
+                                  final Map<String, dynamic> versionData =
+                                      json.decode(jsonStr);
+                                  return "${versionData['type']} Version ${versionData['version']}";
+                                }),
+                                builder: (context, snapshot2) {
+                                  return Text(
+                                    snapshot2.data ?? 'Loading...',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
+                                  );
+                                },
                               );
                             },
                           ),

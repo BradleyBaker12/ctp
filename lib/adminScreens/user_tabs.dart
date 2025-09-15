@@ -1,12 +1,12 @@
 // lib/adminScreens/user_tabs.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'oem_request_detail_page.dart';
 import 'package:ctp/components/constants.dart';
 import 'package:ctp/components/custom_text_field.dart';
 import 'package:ctp/components/gradient_background.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'user_detail_page.dart';
@@ -36,6 +36,10 @@ class _UsersTabState extends State<UsersTab> {
   bool _isLoading = false;
   bool _hasMore = true;
   final List<DocumentSnapshot> _users = [];
+  // OEM employee request documents
+  List<DocumentSnapshot> _oemRequests = [];
+  bool _loadingRequests = false;
+  String? _oemRequestError;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -58,6 +62,7 @@ class _UsersTabState extends State<UsersTab> {
     'Transporters',
     'Admin',
     'Sales Representatives',
+    'Trade-In',
     'Account Status', // Header
     'Active Users',
     'Pending Users',
@@ -159,6 +164,9 @@ class _UsersTabState extends State<UsersTab> {
         if (_selectedFilters.contains('Admin')) {
           roleFilters.add('admin');
         }
+        if (_selectedFilters.contains('Trade-In')) {
+          roleFilters.add('tradein');
+        }
         if (_selectedFilters.contains('Sales Representatives')) {
           roleFilters.add('sales representative');
         }
@@ -242,6 +250,38 @@ class _UsersTabState extends State<UsersTab> {
         _isFilterLoading = false;
         _isInitialLoading = false;
       });
+    }
+  }
+
+  Future<void> _fetchOemEmployeeRequests() async {
+    if (_loadingRequests) return;
+    setState(() {
+      _loadingRequests = true;
+      _oemRequestError = null;
+    });
+    try {
+      Query query = FirebaseFirestore.instance
+          .collection('oem_employee_requests')
+          .orderBy('createdAt', descending: true);
+      final qs = await query.get();
+      final docs = qs.docs.where((d) {
+        final m = d.data() as Map<String, dynamic>;
+        final status = (m['status'] ?? '').toString().toLowerCase();
+        return status == 'pending';
+      }).toList();
+      if (mounted) {
+        setState(() {
+          _oemRequests = docs;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _oemRequestError = 'Failed to load requests: $e';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _loadingRequests = false);
     }
   }
 
@@ -362,6 +402,13 @@ class _UsersTabState extends State<UsersTab> {
             return false;
           }
           break;
+        case 'Trade-In':
+          if (((data['userRole'] as String?)?.toLowerCase() != 'tradein' &&
+                  (data['userRole'] as String?)?.toLowerCase() != 'trade-in') ||
+              (data['accountStatus'] as String?)?.toLowerCase() == 'pending') {
+            return false;
+          }
+          break;
         case 'Pending':
           if ((data['accountStatus'] as String?)?.toLowerCase() != 'pending') {
             return false;
@@ -371,10 +418,17 @@ class _UsersTabState extends State<UsersTab> {
       return _matchesFiltersAndSearch(data);
     }).toList();
 
+    // Fetch requests when switching to OEM Requests tab
+    if (_selectedRoleTab == 'OEM Requests' &&
+        _oemRequests.isEmpty &&
+        !_loadingRequests) {
+      _fetchOemEmployeeRequests();
+    }
+
     return Scaffold(
       body: GradientBackground(
         child: DefaultTabController(
-          length: isAdmin ? 4 : 2,
+          length: isAdmin ? 5 : 2,
           child: Column(
             children: [
               // Search, Sort, and Filter Row.
@@ -580,79 +634,6 @@ class _UsersTabState extends State<UsersTab> {
                       },
                       tooltip: 'Filter Users',
                     ),
-                    if (isAdmin)
-                      IconButton(
-                        icon: const Icon(Icons.upgrade, color: Colors.white),
-                        tooltip: 'Make all OEM users managers',
-                        onPressed: () async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              backgroundColor: Colors.grey[900],
-                              title: Text('Elevate OEM Users',
-                                  style: GoogleFonts.montserrat(
-                                      color: Colors.white)),
-                              content: Text(
-                                'This will set isOemManager=true for all OEM users. Continue?',
-                                style: GoogleFonts.montserrat(
-                                    color: Colors.white70),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: Text('Cancel',
-                                      style: GoogleFonts.montserrat(
-                                          color: Colors.white70)),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: Text('Confirm',
-                                      style: GoogleFonts.montserrat(
-                                          color: const Color(0xFFFF4E00))),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirmed != true) return;
-                          try {
-                            final callable = FirebaseFunctions.instance
-                                .httpsCallable('elevateAllOemToManagers');
-                            final result = await callable.call();
-                            final updated = (result.data is Map &&
-                                    result.data['updated'] is int)
-                                ? result.data['updated'] as int
-                                : null;
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    updated != null
-                                        ? 'Updated $updated OEM users.'
-                                        : 'OEM users elevated.',
-                                    style: GoogleFonts.montserrat(),
-                                  ),
-                                ),
-                              );
-                              setState(() {
-                                _users.clear();
-                                _lastDocument = null;
-                                _hasMore = true;
-                              });
-                              _fetchUsers();
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error: $e',
-                                      style: GoogleFonts.montserrat()),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                      ),
                   ],
                 ),
               ),
@@ -665,11 +646,15 @@ class _UsersTabState extends State<UsersTab> {
                     _buildUserTabButton('Dealers'),
                     const SizedBox(width: 12),
                     _buildUserTabButton('Transporters'),
+                    const SizedBox(width: 12),
+                    _buildUserTabButton('Trade-In'),
                     if (isAdmin) ...[
                       const SizedBox(width: 12),
                       _buildUserTabButton('OEM'),
                       const SizedBox(width: 12),
                       _buildUserTabButton('Pending'),
+                      const SizedBox(width: 12),
+                      _buildUserTabButton('OEM Requests'),
                     ],
                   ],
                 ),
@@ -677,197 +662,277 @@ class _UsersTabState extends State<UsersTab> {
               const SizedBox(height: 16),
               // Users List.
               Expanded(
-                child: _isInitialLoading || _isFilterLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                        color: AppColors.orange,
-                      ))
-                    : filteredUsers.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No users found.',
-                              style:
-                                  GoogleFonts.montserrat(color: Colors.white),
-                            ),
-                          )
-                        : ListView.builder(
-                            key: const PageStorageKey('users_list'),
-                            controller: _scrollController,
-                            itemCount:
-                                filteredUsers.length + (_hasMore ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (index == filteredUsers.length) {
-                                if (_isLoading) {
-                                  return const Padding(
-                                    padding: EdgeInsets.all(16.0),
-                                    child: Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  );
-                                }
-                                return const SizedBox.shrink();
-                              }
-                              var userData = filteredUsers[index].data()
-                                  as Map<String, dynamic>;
-                              String userId = filteredUsers[index].id;
-                              String firstName =
-                                  userData['firstName'] ?? 'No Name';
-                              String lastName = userData['lastName'] ?? '';
-                              String email = userData['email'] ?? 'No Email';
-                              String role = userData['userRole'] ?? 'user';
-                              String companyName =
-                                  userData['companyName'] ?? 'No Company';
-                              String tradingAs =
-                                  userData['tradingAs'] ?? 'No Trading As';
-                              var accountStatus = userData['accountStatus'];
-                              var isVerified = userData['isVerified'] ?? false;
-                              String status;
-                              Color statusColor;
-                              String statusText;
-
-                              // Determine status color and text
-                              if (accountStatus == 'suspended') {
-                                status = 'suspended';
-                                statusColor = Colors.red;
-                                statusText = 'Suspended';
-                              } else if (!isVerified) {
-                                status = 'pending';
-                                statusColor = Colors.amber;
-                                statusText = 'Pending Verification';
-                              } else if (accountStatus != 'active') {
-                                status = 'inactive';
-                                statusColor = Colors.orange;
-                                statusText = 'Inactive';
-                              } else {
-                                status = 'active';
-                                statusColor = Colors.transparent;
-                                statusText = '';
-                              }
-
-                              return Card(
-                                color: status != 'active'
-                                    ? statusColor.withOpacity(0.2)
-                                    : Colors.grey[900],
-                                margin: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 5),
-                                child: Stack(
-                                  children: [
-                                    ListTile(
-                                      leading: Stack(
-                                        children: [
-                                          CircleAvatar(
-                                            backgroundColor: Colors.blueAccent,
-                                            child: Text(
-                                              firstName.isNotEmpty
-                                                  ? firstName[0].toUpperCase()
-                                                  : 'U',
-                                              style: GoogleFonts.montserrat(
-                                                  color: Colors.white),
-                                            ),
-                                          ),
-                                          if (status != 'active')
-                                            Positioned(
-                                              right: -2,
-                                              top: -2,
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.all(2),
-                                                decoration: BoxDecoration(
-                                                  color: statusColor,
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: Colors.grey[900]!,
-                                                    width: 1.5,
-                                                  ),
-                                                ),
-                                                child: Icon(
-                                                  status == 'suspended'
-                                                      ? Icons.block
-                                                      : status == 'pending'
-                                                          ? Icons.warning
-                                                          : Icons.warning_amber,
-                                                  size: 12,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      title: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              '$firstName $lastName',
-                                              style: GoogleFonts.montserrat(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                          if (status != 'active')
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 4,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: statusColor,
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                statusText,
-                                                style: GoogleFonts.montserrat(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      subtitle: Text(
-                                        '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
+                child: _selectedRoleTab == 'OEM Requests'
+                    ? (_loadingRequests
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: AppColors.orange))
+                        : _oemRequestError != null
+                            ? Center(
+                                child: Text(
+                                  _oemRequestError!,
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.redAccent),
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : _oemRequests.isEmpty
+                                ? Center(
+                                    child: Text('No pending requests.',
                                         style: GoogleFonts.montserrat(
-                                            color: Colors.white70),
-                                      ),
-                                      isThreeLine: false,
-                                      trailing: const Icon(
-                                          Icons.arrow_forward_ios,
-                                          color: Colors.white),
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                UserDetailPage(userId: userId),
+                                            color: Colors.white)))
+                                : RefreshIndicator(
+                                    onRefresh: _fetchOemEmployeeRequests,
+                                    child: ListView.builder(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      itemCount: _oemRequests.length,
+                                      itemBuilder: (ctx, i) {
+                                        final r = _oemRequests[i];
+                                        final d =
+                                            r.data() as Map<String, dynamic>;
+                                        return Card(
+                                          color: Colors.grey[900],
+                                          margin: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 6),
+                                          child: ListTile(
+                                            title: Text(
+                                                d['proposedEmail'] ??
+                                                    'Unknown Email',
+                                                style: GoogleFonts.montserrat(
+                                                    color: Colors.white,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
+                                            subtitle: Text(
+                                              'Name: ${d['firstName'] ?? ''} ${d['lastName'] ?? ''}\nBrand: ${d['oemBrand'] ?? ''}\nCompany: ${d['companyName'] ?? ''}',
+                                              style: GoogleFonts.montserrat(
+                                                  color: Colors.white70),
+                                            ),
+                                            trailing: const Icon(
+                                                Icons.arrow_forward_ios,
+                                                color: Colors.white70,
+                                                size: 16),
+                                            onTap: () async {
+                                              final changed =
+                                                  await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      OemRequestDetailPage(
+                                                          requestId: r.id),
+                                                ),
+                                              );
+                                              if (changed == true) {
+                                                _fetchOemEmployeeRequests();
+                                              }
+                                            },
                                           ),
                                         );
                                       },
                                     ),
-                                    if (status != 'active')
-                                      Positioned(
-                                        top: 0,
-                                        bottom: 0,
-                                        left: 0,
-                                        child: Container(
-                                          width: 4,
-                                          decoration: BoxDecoration(
-                                            color: statusColor,
-                                            borderRadius:
-                                                const BorderRadius.only(
-                                              topLeft: Radius.circular(4),
-                                              bottomLeft: Radius.circular(4),
+                                  ))
+                    : _isInitialLoading || _isFilterLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                            color: AppColors.orange,
+                          ))
+                        : filteredUsers.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'No users found.',
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                ),
+                              )
+                            : ListView.builder(
+                                key: const PageStorageKey('users_list'),
+                                controller: _scrollController,
+                                itemCount:
+                                    filteredUsers.length + (_hasMore ? 1 : 0),
+                                itemBuilder: (context, index) {
+                                  if (index == filteredUsers.length) {
+                                    if (_isLoading) {
+                                      return const Padding(
+                                        padding: EdgeInsets.all(16.0),
+                                        child: Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  }
+                                  var userData = filteredUsers[index].data()
+                                      as Map<String, dynamic>;
+                                  String userId = filteredUsers[index].id;
+                                  String firstName =
+                                      userData['firstName'] ?? 'No Name';
+                                  String lastName = userData['lastName'] ?? '';
+                                  String email =
+                                      userData['email'] ?? 'No Email';
+                                  String role = userData['userRole'] ?? 'user';
+                                  String companyName =
+                                      userData['companyName'] ?? 'No Company';
+                                  String tradingAs =
+                                      userData['tradingAs'] ?? 'No Trading As';
+                                  var accountStatus = userData['accountStatus'];
+                                  var isVerified =
+                                      userData['isVerified'] ?? false;
+                                  String status;
+                                  Color statusColor;
+                                  String statusText;
+
+                                  // Determine status color and text
+                                  if (accountStatus == 'suspended') {
+                                    status = 'suspended';
+                                    statusColor = Colors.red;
+                                    statusText = 'Suspended';
+                                  } else if (!isVerified) {
+                                    status = 'pending';
+                                    statusColor = Colors.amber;
+                                    statusText = 'Pending Verification';
+                                  } else if (accountStatus != 'active') {
+                                    status = 'inactive';
+                                    statusColor = Colors.orange;
+                                    statusText = 'Inactive';
+                                  } else {
+                                    status = 'active';
+                                    statusColor = Colors.transparent;
+                                    statusText = '';
+                                  }
+
+                                  return Card(
+                                    color: status != 'active'
+                                        ? statusColor.withOpacity(0.2)
+                                        : Colors.grey[900],
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 5),
+                                    child: Stack(
+                                      children: [
+                                        ListTile(
+                                          leading: Stack(
+                                            children: [
+                                              CircleAvatar(
+                                                backgroundColor:
+                                                    Colors.blueAccent,
+                                                child: Text(
+                                                  firstName.isNotEmpty
+                                                      ? firstName[0]
+                                                          .toUpperCase()
+                                                      : 'U',
+                                                  style: GoogleFonts.montserrat(
+                                                      color: Colors.white),
+                                                ),
+                                              ),
+                                              if (status != 'active')
+                                                Positioned(
+                                                  right: -2,
+                                                  top: -2,
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(2),
+                                                    decoration: BoxDecoration(
+                                                      color: statusColor,
+                                                      shape: BoxShape.circle,
+                                                      border: Border.all(
+                                                        color:
+                                                            Colors.grey[900]!,
+                                                        width: 1.5,
+                                                      ),
+                                                    ),
+                                                    child: Icon(
+                                                      status == 'suspended'
+                                                          ? Icons.block
+                                                          : status == 'pending'
+                                                              ? Icons.warning
+                                                              : Icons
+                                                                  .warning_amber,
+                                                      size: 12,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          title: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  '$firstName $lastName',
+                                                  style: GoogleFonts.montserrat(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (status != 'active')
+                                                Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: statusColor,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                  ),
+                                                  child: Text(
+                                                    statusText,
+                                                    style:
+                                                        GoogleFonts.montserrat(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          subtitle: Text(
+                                            '$email\nRole: $role\nStatus: $status\nCompany: $companyName\nTrading As: $tradingAs',
+                                            style: GoogleFonts.montserrat(
+                                                color: Colors.white70),
+                                          ),
+                                          isThreeLine: false,
+                                          trailing: const Icon(
+                                              Icons.arrow_forward_ios,
+                                              color: Colors.white),
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    UserDetailPage(
+                                                        userId: userId),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        if (status != 'active')
+                                          Positioned(
+                                            top: 0,
+                                            bottom: 0,
+                                            left: 0,
+                                            child: Container(
+                                              width: 4,
+                                              decoration: BoxDecoration(
+                                                color: statusColor,
+                                                borderRadius:
+                                                    const BorderRadius.only(
+                                                  topLeft: Radius.circular(4),
+                                                  bottomLeft:
+                                                      Radius.circular(4),
+                                                ),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
               ),
             ],
           ),
@@ -901,6 +966,8 @@ class _UsersTabState extends State<UsersTab> {
     final tradingAsController = TextEditingController();
     // OEM brand input (only used when role is OEM)
     final oemBrandController = TextEditingController();
+    // Trade-In brand input
+    final tradeInBrandController = TextEditingController();
     // OEM org fields
     // Company ID is now auto-generated for OEM managers; no manual input needed.
     bool isOemManagerFlag = false;
@@ -920,7 +987,14 @@ class _UsersTabState extends State<UsersTab> {
     // Define available roles based on current user's role.
     List<String> roles = [];
     if (isAdmin) {
-      roles = ['admin', 'transporter', 'dealer', 'sales representative', 'oem'];
+      roles = [
+        'admin',
+        'transporter',
+        'dealer',
+        'sales representative',
+        'oem',
+        'tradein'
+      ];
     } else if (currentUserRole == 'sales representative') {
       roles = ['transporter', 'dealer'];
     }
@@ -961,7 +1035,8 @@ class _UsersTabState extends State<UsersTab> {
                         controller: firstNameController,
                       ),
                       const SizedBox(height: 16),
-                      // OEM org controls
+
+                      // OEM org controls (manager toggle + manager selection)
                       if (isAdmin && selectedRole == 'oem') ...[
                         SwitchListTile(
                           value: isOemManagerFlag,
@@ -1062,6 +1137,7 @@ class _UsersTabState extends State<UsersTab> {
                           ),
                         const SizedBox(height: 16),
                       ],
+
                       CustomTextField(
                         hintText: 'COMPANY NAME',
                         controller: companyNameController,
@@ -1083,6 +1159,7 @@ class _UsersTabState extends State<UsersTab> {
                         obscureText: true,
                       ),
                       const SizedBox(height: 16),
+
                       DropdownButtonFormField<String>(
                         value: selectedRole,
                         dropdownColor: Colors.grey[850],
@@ -1125,98 +1202,14 @@ class _UsersTabState extends State<UsersTab> {
                         },
                       ),
                       const SizedBox(height: 16),
+
                       if (isAdmin && selectedRole == 'oem')
                         CustomTextField(
                           hintText: 'OEM BRAND',
                           controller: oemBrandController,
                         ),
                       const SizedBox(height: 16),
-                      if (isAdmin && selectedRole == 'oem' && isOemManagerFlag)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Assign employees to this manager (optional):',
-                              style: GoogleFonts.montserrat(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            FutureBuilder<QuerySnapshot>(
-                              future: FirebaseFirestore.instance
-                                  .collection('users')
-                                  .where('userRole', isEqualTo: 'oem')
-                                  .where('isOemManager', isEqualTo: false)
-                                  .get(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const CircularProgressIndicator();
-                                }
-                                final docs = snapshot.data?.docs ?? [];
-                                if (docs.isEmpty) {
-                                  return Text(
-                                    'No OEM employees available.',
-                                    style: GoogleFonts.montserrat(
-                                        color: Colors.white70),
-                                  );
-                                }
-                                return ConstrainedBox(
-                                  constraints:
-                                      const BoxConstraints(maxHeight: 220),
-                                  child: ListView.builder(
-                                    shrinkWrap: true,
-                                    itemCount: docs.length,
-                                    itemBuilder: (context, idx) {
-                                      final d = docs[idx];
-                                      final data =
-                                          d.data() as Map<String, dynamic>;
-                                      final name = ((data['firstName'] ?? '') +
-                                              ' ' +
-                                              (data['lastName'] ?? ''))
-                                          .trim();
-                                      final email =
-                                          (data['email'] ?? '').toString();
-                                      final id = d.id;
-                                      final isSelected =
-                                          selectedEmployeeIds.contains(id);
-                                      return CheckboxListTile(
-                                        dense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        value: isSelected,
-                                        onChanged: (val) {
-                                          setStateDialog(() {
-                                            if (val == true) {
-                                              if (!selectedEmployeeIds
-                                                  .contains(id)) {
-                                                selectedEmployeeIds.add(id);
-                                              }
-                                            } else {
-                                              selectedEmployeeIds.remove(id);
-                                            }
-                                          });
-                                        },
-                                        title: Text(
-                                          name.isEmpty ? email : name,
-                                          style: GoogleFonts.montserrat(
-                                              color: Colors.white),
-                                        ),
-                                        subtitle: email.isNotEmpty
-                                            ? Text(email,
-                                                style: GoogleFonts.montserrat(
-                                                    color: Colors.white70))
-                                            : null,
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
+
                       if (isAdmin &&
                           (selectedRole == 'transporter' ||
                               selectedRole == 'dealer' ||
@@ -1293,6 +1286,87 @@ class _UsersTabState extends State<UsersTab> {
                             );
                           },
                         ),
+
+                      // Trade-In org controls
+                      if (isAdmin &&
+                          (selectedRole == 'tradein' ||
+                              selectedRole == 'trade-in')) ...[
+                        CustomTextField(
+                          hintText: 'TRADE-IN BRAND',
+                          controller: tradeInBrandController,
+                        ),
+                        const SizedBox(height: 16),
+                        SwitchListTile(
+                          value:
+                              isOemManagerFlag, // reuse local flag for dialog
+                          onChanged: (v) {
+                            setStateDialog(() {
+                              isOemManagerFlag = v;
+                              if (v) selectedOemManagerId = null;
+                            });
+                          },
+                          title: Text('Is Trade-In Manager?',
+                              style:
+                                  GoogleFonts.montserrat(color: Colors.white)),
+                          activeColor: const Color(0xFFFF4E00),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        const SizedBox(height: 8),
+                        if (!isOemManagerFlag)
+                          FutureBuilder<QuerySnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('users')
+                                .where('userRole',
+                                    whereIn: ['tradein', 'trade-in'])
+                                .where('isTradeInManager', isEqualTo: true)
+                                .get(),
+                            builder: (context, snap) {
+                              if (snap.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const CircularProgressIndicator();
+                              }
+                              final docs = snap.data?.docs ?? [];
+                              if (docs.isEmpty) {
+                                return Text('No Trade-In Managers available.',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white));
+                              }
+                              final items = docs.map((d) {
+                                final m = d.data() as Map<String, dynamic>;
+                                final name = ((m['firstName'] ?? '') +
+                                        ' ' +
+                                        (m['lastName'] ?? ''))
+                                    .trim();
+                                return DropdownMenuItem<String>(
+                                  value: d.id,
+                                  child: Text(
+                                    name.isEmpty ? d.id : name,
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                  ),
+                                );
+                              }).toList();
+                              return DropdownButtonFormField<String>(
+                                value: selectedOemManagerId != null &&
+                                        items.any((it) =>
+                                            it.value == selectedOemManagerId)
+                                    ? selectedOemManagerId
+                                    : null,
+                                dropdownColor: Colors.grey[850],
+                                style:
+                                    GoogleFonts.montserrat(color: Colors.white),
+                                decoration: InputDecoration(
+                                  labelText: 'Assign Trade-In Manager',
+                                  labelStyle: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                ),
+                                items: items,
+                                onChanged: (v) => setStateDialog(
+                                    () => selectedOemManagerId = v),
+                              );
+                            },
+                          ),
+                      ],
                     ],
                   ),
                 ),
@@ -1415,6 +1489,36 @@ class _UsersTabState extends State<UsersTab> {
                           newUserData['assignedSalesRep'] = selectedSalesRep;
                         } else if (currentUserRole == 'sales representative') {
                           newUserData['assignedSalesRep'] = currentUserId;
+                        }
+                      }
+
+                      // Persist Trade-In specific fields
+                      if (selectedRole == 'tradein' ||
+                          selectedRole == 'trade-in') {
+                        final brand = tradeInBrandController.text.trim();
+                        if (brand.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Please enter a Trade-In Brand for the account.',
+                                style: GoogleFonts.montserrat(),
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        newUserData['tradeInBrand'] = brand;
+
+                        if (isAdmin) {
+                          if (isOemManagerFlag) {
+                            newUserData['isTradeInManager'] = true;
+                            newUserData['tradeInManagerId'] = null;
+                          } else {
+                            newUserData['isTradeInManager'] = false;
+                            newUserData['tradeInManagerId'] =
+                                selectedOemManagerId;
+                          }
                         }
                       }
 

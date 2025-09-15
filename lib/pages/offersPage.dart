@@ -84,6 +84,25 @@ class OffersPageState extends State<OffersPage> with RouteAware {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Block OEM and Trade-In employees (non-managers) from accessing offers
+    final userProv = Provider.of<UserProvider>(context, listen: false);
+    final role = userProv.getUserRole.toLowerCase();
+    final bool isOemOrTradeInEmployee =
+        (role == 'oem' && !userProv.isOemManager) ||
+            ((role == 'tradein' || role == 'trade-in') &&
+                !userProv.isTradeInManager);
+    if (isOemOrTradeInEmployee) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Restricted: Employee accounts cannot access offers.')),
+          );
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+      });
+      return; // Skip further init
+    }
     if (_isInit) {
       _offerProvider = Provider.of<OfferProvider>(context, listen: false);
       WidgetsBinding.instance.addPostFrameCallback((_) => _fetchOffers());
@@ -129,8 +148,11 @@ class OffersPageState extends State<OffersPage> with RouteAware {
       User Email: ${user.email}
       ''');
 
-      // Changed call: pass limit null to fetch all offers.
-      await _offerProvider.fetchOffers(user.uid, userRole, limit: null);
+      // Changed call: pass limit null to fetch all offers. Include trade-in manager context when applicable.
+      await _offerProvider.fetchOffers(user.uid, userRole,
+          limit: null,
+          isTradeInManager: userProvider.isTradeInManager,
+          tradeInBrand: userProvider.tradeInBrand);
 
       print('''
       === FETCHED OFFERS RESULT ===
@@ -495,7 +517,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                             _showNavigationDrawer(navigationItems),
                       ),
                     )
-                  : CustomAppBar(),
+                  : const CustomAppBar(showBackButton: false),
               body: Center(
                 child: Image.asset(
                   'lib/assets/Loading_Logo_CTP.gif',
@@ -518,7 +540,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                             _showNavigationDrawer(navigationItems),
                       ),
                     )
-                  : CustomAppBar(),
+                  : const CustomAppBar(showBackButton: false),
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -551,7 +573,7 @@ class OffersPageState extends State<OffersPage> with RouteAware {
                             _showNavigationDrawer(navigationItems),
                       ),
                     )
-                  : CustomAppBar(),
+                  : const CustomAppBar(showBackButton: false),
               drawer: (kIsWeb && _isCompactNavigation)
                   ? Drawer(
                       // ...existing drawer code...

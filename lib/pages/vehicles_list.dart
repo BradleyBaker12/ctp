@@ -336,7 +336,7 @@ class _VehiclesListPageState extends State<VehiclesListPage>
                       }
                     }
                     // Example for transporters
-                    else if (userRole == 'transporter' || userRole == 'oem') {
+                    else if (userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in') {
                       // 0: Home, 1: Vehicles, 2: Offers, 3: Profile
                       if (index == 0) {
                         await MyNavigator.pushReplacement(

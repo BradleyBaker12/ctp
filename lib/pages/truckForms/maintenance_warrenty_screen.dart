@@ -72,6 +72,9 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
   File? _adminDoc2File;
   File? _adminDoc3File;
 
+  // Prefill values for AdminSection (e.g., NATIS prepopulation)
+  String? _prefilledNatisRc1Url;
+
   bool isNewUpload = false;
 
   // Make these late final to ensure they're only initialized once
@@ -149,7 +152,7 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
     _adminSection = AdminSection(
       key: _adminSectionKey,
       vehicleId: widget.vehicleId,
-      natisRc1Url: widget.natisRc1Url,
+      natisRc1Url: _prefilledNatisRc1Url ?? widget.natisRc1Url,
       isUploading: _isUploading,
       requireToSettleType: widget.requireToSettleType,
       onAdminDoc1Selected: (file) {
@@ -223,9 +226,50 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
             });
           }
 
-          // Pass the admin data to AdminSection only if it exists
-          if (_adminSectionKey.currentState != null && adminData != null) {
-            _adminSectionKey.currentState!.loadAdminData(adminData);
+          // Update AdminSection with fetched data (rebuild if needed)
+          final String adminNatis =
+              (adminData != null ? (adminData['natisRc1Url'] ?? '') : '')
+                  .toString();
+          final String rc1FromRoot = (data['rc1NatisFile'] ?? '').toString();
+          final String resolvedNatis =
+              (adminNatis.isNotEmpty) ? adminNatis : rc1FromRoot;
+
+          // If state exists already, load; else rebuild the widget and update tab content
+          if (_adminSectionKey.currentState != null) {
+            Map<String, dynamic> merged = {};
+            if (adminData != null) merged.addAll(adminData);
+            if (resolvedNatis.isNotEmpty) {
+              merged['natisRc1Url'] = resolvedNatis;
+            }
+            _adminSectionKey.currentState!.loadAdminData(merged);
+          } else {
+            setState(() {
+              _prefilledNatisRc1Url = resolvedNatis.isNotEmpty
+                  ? resolvedNatis
+                  : _prefilledNatisRc1Url;
+              // Rebuild AdminSection with prefill and inject into tabs
+              _adminSection = AdminSection(
+                key: _adminSectionKey,
+                vehicleId: widget.vehicleId,
+                natisRc1Url: _prefilledNatisRc1Url ?? widget.natisRc1Url,
+                isUploading: _isUploading,
+                requireToSettleType: widget.requireToSettleType,
+                onAdminDoc1Selected: (file) {
+                  _adminSectionKey.currentState?.updateAdminDoc1(file);
+                },
+                onAdminDoc2Selected: (file) {
+                  _adminSectionKey.currentState?.updateAdminDoc2(file);
+                },
+                onAdminDoc3Selected: (file) {
+                  _adminSectionKey.currentState?.updateAdminDoc3(file);
+                },
+              );
+              // Replace the ADMIN tab content with the rebuilt section
+              final int adminIndex = _tabTitles.indexOf('ADMIN');
+              if (adminIndex != -1 && adminIndex < _tabContents.length) {
+                _tabContents[adminIndex] = _adminSection;
+              }
+            });
           }
         }
       }
@@ -544,9 +588,10 @@ class _MaintenanceWarrantyScreenState extends State<MaintenanceWarrantyScreen> {
           setState(() {
             _isLoading = false;
           });
-          // Navigator.of(context).pushReplacementNamed('/home');
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => _adminSection),
+          // After successful save, take the transporter to Home
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomePage()),
+            (route) => false,
           );
         } else {
           setState(() {

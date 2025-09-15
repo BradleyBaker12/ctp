@@ -64,10 +64,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final bool _hasReachedEnd = false;
   List<Vehicle> recentVehicles = [];
   List<Offer> recentOffers = [];
-  List<Vehicle> todayVehicles = [];
-  List<Vehicle> yesterdayVehicles = [];
-
-  /// Add new properties for web navigation
+  // Web navigation scaffold key and helpers
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool get _isLargeScreen => MediaQuery.of(context).size.width > 900;
 
@@ -75,16 +72,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late PageController _pageController;
   int _currentPageIndex = 0;
 
-  // Add back the T&C dialog property
-  final bool _termsDialogShown = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Pre-cache the main hero image as early as possible
-    precacheImage(const AssetImage('lib/assets/HomePageHero.png'), context);
-  }
-
+  List<Vehicle> todayVehicles = [];
+  List<Vehicle> yesterdayVehicles = [];
   @override
   void initState() {
     super.initState();
@@ -100,10 +89,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _bgStopwatch = Stopwatch()..start();
       if (!mounted) return;
       final offerProvider = Provider.of<OfferProvider>(context, listen: false);
-      // Start background fetch of offers immediately
+      // Start background fetch of offers immediately with additional parameters
       await offerProvider.fetchOffers(
         FirebaseAuth.instance.currentUser!.uid,
         Provider.of<UserProvider>(context, listen: false).getUserRole,
+        isTradeInManager:
+            Provider.of<UserProvider>(context, listen: false).isTradeInManager,
+        tradeInBrand:
+            Provider.of<UserProvider>(context, listen: false).tradeInBrand,
       );
       if (!mounted) return;
       await _initializeData();
@@ -143,8 +136,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     // 1. User role check (skip phone number check for admin/sales rep)
     final userRole = userProvider.getUserRole.toLowerCase();
 
-    // OEM bypass: OEM users can access the Home page without any registration or approval checks
-    if (userRole == 'oem') {
+    // OEM and Trade-In users: skip phone + VAT/registration checks, BUT still require admin approval
+    if (userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in') {
+      final accountStatus = userProvider.getAccountStatus.toLowerCase();
+      final bool isVerified = userProvider.isVerified;
+      // If either pending status OR not verified, send to waiting screen
+      if (accountStatus == 'pending' || !isVerified) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/waiting-for-approval');
+        }
+        return;
+      }
+      // Otherwise allow access
       return;
     }
     if (userRole == 'pending') {
@@ -166,7 +169,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       }
     }
 
-    // 3. VAT/Registration check
+    // 3. VAT/Registration check (skip for OEM users)
     final vatNumber = userProvider.getVatNumber;
     final regNumber = userProvider.getRegistrationNumber;
 
@@ -175,20 +178,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         regNumber == null ||
         regNumber.isEmpty);
 
-    if (!hasValidRegistration) {
+    // OEM and Trade-In users are exempt from VAT/registration requirements
+    if (!(userRole == 'oem' ||
+            userRole == 'tradein' ||
+            userRole == 'trade-in') &&
+        !hasValidRegistration) {
       if (mounted) {
         if (userRole == 'dealer') {
           Navigator.pushReplacementNamed(context, '/dealerRegister');
-        } else if (userRole == 'transporter' || userRole == 'oem') {
+        } else if (userRole == 'transporter') {
           Navigator.pushReplacementNamed(context, '/transporterRegister');
         }
       }
       return; // Registration pages will handle next steps
     }
 
-    // 4. Account status check (only if all above are valid)
+    // 4. Account status & verification check (must be BOTH active & verified)
     final accountStatus = userProvider.getAccountStatus.toLowerCase();
-    if (accountStatus == 'pending') {
+    final isVerified = userProvider.isVerified;
+    if (accountStatus != 'active' || !isVerified) {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/waiting-for-approval');
       }
@@ -241,11 +249,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _offerProvider.fetchOffers(currentUser.uid, userProvider.getUserRole),
       ]);
 
+      // Only include vehicles with status 'live' in the New Arrivals carousel.
       todayVehicles = todayVehicles
-          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() != 'sold')
+          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() == 'live')
           .toList();
       yesterdayVehicles = yesterdayVehicles
-          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() != 'sold')
+          .where((vehicle) => vehicle.vehicleStatus.toLowerCase() == 'live')
           .toList();
 
       // Combine them into the displayed list
@@ -402,19 +411,45 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
 
-    List<NavigationItem> navigationItems = userRole == 'dealer'
-        ? [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
-            NavigationItem(title: 'Wishlist', route: '/wishlist'),
-            NavigationItem(title: 'Pending Offers', route: '/offers'),
-          ]
-        : [
-            NavigationItem(title: 'Home', route: '/home'),
-            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
-            NavigationItem(title: 'Your Offers', route: '/offers'),
-            NavigationItem(title: 'In-Progress', route: '/in-progress'),
-          ];
+    final bool isOemEmployee =
+        (userRole == 'oem' && !userProvider.isOemManager) ||
+            ((userRole.toLowerCase() == 'tradein' ||
+                    userRole.toLowerCase() == 'trade-in') &&
+                !userProvider.isTradeInManager);
+    final bool isTradeInUser = userRole.toLowerCase() == 'tradein' ||
+        userRole.toLowerCase() == 'trade-in';
+
+    // Treat trade-in users as transporters on the home page
+    final bool isTransporterOrTradeIn =
+        userRole == 'transporter' || isTradeInUser;
+
+    List<NavigationItem> navigationItems;
+    if (userRole == 'dealer') {
+      navigationItems = [
+        NavigationItem(title: 'Home', route: '/home'),
+        NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+        NavigationItem(title: 'Wishlist', route: '/wishlist'),
+        if (!isOemEmployee)
+          NavigationItem(title: 'Pending Offers', route: '/offers'),
+      ];
+    } else if (isTransporterOrTradeIn) {
+      // Transporters and Trade-In users see the same set of tabs
+      navigationItems = [
+        NavigationItem(title: 'Home', route: '/home'),
+        NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+        if (!isOemEmployee)
+          NavigationItem(title: 'Your Offers', route: '/offers'),
+        if (!isOemEmployee)
+          NavigationItem(title: 'In-Progress', route: '/in-progress'),
+      ];
+    } else {
+      navigationItems = [
+        NavigationItem(title: 'Home', route: '/home'),
+        NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+        NavigationItem(title: 'Your Offers', route: '/offers'),
+        NavigationItem(title: 'In-Progress', route: '/in-progress'),
+      ];
+    }
 
     return Container(
       height: 70,
@@ -664,19 +699,32 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Math.max(0.0, maxSystemBottom - mq.padding.bottom);
 
         // Build a list of nav items depending on userRole
-        List<NavigationItem> navigationItems = userRole == 'dealer'
-            ? [
-                NavigationItem(title: 'Home', route: '/home'),
-                NavigationItem(title: 'Search Trucks', route: '/truckPage'),
-                NavigationItem(title: 'Wishlist', route: '/wishlist'),
-                NavigationItem(title: 'Pending Offers', route: '/offers'),
-              ]
-            : [
-                NavigationItem(title: 'Home', route: '/home'),
-                NavigationItem(title: 'Your Trucks', route: '/transporterList'),
-                NavigationItem(title: 'Your Offers', route: '/offers'),
-                NavigationItem(title: 'In-Progress', route: '/in-progress'),
-              ];
+        final bool isTradeInUser = userRole.toLowerCase() == 'tradein' ||
+            userRole.toLowerCase() == 'trade-in';
+
+        List<NavigationItem> navigationItems;
+        if (userRole == 'dealer') {
+          navigationItems = [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+            NavigationItem(title: 'Wishlist', route: '/wishlist'),
+            NavigationItem(title: 'Pending Offers', route: '/offers'),
+          ];
+        } else if (isTradeInUser) {
+          navigationItems = [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Trade-Ins', route: '/tradeIns'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
+        } else {
+          navigationItems = [
+            NavigationItem(title: 'Home', route: '/home'),
+            NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+            NavigationItem(title: 'Your Offers', route: '/offers'),
+            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+          ];
+        }
 
         return Scaffold(
           key: _scaffoldKey,
@@ -693,7 +741,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         _scaffoldKey.currentState?.openDrawer(),
                   ),
                 )
-              : CustomAppBar(),
+              : const CustomAppBar(showBackButton: false),
           drawer: (kIsWeb && _isCompactNavigation) ||
                   (!kIsWeb &&
                       MediaQuery.of(context).size.width >= 600 &&
@@ -822,16 +870,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Container(
                   width: double.infinity,
                   constraints: BoxConstraints(
+                    // TODO: Adjust the HERO IMAGE SIZE here.
+                    // Use these multipliers as starting points that match the
+                    // provided design. Tweak the values below to make the
+                    // truck larger/smaller on each breakpoint.
+                    // Desktop: near-full height so truck is prominent
+                    // Mobile/tablet: slightly shorter to keep space for controls
+                    // Make hero image taller: full viewport on large screens,
+                    // and 85% of viewport on smaller screens so controls still fit.
                     maxHeight: screenWidth > 900
-                        ? screenHeight * 0.6
-                        : screenHeight * 0.45,
+                        ? screenHeight * 2.0
+                        : screenHeight * 0.85,
                   ),
                   child: Image.asset(
                     'lib/assets/HomePageHero.png',
                     width: screenWidth,
-                    fit: screenWidth > 900 ? BoxFit.cover : BoxFit.fill,
+                    // Cover the area; shift the focal point slightly up so the
+                    // truck cab is more visible (tweak Alignment.y to fine tune)
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0.0, -0.18),
                   ),
                 ),
+                // Overlay gradient to darken the bottom and keep welcome text readable
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
@@ -839,11 +899,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          Colors.black.withOpacity(1),
-                          Colors.black.withOpacity(0.6),
+                          Colors.black.withOpacity(0.95),
+                          Colors.black.withOpacity(0.65),
                           Colors.transparent,
                         ],
-                        stops: const [0.0, 0.35, 0.7],
+                        // Move mid-stop slightly higher so the bottom is darker
+                        stops: const [0.0, 0.45, 0.9],
                       ),
                     ),
                   ),
@@ -852,6 +913,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Positioned(
                   left: 0,
                   right: 0,
+                  // Keep welcome text in its original lower position while hero image is larger
                   bottom: screenHeight * 0.02,
                   child: Padding(
                     padding: EdgeInsets.symmetric(
@@ -999,147 +1061,200 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           SizedBox(height: screenHeight * 0.03),
         ],
 
-        // Example pending offers section
+        // Hide pending offers & offers list for OEM employees (non-manager)
         SizedBox(height: screenHeight * 0.015),
-        GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/pendingOffers'),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'lib/assets/shaking_hands.png',
-                    width: MediaQuery.of(context).size.width * 0.04,
-                    height: MediaQuery.of(context).size.width * 0.04,
-                  ),
-                  SizedBox(width: screenHeight * 0.01),
-                  Text(
-                    'RECENT PENDING OFFERS',
-                    style: _getTextStyle(
-                      fontSize: _adaptiveTextSize(
-                        context,
-                        24,
-                        Math.min(80, MediaQuery.of(context).size.width * 0.04),
-                      ),
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF2F7FFF),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: screenHeight * 0.02),
-              Text(
-                'Track and manage your active trading offers here.',
-                style: _getTextStyle(
-                  fontSize: _adaptiveTextSize(
-                    context,
-                    24,
-                    Math.min(30, MediaQuery.of(context).size.width * 0.03),
-                  ),
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: screenHeight * 0.02),
-        // Offers Section with loading indicator tied to OfferProvider state
-        Consumer<OfferProvider>(
-          builder: (context, offerProv, _) {
-            // Filter out sold offers & limit to 5 recent
-            final filtered = offerProv.offers
-                .where((o) => o.offerStatus.toLowerCase() != 'sold')
-                .take(5)
-                .toList();
+        Builder(
+          builder: (context) {
+            final userProvider = Provider.of<UserProvider>(context);
+            final role = userProvider.getUserRole.toLowerCase();
+            final bool isOemEmployee =
+                (role == 'oem' && !userProvider.isOemManager) ||
+                    ((role == 'tradein' || role == 'trade-in') &&
+                        !userProvider.isTradeInManager);
 
-            // Show spinner while fetching and we have nothing yet
-            if (offerProv.isFetching && filtered.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+            if (isOemEmployee) {
+              // OEM employees shouldn't see pending offers - render nothing and keep spacing
+              return const SizedBox.shrink();
             }
 
-            if (filtered.isEmpty) {
-              return Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[900],
-                      borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: const Color(0xFF2F7FFF), width: 1),
-                    ),
-                    child: Column(
-                      children: [
-                        Image.asset('lib/assets/shaking_hands.png',
-                            height: 50, width: 50),
-                        const SizedBox(height: 10),
-                        Text(
-                          'NO OFFERS YET',
-                          style: _getTextStyle(
-                            fontSize: _adaptiveTextSize(context, 20, 22),
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          offerProv.isFetching
-                              ? 'Loading offers...'
-                              : 'Start trading to see your offers here',
-                          style: _getTextStyle(
-                            fontSize: _adaptiveTextSize(context, 14, 16),
-                            color: Colors.grey,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: screenHeight * 0.02),
-                ],
-              );
-            }
-
+            // Non-OEM or OEM managers see the pending offers section
             return Column(
               children: [
-                SizedBox(height: screenHeight * 0.01),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    int cardsPerRow;
-                    if (constraints.maxWidth > 1400) {
-                      cardsPerRow = 4;
-                    } else if (constraints.maxWidth > 1100) {
-                      cardsPerRow = 3;
-                    } else if (constraints.maxWidth > 700) {
-                      cardsPerRow = 2;
-                    } else {
-                      cardsPerRow = 1;
+                GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/pendingOffers'),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'lib/assets/shaking_hands.png',
+                            width: MediaQuery.of(context).size.width * 0.04,
+                            height: MediaQuery.of(context).size.width * 0.04,
+                          ),
+                          SizedBox(width: screenHeight * 0.01),
+                          Text(
+                            'RECENT PENDING OFFERS',
+                            style: _getTextStyle(
+                              fontSize: _adaptiveTextSize(
+                                context,
+                                24,
+                                Math.min(80,
+                                    MediaQuery.of(context).size.width * 0.04),
+                              ),
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF2F7FFF),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: screenHeight * 0.02),
+                      Text(
+                        'Track and manage your active trading offers here.',
+                        style: _getTextStyle(
+                          fontSize: _adaptiveTextSize(
+                            context,
+                            24,
+                            Math.min(
+                                30, MediaQuery.of(context).size.width * 0.03),
+                          ),
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.02),
+                // Offers Section with loading indicator tied to OfferProvider state
+                Consumer<OfferProvider>(
+                  builder: (context, offerProv, _) {
+                    // Filter out sold offers & limit to 5 recent
+                    // For trade-in managers we only show offers for vehicles assigned to their company.
+                    // ASSUMPTION: vehicles belonging to a trade-in company include the company's name in offer.vehicleBrand
+                    // or the offer.dealerId/transporterId equals the manager userId; adjust if your data model differs.
+                    final userProv =
+                        Provider.of<UserProvider>(context, listen: false);
+                    final roleLower = userProv.getUserRole.toLowerCase();
+                    List filteredList = offerProv.offers
+                        .where((o) => o.offerStatus.toLowerCase() != 'sold')
+                        .toList();
+
+                    if (roleLower == 'tradein' || roleLower == 'trade-in') {
+                      if (userProv.isTradeInManager) {
+                        // Managers see only offers for their company/brand or where they are dealer/transporter
+                        final String? companyBrand =
+                            userProv.tradeInBrand?.toLowerCase();
+                        final String currentUserId = userProv.userId ?? '';
+                        filteredList = filteredList.where((o) {
+                          final vehicleBrand =
+                              (o.vehicleBrand ?? '').toLowerCase();
+                          return (companyBrand != null &&
+                                  companyBrand.isNotEmpty &&
+                                  vehicleBrand == companyBrand) ||
+                              o.dealerId == currentUserId ||
+                              o.transporterId == currentUserId;
+                        }).toList();
+                      } else {
+                        // Non-managers should see offers like transporters; do nothing special here.
+                      }
                     }
 
-                    return Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      alignment: WrapAlignment.center,
-                      children: filtered.map((offer) {
-                        return SizedBox(
-                          width: (constraints.maxWidth -
-                                  (16 * (cardsPerRow - 1))) /
-                              cardsPerRow,
-                          child: OfferCard(offer: offer),
-                        );
-                      }).toList(),
+                    final filtered = filteredList.take(5).toList();
+
+                    // Show spinner while fetching and we have nothing yet
+                    if (offerProv.isFetching && filtered.isEmpty) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (filtered.isEmpty) {
+                      return Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16.0),
+                            margin:
+                                const EdgeInsets.symmetric(horizontal: 16.0),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[900],
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: const Color(0xFF2F7FFF), width: 1),
+                            ),
+                            child: Column(
+                              children: [
+                                Image.asset('lib/assets/shaking_hands.png',
+                                    height: 50, width: 50),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'NO OFFERS YET',
+                                  style: _getTextStyle(
+                                    fontSize:
+                                        _adaptiveTextSize(context, 20, 22),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  offerProv.isFetching
+                                      ? 'Loading offers...'
+                                      : 'Start trading to see your offers here',
+                                  style: _getTextStyle(
+                                    fontSize:
+                                        _adaptiveTextSize(context, 14, 16),
+                                    color: Colors.grey,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: screenHeight * 0.02),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      children: [
+                        SizedBox(height: screenHeight * 0.01),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            int cardsPerRow;
+                            if (constraints.maxWidth > 1400) {
+                              cardsPerRow = 4;
+                            } else if (constraints.maxWidth > 1100) {
+                              cardsPerRow = 3;
+                            } else if (constraints.maxWidth > 700) {
+                              cardsPerRow = 2;
+                            } else {
+                              cardsPerRow = 1;
+                            }
+
+                            return Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              alignment: WrapAlignment.center,
+                              children: filtered.map((offer) {
+                                return SizedBox(
+                                  width: (constraints.maxWidth -
+                                          (16 * (cardsPerRow - 1))) /
+                                      cardsPerRow,
+                                  child: OfferCard(offer: offer),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                      ],
                     );
                   },
                 ),
+                SizedBox(height: screenHeight * 0.08),
               ],
             );
           },
         ),
-        SizedBox(height: screenHeight * 0.08),
         if (kIsWeb) const WebFooter(),
       ],
     );
@@ -1278,7 +1393,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              (userRole == 'transporter' || userRole == 'oem')
+              // Trade-In users should be treated like transporters for selling
+              ((userRole == 'transporter' ||
+                      userRole == 'oem' ||
+                      userRole.toLowerCase() == 'tradein' ||
+                      userRole.toLowerCase() == 'trade-in'))
                   ? "I AM SELLING A"
                   : "I AM LOOKING FOR",
               style: _getTextStyle(
@@ -1301,7 +1420,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     "TRUCKS",
                     const Color(0xFF2F7FFF),
                     onTap: () async {
-                      if (userRole == 'transporter' || userRole == 'oem') {
+                      // Allow trade-in users to upload like transporters
+                      if (userRole == 'transporter' ||
+                          userRole == 'oem' ||
+                          userRole.toLowerCase() == 'tradein' ||
+                          userRole.toLowerCase() == 'trade-in') {
                         await MyNavigator.push(
                           context,
                           VehicleUploadScreen(isNewUpload: true),
@@ -1326,7 +1449,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     "TRAILERS",
                     const Color(0xFFFF4E00),
                     onTap: () async {
-                      if (userRole == 'transporter' || userRole == 'oem') {
+                      // Allow trade-in users to upload trailers like transporters
+                      if (userRole == 'transporter' ||
+                          userRole == 'oem' ||
+                          userRole.toLowerCase() == 'tradein' ||
+                          userRole.toLowerCase() == 'trade-in') {
                         await MyNavigator.push(
                           context,
                           const TrailerUploadScreen(

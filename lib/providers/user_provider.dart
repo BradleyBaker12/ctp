@@ -33,6 +33,11 @@ class UserProvider extends ChangeNotifier {
   String? _managerId; // For employees, the manager's userId
   bool _isOemManager = false; // Whether this OEM user is a manager
 
+  // Trade-in role support (mirror OEM structure)
+  String? _tradeInBrand;
+  String? _tradeInManagerId; // For trade-in employees, manager's userId
+  bool _isTradeInManager = false; // Whether this trade-in user is a manager
+
   // Add this line with the other field declarations
   String? _taxCertificateUrl;
 
@@ -42,6 +47,30 @@ class UserProvider extends ChangeNotifier {
   String? get oemBrand => _oemBrand;
   String? get managerId => _managerId;
   bool get isOemManager => _isOemManager;
+  // Trade-in getters
+  String? get tradeInBrand => _tradeInBrand;
+  String? get tradeInManagerId => _tradeInManagerId;
+  bool get isTradeInManager => _isTradeInManager;
+
+  /// Returns true if the given role corresponds to a manager for that role.
+  /// For 'oem' this checks [_isOemManager], for 'tradein'/'trade-in' checks [_isTradeInManager].
+  /// If the corresponding manager flag is missing (null/false) it will be treated as not a manager.
+  bool isManagerForRole(String role) {
+    final r = role.toLowerCase();
+    if (r == 'oem') return _isOemManager == true;
+    if (r == 'tradein' || r == 'trade-in') return _isTradeInManager == true;
+    return false;
+  }
+
+  /// Returns true if the given role corresponds to an employee (i.e. not a manager).
+  /// If the manager flag is missing or false, the user is considered an employee.
+  bool isEmployeeForRole(String role) {
+    return !isManagerForRole(role);
+  }
+
+  /// Convenience getters for the currently loaded user in this provider.
+  bool get currentUserIsManager => isManagerForRole(_userRole);
+  bool get currentUserIsEmployee => !currentUserIsManager;
 
   // User details
   String? _companyName;
@@ -221,6 +250,44 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error setting OEM brand: $e');
+      rethrow;
+    }
+  }
+
+  // Assign or change the Trade-In brand for the current user. Does not modify userRole.
+  Future<void> setTradeInBrand(String? brand) async {
+    if (_user == null) throw Exception('No user logged in');
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .update({'tradeInBrand': brand});
+      _tradeInBrand = brand;
+      notifyListeners();
+    } catch (e) {
+      print('Error setting Trade-In brand: $e');
+      rethrow;
+    }
+  }
+
+  // Convenience: set role to 'tradein' and assign brand at the same time (for demo/accounts)
+  Future<void> setTradeInRoleAndBrand(String brand) async {
+    if (_user == null) throw Exception('No user logged in');
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .update({
+        'userRole': 'tradein',
+        'tradeInBrand': brand,
+        'isFirstLogin': false
+      });
+      _userRole = 'tradein';
+      _tradeInBrand = brand;
+      await NotificationService.subscribeToTopics(_userRole);
+      notifyListeners();
+    } catch (e) {
+      print('Error setting Trade-In role and brand: $e');
       rethrow;
     }
   }
@@ -413,6 +480,11 @@ class UserProvider extends ChangeNotifier {
           _managerId = data['managerId'];
           _isOemManager = (data['isOemManager'] == true);
 
+          // Read Trade-In brand assignment and hierarchy if present
+          _tradeInBrand = data['tradeInBrand'];
+          _tradeInManagerId = data['tradeInManagerId'];
+          _isTradeInManager = (data['isTradeInManager'] == true);
+
           // Fix: Update userName to use the firstName instead of remaining as 'Guest'
           _userName = _firstName ?? 'Guest';
 
@@ -599,7 +671,7 @@ class UserProvider extends ChangeNotifier {
         _clearUserData();
         notifyListeners();
       } catch (e) {
-        print('Error deleting account: \$e');
+        print('Error deleting account: $e');
         rethrow;
       }
     } else {
@@ -1102,8 +1174,32 @@ class UserProvider extends ChangeNotifier {
         .snapshots()
         .listen((snapshot) {
       if (snapshot.exists) {
-        _accountStatus = snapshot.data()?['accountStatus'] ?? 'active';
-        notifyListeners();
+        final data = snapshot.data();
+        if (data != null) {
+          final newStatus = data['accountStatus'] ?? 'active';
+          final newRole = data['userRole'] ?? _userRole;
+          // These may change if an admin promoted/demoted OEM user.
+          final newIsManager = data['isOemManager'] == true;
+          final newManagerId = data['managerId'];
+          bool changed = false;
+          if (newStatus != _accountStatus) {
+            _accountStatus = newStatus;
+            changed = true;
+          }
+          if (newRole != _userRole) {
+            _userRole = newRole;
+            changed = true;
+          }
+          if (newIsManager != _isOemManager) {
+            _isOemManager = newIsManager;
+            changed = true;
+          }
+          if (newManagerId != _managerId) {
+            _managerId = newManagerId;
+            changed = true;
+          }
+          if (changed) notifyListeners();
+        }
       }
     });
   }
@@ -1123,6 +1219,11 @@ class UserProvider extends ChangeNotifier {
   String? get getTaxCertificateUrl => _taxCertificateUrl;
 
   bool get hasCompletedRegistration {
+    // OEM and Trade-In users are exempt from VAT/registration completion requirements
+    final roleLower = _userRole.toLowerCase();
+    if (roleLower == 'oem' || roleLower == 'tradein' || roleLower == 'trade-in') {
+      return true;
+    }
     // Check if user has completed registration forms
     // by verifying required fields are present
     return _vatNumber != null &&

@@ -5,7 +5,7 @@ class CustomButton extends StatelessWidget {
   final String text;
   final Color borderColor;
   final bool? isLoading;
-  final VoidCallback? onPressed; // Make this nullable
+  final VoidCallback? onPressed; // Nullable enables disabled state
 
   const CustomButton({
     super.key,
@@ -24,15 +24,11 @@ class CustomButton extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8.0),
         child: ElevatedButton(
-          onPressed: () {
-            if (!loading) {
-              onPressed!();
-            }
-          },
+          // Disabled when loading or onPressed is null
+          onPressed: (loading || onPressed == null) ? null : onPressed,
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.white,
-            backgroundColor: borderColor.withOpacity(
-                0.17), // Adjust opacity for disabled state if needed
+            backgroundColor: borderColor.withOpacity(0.17),
             padding:
                 EdgeInsets.symmetric(vertical: 15.0), // Padding inside button
             shape: RoundedRectangleBorder(

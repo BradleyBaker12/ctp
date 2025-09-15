@@ -524,7 +524,7 @@ class _CollectionDetailsPageState extends State<CollectionDetailsPage> {
                       textAlign: TextAlign.center,
                     ),
                   ] else if (userRole == 'transporter' ||
-                      userRole == 'oem') ...[
+                      userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in') ...[
                     const Text(
                       "Dealer's delivery address:",
                       style: TextStyle(

@@ -252,12 +252,12 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
             'mediaUrl': mediaUrl, // Include mediaUrl if exists
         });
 
-        // Update the offer status to "Issue reported"
+        // Update the offer status to normalized "issue reported"
         await FirebaseFirestore.instance
             .collection('offers')
             .doc(widget.offerId)
             .update({
-          'offerStatus': 'Issue reported',
+          'offerStatus': 'issue reported',
         });
 
         // Show a success message or perform additional actions if needed

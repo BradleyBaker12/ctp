@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -50,12 +51,42 @@ class _CollectionConfirmationPageState
   final String _meetingInfoText = 'Meeting information:';
   final String _doneButtonText = 'DONE';
   int _selectedIndex = 0; // For bottom navigation
+  StreamSubscription<DocumentSnapshot>? _offerSub;
+  bool _redirected = false;
 
   @override
   void initState() {
     super.initState();
     debugPrint("initState: Starting initialization");
     _initializePage();
+    _listenForCollectionReady();
+  }
+
+  void _listenForCollectionReady() {
+    _offerSub = FirebaseFirestore.instance
+        .collection('offers')
+        .doc(widget.offerId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted || _redirected) return;
+      final data = snap.data();
+      final status = (data?['offerStatus'] ?? '').toString().toLowerCase();
+      if (status == 'collection ready') {
+        _redirected = true;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentApprovedPage(offerId: widget.offerId),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _offerSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _initializePage() async {
@@ -148,7 +179,7 @@ class _CollectionConfirmationPageState
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
-          .update({'offerStatus': 'Collection Location Confirmation'});
+          .update({'offerStatus': 'collection location confirmation'});
       debugPrint("Offer status updated for offerId: ${widget.offerId}");
     } catch (e) {
       debugPrint("Error updating offer status: $e");
@@ -158,20 +189,25 @@ class _CollectionConfirmationPageState
   }
 
   void _openInGoogleMaps() async {
+    String googleMapsUrl;
     if (_latLng != null) {
-      final googleMapsUrl =
+      googleMapsUrl =
           'https://www.google.com/maps/search/?api=1&query=${_latLng!.latitude},${_latLng!.longitude}';
-      debugPrint("Opening Google Maps URL: $googleMapsUrl");
-      if (await canLaunch(googleMapsUrl)) {
-        await launch(googleMapsUrl);
-      } else {
-        debugPrint("Could not open Google Maps with URL: $googleMapsUrl");
-        throw 'Could not open Google Maps';
-      }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('LatLng is not available')),
-      );
+      final query =
+          _displayedAddress.isNotEmpty ? _displayedAddress : widget.address;
+      googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}';
+    }
+    debugPrint("Opening Google Maps URL: $googleMapsUrl");
+    if (await canLaunch(googleMapsUrl)) {
+      await launch(googleMapsUrl);
+    } else {
+      debugPrint("Could not open Google Maps with URL: $googleMapsUrl");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open Google Maps')),
+        );
+      }
     }
   }
 
@@ -362,13 +398,18 @@ class _CollectionConfirmationPageState
                         CustomButton(
                           text: 'COPY ADDRESS',
                           borderColor: Colors.blue,
-                          onPressed: () {
-                            Clipboard.setData(
-                                ClipboardData(text: widget.address));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Address copied to clipboard')),
-                            );
+                          onPressed: () async {
+                            final formatted = 'Address: ${_displayedAddress.isNotEmpty
+                                    ? _displayedAddress
+                                    : widget.address}\nDate: ${widget.date.day} ${_getMonthName(widget.date.month)} ${widget.date.year}\nTime: ${widget.time}';
+                            await Clipboard.setData(
+                                ClipboardData(text: formatted));
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Collection details copied')),
+                              );
+                            }
                           },
                         ),
                         CustomButton(
@@ -379,7 +420,18 @@ class _CollectionConfirmationPageState
                         CustomButton(
                           text: _doneButtonText,
                           borderColor: const Color(0xFFFF4E00),
-                          onPressed: () {
+                          onPressed: () async {
+                            try {
+                              await FirebaseFirestore.instance
+                                  .collection('offers')
+                                  .doc(widget.offerId)
+                                  .set({'offerStatus': 'collection ready'},
+                                      SetOptions(merge: true));
+                            } catch (e) {
+                              debugPrint(
+                                  'Failed to update offer status to collection ready: $e');
+                            }
+                            if (!mounted) return;
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(

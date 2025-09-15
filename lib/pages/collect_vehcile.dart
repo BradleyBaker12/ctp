@@ -68,6 +68,27 @@ class _CollectVehiclePageState extends State<CollectVehiclePage> {
       });
 
       try {
+        // Ensure payment is verified before allowing collection
+        final offerSnap = await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offerId)
+            .get();
+        final offerData = offerSnap.data() ?? {};
+        final currentOfferStatus =
+            (offerData['offerStatus'] ?? '').toString().toLowerCase();
+        final currentPaymentStatus =
+            (offerData['paymentStatus'] ?? '').toString().toLowerCase();
+        final isPaid = currentOfferStatus == 'paid' ||
+            currentPaymentStatus == 'approved' ||
+            currentOfferStatus == 'collected';
+        if (!isPaid) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Payment not verified yet. You can only collect once payment is verified.'),
+            backgroundColor: Colors.red,
+          ));
+          return;
+        }
+
         final offerProvider =
             Provider.of<OfferProvider>(context, listen: false);
         final currentOffer = offerProvider.offers.firstWhere(

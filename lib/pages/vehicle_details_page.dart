@@ -39,6 +39,30 @@ import 'package:auto_size_text/auto_size_text.dart';
 // Update the admin navbar import to avoid conflict:
 // New import for admin navbar
 
+// Returns navigation items based on user role, hides all for OEM users
+List<NavigationItem> getNavigationItems(BuildContext context) {
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
+  final role = userProvider.getUserRole.toLowerCase();
+  if (role == 'oem') {
+    return [];
+  }
+  if (role == 'dealer') {
+    return [
+      NavigationItem(title: 'Home', route: '/home'),
+      NavigationItem(title: 'Search Trucks', route: '/truckPage'),
+      NavigationItem(title: 'Wishlist', route: '/wishlist'),
+      NavigationItem(title: 'Pending Offers', route: '/offers'),
+    ];
+  } else {
+    return [
+      NavigationItem(title: 'Home', route: '/home'),
+      NavigationItem(title: 'Your Trucks', route: '/transporterList'),
+      NavigationItem(title: 'Your Offers', route: '/offers'),
+      NavigationItem(title: 'In-Progress', route: '/in-progress'),
+    ];
+  }
+}
+
 // Define the PhotoItem class to hold both the image URL and its label
 class PhotoItem {
   final String url;
@@ -133,24 +157,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
     super.initState();
     _vehicle = widget.vehicle;
     _trailer = widget.trailer;
-    if (widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
-      debugPrint("DEBUG: Trailer data: ${widget.trailer.toString()}");
-    }
-    if (_trailer == null &&
-        widget.vehicle.vehicleType.toLowerCase() == 'trailer') {
-      FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(widget.vehicle.id)
-          .get()
-          .then((doc) {
-        if (doc.exists) {
-          setState(() {
-            _trailer = Trailer.fromJson(doc.data()!);
-          });
-        }
-      }).catchError((e) {
-        debugPrint('Error loading trailer details: $e');
-      });
+    // Disable offer actions for OEM/Trade-In employees (non-managers)
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final role = userProvider.getUserRole.toLowerCase();
+    final bool isOemEmployee = role == 'oem' && !userProvider.isOemManager;
+    final bool isTradeInEmployee =
+        (role == 'tradein' || role == 'trade-in') && !userProvider.isTradeInManager;
+    if (isOemEmployee || isTradeInEmployee) {
+      _canMakeOffer = false;
     }
     _checkIfMyOfferAccepted();
     _checkIfOfferMade();
@@ -172,7 +186,8 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
   //  Helper: Get verification status from dealer document.
   // ---------------------------------------------------------------------------
   bool getIsVerified(DocumentSnapshot dealerDoc) {
-    return dealerDoc.get('isVerified') ?? false;
+    final data = dealerDoc.data() as Map<String, dynamic>?;
+    return data != null && (data['isVerified'] == true);
   }
 
   // ---------------------------------------------------------------------------
@@ -2644,24 +2659,15 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
       );
     } else {
       // Only authenticated users with appropriate roles should see the make-offer section.
+      final role = userProvider.getUserRole.toLowerCase();
+      final bool isOemUser = role == 'oem';
       if (isAuthenticated &&
           (userProvider.getUserRole == 'dealer' ||
               userProvider.getUserRole == 'admin' ||
-              userProvider.getUserRole == 'sales representative')) {
+              userProvider.getUserRole == 'sales representative') &&
+          !isOemUser) {
         // For dealers who can make a new offer
         List<Widget> makeOfferWidgets = [];
-        if (userProvider.getUserRole == 'dealer') {
-          makeOfferWidgets.add(
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildActionButton(Icons.close, const Color(0xFF2F7FFF)),
-                const SizedBox(width: 16),
-                _buildActionButton(Icons.favorite, const Color(0xFFFF4E00)),
-              ],
-            ),
-          );
-        }
         makeOfferWidgets.add(const SizedBox(height: 16));
 
         // Vehicle Owner Information Section (Admin Only):
@@ -3643,13 +3649,31 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                           },
                                         ),
                                         const SizedBox(height: 16),
-                                        if (offerWidgets.isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.all(16.0),
-                                            child: Column(
-                                              children: offerWidgets,
-                                            ),
+                                        // Keep like button row in original position (dealers only)
+                                        if (!vehicle.isAccepted &&
+                                            ((!_hasMadeOffer) ||
+                                                _offerStatus == 'rejected') &&
+                                            isAuthenticated &&
+                                            userProvider.getUserRole ==
+                                                'dealer')
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceEvenly,
+                                            children: [
+                                              _buildActionButton(Icons.close,
+                                                  const Color(0xFF2F7FFF)),
+                                              const SizedBox(width: 16),
+                                              _buildActionButton(Icons.favorite,
+                                                  const Color(0xFFFF4E00)),
+                                            ],
                                           ),
+                                        if (!vehicle.isAccepted &&
+                                            ((!_hasMadeOffer) ||
+                                                _offerStatus == 'rejected') &&
+                                            isAuthenticated &&
+                                            userProvider.getUserRole ==
+                                                'dealer')
+                                          const SizedBox(height: 16),
                                         // Action Buttons Section:
                                         (userProvider.getUserRole ==
                                                     'transporter' ||
@@ -3763,6 +3787,14 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
                                                 const SizedBox(height: 10),
                                                 _buildOffersList(),
                                               ],
+                                            ),
+                                          ),
+                                        // Move offer section to the very bottom of the page
+                                        if (offerWidgets.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.all(16.0),
+                                            child: Column(
+                                              children: offerWidgets,
                                             ),
                                           ),
                                         const SizedBox(height: 24),

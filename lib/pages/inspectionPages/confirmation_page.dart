@@ -13,6 +13,8 @@ import 'package:ctp/components/custom_back_button.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ctp/components/web_navigation_bar.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:auto_route/auto_route.dart';
 
@@ -57,12 +59,15 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
 
   int _selectedIndex = 1; // Keeps track of the selected bottom navigation item
   bool _inspectionCompleteClicked = false;
+  String? _fetchedBrand;
+  String? _fetchedVariant;
 
   @override
   void initState() {
     super.initState();
     _updateOfferStatus();
     // Removed the one-time fetch in favor of using real-time data in StreamBuilder.
+    _fetchVehicleInfoIfMissing();
   }
 
   void _updateOfferStatus() {
@@ -76,6 +81,41 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Future<void> _fetchVehicleInfoIfMissing() async {
+    final hasBrand = widget.brand.trim().isNotEmpty;
+    final hasVariant = widget.variant.trim().isNotEmpty;
+    if (hasBrand && hasVariant) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
+      if (!snap.exists) return;
+      final data = snap.data() as Map<String, dynamic>;
+      String brand = '';
+      final brands = data['brands'];
+      if (brands is List && brands.isNotEmpty) {
+        brand = brands.first.toString();
+      } else if (brands is String) {
+        brand = brands;
+      }
+      final variant = (data['variant'] ?? '').toString();
+      if (mounted) {
+        setState(() {
+          _fetchedBrand = brand.isNotEmpty ? brand : null;
+          _fetchedVariant = variant.isNotEmpty ? variant : null;
+        });
+      }
+    } catch (_) {}
+  }
+
+  String get _vehicleNameDisplay {
+    final brand = (_fetchedBrand ?? widget.brand).trim();
+    final variant = (_fetchedVariant ?? widget.variant).trim();
+    final parts = [brand, variant].where((s) => s.isNotEmpty).toList();
+    return parts.isNotEmpty ? parts.join(' ').toUpperCase() : 'VEHICLE';
   }
 
   void _navigateToHomePage(BuildContext context) {
@@ -108,11 +148,11 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
         offerSnapshot['transporterInspectionComplete'] ?? false;
 
     if (dealerComplete && transporterComplete) {
-      // Update the offer status to 'inspection completed'.
+      // Update the offer status to a normalized 'inspection done'.
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
-          .update({'offerStatus': 'inspection completed'});
+          .update({'offerStatus': 'inspection done'});
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -325,7 +365,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                     builder: (context) => FinalInspectionApprovalPage(
                       offerId: widget.offerId,
                       oldOffer: offerAmountFromFirestore,
-                      vehicleName: "${widget.brand} ${widget.variant}",
+                      vehicleName: _vehicleNameDisplay,
                     ),
                   ),
                 );
@@ -376,7 +416,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                             ),
                             SizedBox(height: screenHeight * 0.04),
                             Text(
-                              "${widget.brand} ${widget.variant}".toUpperCase(),
+                              _vehicleNameDisplay,
                               style: _getTextStyle(
                                 fontSize: _adaptiveTextSize(context, 20, 28),
                                 fontWeight: FontWeight.w800,
@@ -437,7 +477,8 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                                             InspectionDetailsPage(
                                           offerId: widget.offerId,
                                           brand: widget.brand,
-                                          variant: widget.variant,
+                                          variant: (_fetchedVariant ??
+                                              widget.variant),
                                           offerAmount: offerAmountFromFirestore,
                                           vehicleId: widget.vehicleId,
                                         ),
@@ -446,9 +487,61 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                                   },
                                 ),
                               ),
+                            // New: quick actions under Reschedule
+                            Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: screenHeight * 0.02),
+                              child: CustomButton(
+                                text: 'COPY ADDRESS',
+                                borderColor: Colors.blue,
+                                onPressed: () async {
+                                  final formatted = 'Address: $inspectionAddress\nDate: ${DateFormat('d MMMM yyyy')
+                                          .format(inspectionDate)}\nTime: $inspectionTime';
+                                  await Clipboard.setData(
+                                      ClipboardData(text: formatted));
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Inspection details copied')),
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                            Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: screenHeight * 0.02),
+                              child: CustomButton(
+                                text: 'OPEN IN GOOGLE MAPS',
+                                borderColor: Colors.blue,
+                                onPressed: () async {
+                                  final latLng = widget.latLng;
+                                  final String url = latLng != null
+                                      ? 'https://www.google.com/maps/search/?api=1&query=${latLng.latitude},${latLng.longitude}'
+                                      : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(
+                                              inspectionAddress)}';
+                                  final uri = Uri.parse(url);
+                                  final ok = await canLaunchUrl(uri);
+                                  if (ok) {
+                                    await launchUrl(uri,
+                                        mode: LaunchMode.externalApplication);
+                                  } else {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Could not open Google Maps')),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            ),
                             if ((userRole == 'dealer' && !dealerComplete) ||
                                 ((userRole == 'transporter' ||
-                                        userRole == 'oem') &&
+                                        userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in') &&
                                     !transporterComplete))
                               Padding(
                                 padding: EdgeInsets.only(
@@ -462,7 +555,7 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
                               ),
                             if ((userRole == 'dealer' && dealerComplete) ||
                                 ((userRole == 'transporter' ||
-                                        userRole == 'oem') &&
+                                        userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in') &&
                                     transporterComplete))
                               Padding(
                                 padding: EdgeInsets.only(

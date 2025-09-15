@@ -25,6 +25,7 @@ import 'package:url_launcher/url_launcher.dart'; // Add this import for launchUr
 import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:ctp/utils/offer_status.dart';
 
 @RoutePage()
 class PaymentOptionsPage extends StatefulWidget {
@@ -95,7 +96,10 @@ class _PaymentOptionsPageState extends State<PaymentOptionsPage> {
     final offerRef =
         FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
     // Mark that an invoice has been requested
-    await offerRef.update({'needsInvoice': true});
+    await offerRef.update({
+      'needsInvoice': true,
+      'offerStatus': OfferStatuses.adminInvoicePending,
+    });
     // Notify all admins
     final adminSnapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -1109,7 +1113,7 @@ Please contact support for assistance.
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: Text(
-                            'CTP is verifying the transporter invoice. You\'ll be able to request your invoice once that\'s done.',
+                            'CTP is verifying the transporter invoice. You can request for an invoice to speed up the process.',
                             style: TextStyle(color: Colors.orangeAccent),
                             textAlign: TextAlign.center,
                           ),

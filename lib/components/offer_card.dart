@@ -23,6 +23,7 @@ import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/providers/complaints_provider.dart';
 import 'package:flutter/foundation.dart';
+import 'package:ctp/utils/offer_status.dart';
 
 class OfferCard extends StatefulWidget {
   final Offer offer;
@@ -78,15 +79,22 @@ class _OfferCardState extends State<OfferCard> {
     try {
       if (widget.offer.vehicleIds != null &&
           widget.offer.vehicleIds!.isNotEmpty) {
-        // Bulk: fetch multiple
-        final snap = await FirebaseFirestore.instance
-            .collection('vehicles')
-            .where(FieldPath.documentId, whereIn: widget.offer.vehicleIds)
-            .get();
+        // Bulk: fetch multiple (chunked for Firestore whereIn limits)
+        final ids = widget.offer.vehicleIds!;
+        final List<Vehicle> collected = [];
+        const int chunkSize = 10;
+        for (var i = 0; i < ids.length; i += chunkSize) {
+          final chunk = ids.sublist(
+              i, i + chunkSize > ids.length ? ids.length : i + chunkSize);
+          final snap = await FirebaseFirestore.instance
+              .collection('vehicles')
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get();
+          collected.addAll(snap.docs.map((d) => Vehicle.fromDocument(d)));
+        }
         if (mounted) {
           setState(() {
-            _bulkVehicles =
-                snap.docs.map((d) => Vehicle.fromDocument(d)).toList();
+            _bulkVehicles = collected;
           });
         }
       } else {
@@ -113,8 +121,9 @@ class _OfferCardState extends State<OfferCard> {
               // Existing logic for trucks
               if (data?['brands'] != null) {
                 if (data?['brands'] is List) {
+                  final List brands = (data?['brands'] as List);
                   widget.offer.vehicleBrand =
-                      (data?['brands'] as List).first.toString();
+                      brands.isNotEmpty ? brands.first.toString() : null;
                 } else {
                   widget.offer.vehicleBrand = data?['brands'].toString();
                 }
@@ -140,43 +149,45 @@ class _OfferCardState extends State<OfferCard> {
   }
 
   Color getStatusColor(String? status) {
-    final normalizedStatus = (status ?? '').toLowerCase().trim();
+    final normalizedStatus = normalizeOfferStatus(status);
     debugPrint('Getting status color for normalized status: $normalizedStatus');
 
     switch (normalizedStatus) {
-      case 'sold':
+      case OfferStatuses.sold:
         return Colors.red;
       // Success states - Green
-      case 'accepted':
-      case 'done':
-      case 'paid':
-      case 'successful':
-      case 'completed':
-      case 'inspection done':
-      case 'payment approved':
+      case OfferStatuses.accepted:
+      case OfferStatuses.done:
+      case OfferStatuses.paid:
+      case OfferStatuses.successful:
+      case OfferStatuses.completed:
+      case OfferStatuses.inspectionDone:
+      case OfferStatuses.paymentApproved:
         return Colors.green;
       // Failed states - Red
-      case 'rejected':
+      case OfferStatuses.rejected:
         return Colors.red;
       // Warning states - Orange
-      case 'issue reported':
+      case OfferStatuses.issueReported:
         return Colors.orange;
       // Payment states - Purple
-      case 'payment pending':
-      case 'payment options':
+      case OfferStatuses.paymentPending:
+      case OfferStatuses.paymentOptions:
+      case OfferStatuses.transporterInvoicePending:
+      case OfferStatuses.adminInvoicePending:
         return Colors.purple;
       // Location states - Blue
-      case 'set location and time':
-      case 'confirm location':
-      case 'collection location confirmation':
-      case 'collection details':
-      case 'confirm collection':
+      case OfferStatuses.setLocationAndTime:
+      case OfferStatuses.confirmLocation:
+      case OfferStatuses.collectionLocationConfirmation:
+      case OfferStatuses.collectionDetails:
+      case OfferStatuses.confirmCollection:
         return Colors.blue;
       // In-progress state - Gray
-      case 'in-progress':
+      case OfferStatuses.inProgress:
         return Colors.grey;
       // Default state - Light Blue
-      case 'inspection pending':
+      case OfferStatuses.inspectionPending:
       default:
         return const Color(0xFF2F7FFF);
     }
@@ -193,44 +204,46 @@ class _OfferCardState extends State<OfferCard> {
   }
 
   IconData getStatusIcon(String? status) {
-    final normalizedStatus = (status ?? '').toLowerCase().trim();
+    final normalizedStatus = normalizeOfferStatus(status);
     // debugPrint('Getting status icon for normalized status: $normalizedStatus');
 
     switch (normalizedStatus) {
-      case 'sold':
+      case OfferStatuses.sold:
         return Icons.sell;
       // Completed/Success states
-      case 'accepted':
-      case 'done':
-      case 'paid':
-      case 'successful':
-      case 'completed':
-      case 'payment approved':
-      case 'awaiting collection':
+      case OfferStatuses.accepted:
+      case OfferStatuses.done:
+      case OfferStatuses.paid:
+      case OfferStatuses.successful:
+      case OfferStatuses.completed:
+      case OfferStatuses.paymentApproved:
+      case OfferStatuses.awaitingCollection:
         return Icons.check_circle;
       // Rejected/Failed states
-      case 'rejected':
+      case OfferStatuses.rejected:
         return Icons.cancel;
       // Warning/Issue states
-      case 'issue reported':
+      case OfferStatuses.issueReported:
         return Icons.report_problem;
       // Payment states
-      case 'payment pending':
-      case 'payment options':
+      case OfferStatuses.paymentPending:
+      case OfferStatuses.paymentOptions:
+      case OfferStatuses.transporterInvoicePending:
+      case OfferStatuses.adminInvoicePending:
         return Icons.payments;
       // Inspection states
-      case 'inspection pending':
-      case 'inspection done':
+      case OfferStatuses.inspectionPending:
+      case OfferStatuses.inspectionDone:
         return Icons.check_box;
       // Location/Collection states
-      case 'set location and time':
-      case 'confirm location':
-      case 'collection location confirmation':
-      case 'collection details':
-      case 'confirm collection':
+      case OfferStatuses.setLocationAndTime:
+      case OfferStatuses.confirmLocation:
+      case OfferStatuses.collectionLocationConfirmation:
+      case OfferStatuses.collectionDetails:
+      case OfferStatuses.confirmCollection:
         return Icons.location_on;
       // In-progress/Default state
-      case 'in-progress':
+      case OfferStatuses.inProgress:
         return Icons.sync;
       default:
         return Icons.sync;
@@ -240,10 +253,11 @@ class _OfferCardState extends State<OfferCard> {
   void navigateBasedOnStatus(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userRole = userProvider.getUserRole;
+    final roleLower = userRole.toLowerCase();
 
     // If offer is marked as done or sold, always go to TransporterOfferDetailsPage
-    if (widget.offer.offerStatus.toLowerCase() == 'done' ||
-        widget.offer.offerStatus.toLowerCase() == 'sold') {
+    if (equalStatus(widget.offer.offerStatus, OfferStatuses.done) ||
+        equalStatus(widget.offer.offerStatus, OfferStatuses.sold)) {
       _getVehicle().then((vehicle) async {
         if (vehicle != null) {
           await Navigator.push(
@@ -271,8 +285,10 @@ class _OfferCardState extends State<OfferCard> {
     }
 
     // Handle Payment Approved status
-    if (widget.offer.offerStatus.toLowerCase() == 'payment approved') {
-      String newStatus = 'awaiting collection';
+    if (equalStatus(widget.offer.offerStatus, OfferStatuses.paymentApproved) ||
+        normalizeOfferStatus(widget.offer.offerStatus) ==
+            OfferStatuses.collectionReady) {
+      String newStatus = OfferStatuses.awaitingCollection;
       FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offer.offerId)
@@ -292,9 +308,49 @@ class _OfferCardState extends State<OfferCard> {
       return;
     }
 
-    if (userRole == 'transporter' || userRole == 'oem') {
-      switch (widget.offer.offerStatus) {
-        case 'inspection pending':
+    if (roleLower == 'transporter' ||
+        roleLower == 'oem' ||
+        roleLower == 'tradein' ||
+        roleLower == 'trade-in') {
+      final statusLower = normalizeOfferStatus(widget.offer.offerStatus);
+      switch (statusLower) {
+        case OfferStatuses.transporterInvoicePending:
+        case OfferStatuses.adminInvoicePending:
+          // For transporter-like roles, go to Transporter Offer Details to handle invoices
+          _getVehicle().then((vehicle) async {
+            if (vehicle != null) {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TransporterOfferDetailsPage(
+                    offer: widget.offer,
+                    vehicle: vehicle,
+                  ),
+                ),
+              );
+              if (widget.onPop != null) {
+                widget.onPop!();
+              }
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Vehicle details could not be loaded.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          });
+          return;
+        case OfferStatuses.inspectionPending:
+          if (widget.offer.dealerSelectedInspectionDate == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Inspection date not set yet.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -318,7 +374,7 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-        case 'Inspection Done':
+        case OfferStatuses.inspectionDone:
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -330,7 +386,7 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-        case 'payment pending':
+        case OfferStatuses.paymentPending:
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -340,7 +396,16 @@ class _OfferCardState extends State<OfferCard> {
             ),
           );
           return;
-        case 'Collection Location Confirmation':
+        case OfferStatuses.collectionLocationConfirmation:
+          if (widget.offer.dealerSelectedInspectionDate == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Collection date not set yet.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -388,8 +453,9 @@ class _OfferCardState extends State<OfferCard> {
     }
 
     // Dealer Navigation
-    switch (widget.offer.offerStatus) {
-      case 'set location and time':
+    final dealerStatusLower = normalizeOfferStatus(widget.offer.offerStatus);
+    switch (dealerStatusLower) {
+      case OfferStatuses.setLocationAndTime:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -403,7 +469,16 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-      case 'confirm location':
+      case OfferStatuses.confirmLocation:
+        if (widget.offer.dealerSelectedInspectionDate == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Inspection date not set yet.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -423,8 +498,17 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-      case 'Confirm Collection':
-      case 'Collection Location Confirmation':
+      case OfferStatuses.confirmCollection:
+      case OfferStatuses.collectionLocationConfirmation:
+        if (widget.offer.dealerSelectedInspectionDate == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Collection date not set yet.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -453,6 +537,45 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
+      case OfferStatuses.transporterInvoicePending:
+      case OfferStatuses.adminInvoicePending:
+        // Dealer should be directed to Payment Pending to request dealer invoice
+        if (userRole.toLowerCase() == 'dealer') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentPendingPage(
+                offerId: widget.offer.offerId,
+              ),
+            ),
+          );
+          break;
+        }
+        // Non-dealer: fall back to transporter details page
+        _getVehicle().then((vehicle) async {
+          if (vehicle != null) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TransporterOfferDetailsPage(
+                  offer: widget.offer,
+                  vehicle: vehicle,
+                ),
+              ),
+            );
+            if (widget.onPop != null) {
+              widget.onPop!();
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Vehicle details could not be loaded.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
+        break;
       case 'accepted':
         Navigator.push(
           context,
@@ -468,7 +591,9 @@ class _OfferCardState extends State<OfferCard> {
         );
         break;
       case 'inspection pending':
+      case 'inspection done':
       case 'Inspection Done':
+      case 'inspection completed':
       case 'payment pending':
         _navigateToRespectivePage(userRole);
         break;
@@ -574,8 +699,18 @@ class _OfferCardState extends State<OfferCard> {
   }
 
   void _navigateToRespectivePage(String userRole) {
-    switch (widget.offer.offerStatus) {
-      case 'inspection pending':
+    final statusLower = normalizeOfferStatus(widget.offer.offerStatus);
+    switch (statusLower) {
+      case OfferStatuses.inspectionPending:
+        if (widget.offer.dealerSelectedInspectionDate == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Inspection date not set yet.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -599,7 +734,7 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-      case 'Inspection Done':
+      case OfferStatuses.inspectionDone:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -612,7 +747,19 @@ class _OfferCardState extends State<OfferCard> {
           ),
         );
         break;
-      case 'payment pending':
+      case OfferStatuses.paymentPending:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentPendingPage(
+              offerId: widget.offer.offerId,
+            ),
+          ),
+        );
+        break;
+      case OfferStatuses.transporterInvoicePending:
+      case OfferStatuses.adminInvoicePending:
+        // For dealers, also route to Payment Pending where invoice can be requested
         Navigator.push(
           context,
           MaterialPageRoute(

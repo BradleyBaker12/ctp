@@ -94,7 +94,7 @@ class _WishlistOffersPageState extends State<WishlistOffersPage> {
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: CustomAppBar(),
+        appBar: const CustomAppBar(showBackButton: false),
         body: SingleChildScrollView(
           child: Column(
             children: [

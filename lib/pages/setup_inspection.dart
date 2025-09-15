@@ -103,6 +103,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
   void initState() {
     super.initState();
     _fetchSavedLocations();
+    // Also load any existing inspection details saved on the offer
+    // so users can edit after returning to this page.
+    // ignore: avoid_print
+    print('SetupInspection: init -> load existing inspection details');
+    _loadExistingFromOffer();
   }
 
   @override
@@ -239,15 +244,25 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       List<Map<String, dynamic>> timeSlots =
           List<Map<String, dynamic>>.from(location['timeSlots']);
 
-      // Populate address fields
-      List<String> addressParts = location['address'].split(', ');
-      _addressLine1Controller.text = addressParts[0];
-      _addressLine2Controller.text =
-          addressParts.length > 1 ? addressParts[1] : '';
-      _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
-      _stateController.text = addressParts.length > 3 ? addressParts[3] : '';
-      _postalCodeController.text =
-          addressParts.length > 4 ? addressParts[4] : '';
+      // Populate address fields: prefer granular fields if available
+      if (location.containsKey('line1') || location.containsKey('city')) {
+        _addressLine1Controller.text = (location['line1'] ?? '').toString();
+        _addressLine2Controller.text = (location['suburb'] ?? '').toString();
+        _cityController.text = (location['city'] ?? '').toString();
+        _stateController.text = (location['state'] ?? '').toString();
+        _postalCodeController.text = (location['postalCode'] ?? '').toString();
+      } else {
+        final addr = (location['address'] ?? '').toString();
+        List<String> addressParts = addr.split(', ');
+        _addressLine1Controller.text =
+            addressParts.isNotEmpty ? addressParts[0] : '';
+        _addressLine2Controller.text =
+            addressParts.length > 1 ? addressParts[1] : '';
+        _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
+        _stateController.text = addressParts.length > 3 ? addressParts[3] : '';
+        _postalCodeController.text =
+            addressParts.length > 4 ? addressParts[4] : '';
+      }
 
       // Parse the dates using DateFormat
       DateFormat dateFormat = DateFormat('d-M-yyyy'); // Custom date format
@@ -266,6 +281,18 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
             .map((timeStr) => _parseTimeOfDay(timeStr))
             .whereType<TimeOfDay>()
             .toList();
+      }
+
+      // Ensure a current selected day/time for the editor UI
+      if (_selectedDays.isNotEmpty) {
+        _selectedDay = _selectedDays.first;
+        final times = _dateTimeSlots[_selectedDay!] ?? [];
+        _selectedTimes = times.isNotEmpty
+            ? times.map<TimeOfDay?>((t) => t).toList()
+            : [null];
+      } else {
+        _selectedDay = null;
+        _selectedTimes = [null];
       }
 
       _isAddingLocation = true;
@@ -296,8 +323,10 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       allDates.addAll(dates);
     }
     if (allDates.length < 3) {
-      _showErrorDialog(
-          'Please select at least 3 different days with time slots.');
+      // Quietly block final save when fewer than 3 distinct dates exist.
+      // Buttons are disabled earlier, so this is a defensive guard only.
+      print(
+          'SetupInspection: block final save — fewer than 3 total dates with times');
       return;
     }
 
@@ -420,12 +449,27 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     //     '${_addressLine2Controller.text.isNotEmpty ? '${_addressLine2Controller.text}, ' : ''}'
     //     '${_cityController.text}, ${_stateController.text}, ${_postalCodeController.text}';
 
-    String fullAddress = _addressLine1Controller.text;
+    // Compose a full display address for the location (Line1, Suburb, City, State, Postal)
+    String fullAddress = [
+      _addressLine1Controller.text,
+      if (_addressLine2Controller.text.isNotEmpty) _addressLine2Controller.text,
+      _cityController.text,
+      _stateController.text,
+      _postalCodeController.text
+    ].where((s) => s.trim().isNotEmpty).join(', ');
 
     Map<String, dynamic> locationData = {
       'lat': latLng?.latitude,
       'lng': latLng?.longitude,
       'address': fullAddress,
+      'line1': _addressLine1Controller.text,
+      'suburb': _addressLine2Controller.text,
+      'city': _cityController.text,
+      'state': _stateController.text,
+      'postalCode': _postalCodeController.text,
+      // Explicit aliases to satisfy downstream consumers
+      'province': _stateController.text,
+      'addressLine1': _addressLine1Controller.text,
       'dates': _selectedDays.map((date) => date.toShortString()).toList(),
       'timeSlots': _selectedDays
           .map((date) => {
@@ -436,6 +480,14 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
               })
           .toList(),
     };
+
+    // Enforce at least 3 distinct dates for this location BEFORE clearing
+    if (_selectedDays.length < 3) {
+      // Quietly block location save. Button is disabled via _canSaveCurrentLocation.
+      print(
+          'SetupInspection: block location save — fewer than 3 selected days');
+      return;
+    }
 
     setState(() {
       if (_editIndex != null) {
@@ -451,17 +503,53 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
       _showBackToFormButton = true;
     });
 
-    // Enforce at least 3 days per location
-    if (_selectedDays.length < 3) {
-      _showErrorDialog(
-          'Please select at least 3 different days for this location.');
-      return;
-    }
-
     // Save location to Firestore under user's profile
     await _saveLocationToUserProfile({
       'address': fullAddress,
+      'addressLine1': _addressLine1Controller.text,
+      'suburb': _addressLine2Controller.text,
+      'city': _cityController.text,
+      'province': _stateController.text,
+      'postalCode': _postalCodeController.text,
+      'lat': latLng?.latitude,
+      'lng': latLng?.longitude,
     });
+  }
+
+  // ===== Validation helpers to control button enabled state =====
+  bool get _currentHasThreeDatesWithTimes {
+    if (_selectedDays.length < 3) return false;
+    for (final d in _selectedDays) {
+      final times = _dateTimeSlots[d];
+      if (times == null || times.isEmpty) return false;
+    }
+    return true;
+  }
+
+  bool get _currentHasAddressFields {
+    return _addressLine1Controller.text.trim().isNotEmpty &&
+        _cityController.text.trim().isNotEmpty &&
+        _stateController.text.trim().isNotEmpty;
+  }
+
+  bool get _canSaveCurrentLocation =>
+      _currentHasThreeDatesWithTimes && _currentHasAddressFields;
+
+  bool get _hasThreeDatesWithTimesAcrossSaved {
+    final Set<String> uniqueDatesWithTimes = {};
+    for (final loc in _locations) {
+      final slots = (loc['timeSlots'] as List<dynamic>?);
+      if (slots == null) continue;
+      for (final s in slots) {
+        final map = Map<String, dynamic>.from(s as Map);
+        final List times = (map['times'] as List?) ?? [];
+        if (times.isNotEmpty) {
+          final dateStr = (map['date'] ?? '').toString();
+          if (dateStr.isNotEmpty) uniqueDatesWithTimes.add(dateStr);
+        }
+      }
+    }
+    return uniqueDatesWithTimes.length >= 3;
   }
 
   List<String> predictions = [];
@@ -530,6 +618,39 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     _cityController.clear();
     _stateController.clear();
     _postalCodeController.clear();
+  }
+
+  Future<void> _loadExistingFromOffer() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offerId)
+          .get();
+      if (!doc.exists) return;
+      final data = doc.data();
+      if (data == null) return;
+      final details = data['inspectionDetails'] as Map<String, dynamic>?;
+      if (details == null) return;
+      final locsContainer =
+          details['inspectionLocations'] as Map<String, dynamic>?;
+      if (locsContainer == null) return;
+      final locs = locsContainer['locations'] as List<dynamic>?;
+      if (locs == null || locs.isEmpty) return;
+
+      setState(() {
+        _locations
+          ..clear()
+          ..addAll(locs.map((e) => Map<String, dynamic>.from(e)));
+        _isAddingLocation = false; // show the saved list with edit buttons
+        _showBackToFormButton = true; // allow saving again
+      });
+      // ignore: avoid_print
+      print(
+          'SetupInspection: loaded ${_locations.length} existing locations from offer');
+    } catch (e) {
+      // ignore: avoid_print
+      print('SetupInspection: failed to load existing details: $e');
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -668,8 +789,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
     // ignore: unused_local_variable
     final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
     // ignore: unused_local_variable
-    final bool isTransporter =
-        userRole == 'transporter' || userRole == 'oem'; // Transporter-like
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in'; // Transporter-like
     const bool isWeb = kIsWeb;
 
     return GradientBackground(
@@ -911,7 +1031,7 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                               "Address1controller: \\${_addressLine1Controller.text}");
                                         });
                                         print(
-                                            "Address1Controller: \\${_addressLine1Controller.text}");
+                                            "Address1Controller(after select): \\${_addressLine1Controller.text}");
                                         Map<String, dynamic> latLngData =
                                             await PlacesService.getPlaceLatLng(
                                                 p.placeId!);
@@ -920,12 +1040,61 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                           latLngData['lat'],
                                           latLngData['lng'],
                                         );
+                                        // Compose Address Line 1: "<streetNumber> <route>"
+                                        final streetNumber =
+                                            (latLngData['streetNumber'] ?? '')
+                                                .toString();
+                                        final route =
+                                            (latLngData['route'] ?? '')
+                                                .toString();
+                                        String line1 =
+                                            _addressLine1Controller.text;
+                                        if (streetNumber.isNotEmpty ||
+                                            route.isNotEmpty) {
+                                          line1 = [streetNumber, route]
+                                              .where((s) => s.isNotEmpty)
+                                              .join(' ');
+                                        } else if ((latLngData[
+                                                    'formattedAddress'] ??
+                                                '')
+                                            .toString()
+                                            .isNotEmpty) {
+                                          line1 =
+                                              (latLngData['formattedAddress']
+                                                      as String)
+                                                  .split(',')
+                                                  .first
+                                                  .trim();
+                                        }
+                                        _addressLine1Controller.text = line1;
+
+                                        // Suburb
+                                        String suburb =
+                                            (latLngData['suburb'] ?? '')
+                                                .toString();
+                                        if (suburb.isEmpty) {
+                                          final formatted =
+                                              (latLngData['formattedAddress'] ??
+                                                      '')
+                                                  .toString();
+                                          final parts = formatted.split(',');
+                                          if (parts.length >= 3) {
+                                            suburb = parts[1].trim();
+                                          }
+                                        }
+                                        _addressLine2Controller.text = suburb;
+
                                         _cityController.text =
-                                            latLngData['city'];
+                                            (latLngData['city'] ?? '')
+                                                .toString();
                                         _stateController.text =
-                                            latLngData['state'];
+                                            (latLngData['state'] ?? '')
+                                                .toString();
                                         _postalCodeController.text =
-                                            latLngData["postalCode"];
+                                            (latLngData['postalCode'] ?? '')
+                                                .toString();
+                                        print(
+                                            'Prepopulate(Inspection): line1="${_addressLine1Controller.text}", suburb="${_addressLine2Controller.text}", city="${_cityController.text}", state="${_stateController.text}", postal="${_postalCodeController.text}"');
                                       },
                                     ),
                                     const SizedBox(height: 16),
@@ -939,13 +1108,11 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                       controller: _addressLine2Controller,
                                       hintText: 'Suburb (Optional)',
                                       isOptional: true,
-                                      isEnabled: !isAddressSelected,
                                     ),
                                     const SizedBox(height: 16),
                                     _buildTextField(
                                       controller: _cityController,
                                       hintText: 'City',
-                                      isEnabled: !isAddressSelected,
                                     ),
                                     const SizedBox(height: 16),
                                     _buildTextField(
@@ -964,6 +1131,21 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 8),
+                                    // Requirement hint
+                                    if (!_currentHasThreeDatesWithTimes)
+                                      const Padding(
+                                        padding:
+                                            EdgeInsets.symmetric(vertical: 6.0),
+                                        child: Text(
+                                          'Select at least 3 different days and add at least one time slot to each.',
+                                          style: TextStyle(
+                                            color: Colors.yellow,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
 
                                     // Calendar
                                     Container(
@@ -1199,7 +1381,9 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                     CustomButton(
                                       text: 'Save Setup Details',
                                       borderColor: Colors.blue,
-                                      onPressed: _saveLocation,
+                                      onPressed: _canSaveCurrentLocation
+                                          ? _saveLocation
+                                          : null,
                                     ),
 
                                   // Add Another Location button (shown after saving the current location)
@@ -1222,9 +1406,10 @@ class _SetupInspectionPageState extends State<SetupInspectionPage> {
                                     CustomButton(
                                       text: 'Save Setup Details',
                                       borderColor: const Color(0xFFFF4E00),
-                                      onPressed: () {
-                                        _saveInspectionDetails();
-                                      },
+                                      onPressed:
+                                          _hasThreeDatesWithTimesAcrossSaved
+                                              ? _saveInspectionDetails
+                                              : null,
                                     ),
                                 ],
                               ),

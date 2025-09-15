@@ -19,6 +19,7 @@ import 'dart:io';
 // Removed unused imports for url launching and web blobs
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:intl/intl.dart';
+import 'package:ctp/utils/offer_status.dart';
 
 // import 'package:auto_route/auto_route.dart';
 
@@ -270,6 +271,79 @@ class _TransporterOfferDetailsPageState
           ),
       ],
     );
+  }
+
+  Widget _buildInvoiceStatusBanner(Map<String, dynamic> offerData) {
+    final statusLower =
+        (offerData['offerStatus']?.toString() ?? '').toLowerCase().trim();
+    final tInvoiceStatus =
+        (offerData['transporterInvoiceStatus']?.toString() ?? '').toLowerCase();
+    final hasTransporterInvoice =
+        (offerData['transporterInvoice']?.toString() ?? '').isNotEmpty;
+
+    // Show upload CTA when transporter invoice is needed/rejected/missing
+    if (statusLower == OfferStatuses.transporterInvoicePending ||
+        tInvoiceStatus == 'rejected' ||
+        !hasTransporterInvoice) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: const Color(0xFF7E57C2).withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10.0),
+            border: Border.all(color: const Color(0xFF7E57C2), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Invoice Required',
+                style: customFont(16, FontWeight.w700, Colors.white),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'CTP needs your transporter invoice. Upload it below so we can verify and generate the dealer invoice.',
+                style: customFont(13, FontWeight.w500, Colors.white70),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show info when admin invoice is pending
+    if (statusLower == OfferStatuses.adminInvoicePending) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: const Color(0xFF26A69A).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10.0),
+            border: Border.all(color: const Color(0xFF26A69A), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Dealer Invoice In Progress',
+                style: customFont(16, FontWeight.w700, Colors.white),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Thanks! Your invoice is verified. CTP is preparing the dealer invoice. You will be notified once it is ready.',
+                style: customFont(13, FontWeight.w500, Colors.white70),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Future<void> _saveInvoice() async {
@@ -761,6 +835,12 @@ class _TransporterOfferDetailsPageState
                       },
                     ),
                   ),
+                  // Status banner for invoicing
+                  if (offerSnapshot.hasData &&
+                      offerSnapshot.data?.data() != null)
+                    _buildInvoiceStatusBanner(
+                        offerSnapshot.data!.data() as Map<String, dynamic>),
+
                   // Transporter invoice upload section
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -885,23 +965,29 @@ class _TransporterOfferDetailsPageState
 
                         const double commission = 12500.0;
 
+                        // Use "CTP Fee" wording in the UI instead of "commission".
+                        // The internal variable name remains `commission` to avoid
+                        // changing calculation logic.
+
                         if (role == 'dealer') {
                           // Dealer view: VAT applied on (base + commission); dealer pays total
                           final subtotal = typedOfferAmount + commission;
-                          final vatAmount = subtotal * 0.15;
-                          final totalToPay = subtotal + vatAmount;
+                          final vatAmountLocal = subtotal * 0.15;
+                          final totalToPay = subtotal + vatAmountLocal;
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _breakdownTable([
-                                MapEntry('Offer (Excl. VAT & commission)',
+                                MapEntry('Offer (Excl. VAT & CTP Fee)',
                                     _formatRand(typedOfferAmount)),
-                                MapEntry('Commission', _formatRand(commission)),
-                                MapEntry('Subtotal', _formatRand(subtotal)),
-                                MapEntry('VAT (15%)', _formatRand(vatAmount)),
+                                MapEntry('CTP Fee', _formatRand(commission)),
+                                MapEntry('Subtotal (Excl. VAT)',
+                                    _formatRand(subtotal)),
                                 MapEntry(
-                                    'Total To Pay', _formatRand(totalToPay)),
+                                    'VAT (15%)', _formatRand(vatAmountLocal)),
+                                MapEntry('Total To Pay (Incl. VAT)',
+                                    _formatRand(totalToPay)),
                               ]),
                               const SizedBox(height: 8),
                               Text(
@@ -913,7 +999,7 @@ class _TransporterOfferDetailsPageState
                             ],
                           );
                         } else {
-                          // Transporter/admin/sales rep view: payout after commission, VAT on the remainder
+                          // Transporter/admin/sales rep view: payout after CTP Fee, VAT on the remainder
                           final amountAfterCommission =
                               typedOfferAmount - commission;
                           final vat = amountAfterCommission * 0.15;
@@ -923,16 +1009,19 @@ class _TransporterOfferDetailsPageState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _breakdownTable([
-                                MapEntry('Typed Offer Amount',
+                                MapEntry('Typed Offer Amount (Excl. VAT)',
                                     _formatRand(typedOfferAmount)),
-                                MapEntry('Commission', _formatRand(commission)),
-                                MapEntry('Amount After Commission',
+                                MapEntry('CTP Fee', _formatRand(commission)),
+                                MapEntry('Amount After CTP Fee (Excl. VAT)',
                                     _formatRand(amountAfterCommission)),
                                 MapEntry('VAT (15%)', _formatRand(vat)),
-                                MapEntry('Your Payout',
+                                MapEntry('Your Payout (Incl. VAT)',
                                     _formatRand(transporterPayout)),
                               ]),
                               const SizedBox(height: 20),
+                              // Transporter payout receipt confirmation UI
+                              if (role == 'transporter')
+                                _buildPayoutReceiptConfirmation(offerData),
                             ],
                           );
                         }
@@ -1009,6 +1098,247 @@ class _TransporterOfferDetailsPageState
             ),
           );
         },
+      ),
+    );
+  }
+
+  // Helper to allow extension methods to request a UI refresh.
+  // Extensions cannot call `setState` directly, so expose a method here.
+  void notifyStateChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+}
+
+/// Helper widget and actions for transporter payout receipt confirmation
+extension _PayoutReceiptHelpers on _TransporterOfferDetailsPageState {
+  Widget _buildPayoutReceiptConfirmation(Map<String, dynamic> offerData) {
+    final String offerStatus =
+        (offerData['offerStatus'] ?? '').toString().toLowerCase();
+    final String payoutStatus =
+        (offerData['transporterPayoutStatus'] ?? '').toString().toLowerCase();
+    final String receiptStatus =
+        (offerData['transporterPayoutReceiptStatus'] ?? '')
+            .toString()
+            .toLowerCase();
+
+    // Determine if today is the collection day (if date provided)
+    bool isCollectionDay = false;
+    final dynamic colDateRaw = offerData['dealerSelectedCollectionDate'];
+    if (colDateRaw != null) {
+      DateTime? colDate;
+      if (colDateRaw is Timestamp) {
+        colDate = colDateRaw.toDate();
+      } else if (colDateRaw is String) {
+        colDate = DateTime.tryParse(colDateRaw);
+      }
+      if (colDate != null) {
+        final now = DateTime.now();
+        final d1 = DateTime(colDate.year, colDate.month, colDate.day);
+        final d2 = DateTime(now.year, now.month, now.day);
+        isCollectionDay = d1 == d2;
+      }
+    }
+
+    // If transporter already confirmed payment received, show confirmation note
+    if (receiptStatus == 'received') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: Center(
+          child: Text(
+            'You have confirmed payout received.',
+            style: customFont(14, FontWeight.w600, Colors.green),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    // If transporter reported not received, show admin contact details panel
+    if (receiptStatus == 'not_received') {
+      return _buildAdminContactDetailsPanel();
+    }
+
+    // Otherwise show prompt only when it’s the right time (paid/collected/collection day)
+    final bool eligibleToPrompt = (offerStatus == 'paid' ||
+        offerStatus == 'collected' ||
+        isCollectionDay);
+    if (!eligibleToPrompt) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Text(
+              payoutStatus == 'paid'
+                  ? 'Please confirm if you have received your payout.'
+                  : 'On collection day, confirm if you have received your payout.',
+              style: customFont(14, FontWeight.w600, Colors.white),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 8),
+          CustomButton(
+            text: 'Confirm Payout Received',
+            borderColor: Colors.green,
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('offers')
+                    .doc(widget.offer.offerId)
+                    .update({
+                  'transporterPayoutReceiptStatus': 'received',
+                  'transporterPayoutReceiptConfirmedAt':
+                      FieldValue.serverTimestamp(),
+                });
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Thanks. Marked as payout received.'),
+                    backgroundColor: Colors.green));
+                notifyStateChanged();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed to confirm payout: $e'),
+                    backgroundColor: Colors.red));
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+          CustomButton(
+            text: "I Haven't Received Payment",
+            borderColor: Colors.red,
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('offers')
+                    .doc(widget.offer.offerId)
+                    .update({
+                  'transporterPayoutReceiptStatus': 'not_received',
+                  'transporterPayoutReceiptRejectedAt':
+                      FieldValue.serverTimestamp(),
+                });
+                // Notify admins to investigate
+                final admins = await FirebaseFirestore.instance
+                    .collection('users')
+                    .where('userRole',
+                        whereIn: ['admin', 'sales representative']).get();
+                for (final a in admins.docs) {
+                  await FirebaseFirestore.instance
+                      .collection('notifications')
+                      .add({
+                    'userId': a.id,
+                    'offerId': widget.offer.offerId,
+                    'type': 'payoutNotReceived',
+                    'createdAt': FieldValue.serverTimestamp(),
+                    'message':
+                        'Transporter reports payout not received for offer ${widget.offer.offerId}.',
+                  });
+                }
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Reported: payout not received.'),
+                    backgroundColor: Colors.orange));
+                notifyStateChanged();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed to report: $e'),
+                    backgroundColor: Colors.red));
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminContactDetailsPanel() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Text(
+              'Our team has been notified. You can also contact:',
+              style: customFont(14, FontWeight.w600, Colors.white),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 8),
+          FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            future: FirebaseFirestore.instance.collection('users').where(
+                'userRole',
+                whereIn: ['admin', 'sales representative']).get(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: CircularProgressIndicator(color: Colors.blue),
+                  ),
+                );
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No admin contacts found. Please try again later.',
+                    style: customFont(13, FontWeight.w500, Colors.white70),
+                  ),
+                );
+              }
+              final docs = snapshot.data!.docs;
+              return Column(
+                children: docs.map((d) {
+                  final data = d.data();
+                  final first = (data['firstName'] ?? '').toString();
+                  final last = (data['lastName'] ?? '').toString();
+                  final company = (data['companyName'] ?? '').toString();
+                  final displayName = ([first, last]
+                          .where((s) => s.isNotEmpty)
+                          .join(' ')
+                          .trim()
+                          .isNotEmpty
+                      ? [first, last]
+                          .where((s) => s.isNotEmpty)
+                          .join(' ')
+                          .trim()
+                      : (company.isNotEmpty ? company : 'Admin'));
+                  final email = (data['email'] ?? '').toString();
+                  final phone = (data['phoneNumber'] ?? '').toString();
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(vertical: 6.0),
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(8.0),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(displayName,
+                            style:
+                                customFont(14, FontWeight.w700, Colors.white)),
+                        const SizedBox(height: 4),
+                        if (email.isNotEmpty)
+                          Text('Email: $email',
+                              style: customFont(
+                                  13, FontWeight.w500, Colors.white70)),
+                        if (phone.isNotEmpty)
+                          Text('Phone: $phone',
+                              style: customFont(
+                                  13, FontWeight.w500, Colors.white70)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

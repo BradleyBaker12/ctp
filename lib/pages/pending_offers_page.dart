@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:ctp/providers/offer_provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:ctp/components/custom_back_button.dart';
 import 'package:ctp/components/custom_bottom_navigation.dart';
 import 'package:ctp/components/blurry_app_bar.dart';
 import 'package:ctp/components/gradient_background.dart'; // Import the GradientBackground widget
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class PendingOffersPage extends StatefulWidget {
+
+@RoutePage()
+class PendingOffersPage extends StatefulWidget {
   const PendingOffersPage({super.key});
 
   @override
@@ -29,8 +30,11 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
       final userRole = userProvider.getUserRole;
 
       if (userId != null) {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
         Provider.of<OfferProvider>(context, listen: false)
-            .fetchOffers(userId, userRole)
+            .fetchOffers(userId, userRole,
+                isTradeInManager: userProvider.isTradeInManager,
+                tradeInBrand: userProvider.tradeInBrand)
             .then((_) {
           print('Offers fetched in initState');
         });
@@ -42,6 +46,46 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final userProv = Provider.of<UserProvider>(context);
+    final role = userProv.getUserRole.toLowerCase();
+    final bool isOemOrTradeInEmployee =
+        (role == 'oem' && !userProv.isOemManager) ||
+            ((role == 'tradein' || role == 'trade-in') &&
+                !userProv.isTradeInManager);
+    if (isOemOrTradeInEmployee) {
+      // Show simple blocked view
+      return Scaffold(
+        body: GradientBackground(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_outline,
+                      color: Colors.white70, size: 64),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Restricted: Employee accounts cannot view offers.',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () =>
+                        Navigator.of(context).pushReplacementNamed('/home'),
+                    child: const Text('Return Home'),
+                  )
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final size = MediaQuery.of(context).size;
     final offerProvider = Provider.of<OfferProvider>(context, listen: false);
 
@@ -78,16 +122,8 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
         child: SafeArea(
           child: Column(
             children: [
-              const BlurryAppBar(),
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    CustomBackButton(),
-                    Spacer(),
-                  ],
-                ),
-              ),
+              const BlurryAppBar(leading: SizedBox.shrink()),
+              // Back button removed as per design request
               Padding(
                 padding: EdgeInsets.all(size.width * 0.05),
                 child: Image.asset('lib/assets/CTPLogo.png'),
@@ -139,7 +175,7 @@ class _PendingOffersPageState extends State<PendingOffersPage> {
                           Offer offer = filteredOffers[index];
                           print(
                               'Displaying offer: ${offer.offerId} with status ${offer.offerStatus}');
-                          return ;
+                          return;
                         },
                       ),
               ),

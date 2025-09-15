@@ -586,7 +586,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
-    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
+    final bool isTransporter = userRole == 'transporter' ||
+        userRole == 'oem' ||
+        userRole == 'tradein' ||
+        userRole == 'trade-in';
     final bool isSales = userRole == 'sales';
     final bool canEdit = isAdmin || isSales || isTransporter;
 
@@ -678,7 +681,10 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
     print("Warranty Selection: ${widget.warrantySelection}");
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
+    final bool isTransporter = userRole == 'transporter' ||
+        userRole == 'oem' ||
+        userRole == 'tradein' ||
+        userRole == 'trade-in';
     final bool isSales = userRole == 'sales';
     final bool canEdit = isAdmin || isSales || isTransporter;
 
@@ -754,7 +760,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                             ),
                           ),
                           const SizedBox(height: 15),
-                          if (widget.maintenanceDocUrl == null)
+                          if ((_currentMaintenanceDocUrl ??
+                                  widget.maintenanceDocUrl) ==
+                              null)
                             Center(
                               child: Text(
                                 maintenancePrompt.toUpperCase(),
@@ -1014,7 +1022,9 @@ class MaintenanceEditSectionState extends State<MaintenanceEditSection>
                         ],
                         if (widget.warrantySelection == 'yes' ||
                             widget.warrantySelection == '') ...[
-                          if (widget.warrantyDocUrl == null)
+                          if ((_currentWarrantyDocUrl ??
+                                  widget.warrantyDocUrl) ==
+                              null)
                             Center(
                               child: Text(
                                 warrantyPrompt.toUpperCase(),

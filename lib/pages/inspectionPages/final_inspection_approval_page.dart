@@ -44,7 +44,7 @@ class _FinalInspectionApprovalPageState
   bool _bothApproved = false;
   String? _collectionOption; // 'immediate' | 'scheduled'
   StreamSubscription<DocumentSnapshot>? _offerSub;
-  bool _navigated = false;
+  final bool _navigated = false;
 
   // Add this getter for consistent breakpoint
   bool _isCompactNavigation(BuildContext context) =>
@@ -81,21 +81,7 @@ class _FinalInspectionApprovalPageState
         _collectionOption = collectionOption;
       });
 
-      // If both approved, navigate transporter/OEM to setup when dealer chooses scheduled
-      if (_bothApproved && !_navigated) {
-        final userRole =
-            Provider.of<UserProvider>(context, listen: false).getUserRole;
-        if ((userRole == 'transporter' || userRole == 'oem') &&
-            _collectionOption == 'scheduled') {
-          _navigated = true;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SetupCollectionPage(offerId: widget.offerId),
-            ),
-          );
-        }
-      }
+      // Do not auto-navigate to collection here; next step is payment options.
     });
   }
 
@@ -120,7 +106,7 @@ class _FinalInspectionApprovalPageState
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
-          .update({'offerStatus': 'Inspection Done'});
+          .update({'offerStatus': 'inspection done'});
     } catch (e) {
       print('Failed to update offer status: $e');
     } finally {
@@ -194,7 +180,7 @@ class _FinalInspectionApprovalPageState
         await FirebaseFirestore.instance
             .collection('offers')
             .doc(widget.offerId)
-            .update({'offerStatus': 'Inspection Done'});
+            .update({'offerStatus': 'inspection done'});
 
         if (!mounted) return;
 
@@ -300,12 +286,17 @@ class _FinalInspectionApprovalPageState
 
   Future<void> _selectScheduledCollection() async {
     try {
+      final now = DateTime.now();
+      final dueBy = now.add(const Duration(hours: 48));
       await FirebaseFirestore.instance
           .collection('offers')
           .doc(widget.offerId)
           .update({
         'collectionOption': 'scheduled',
         'scheduledCollectionSelectedAt': FieldValue.serverTimestamp(),
+        // Align with immediate flow: set payment window + due date
+        'paymentWindowHours': 48,
+        'paymentDueBy': Timestamp.fromDate(dueBy),
         'offerStatus': 'payment options',
       });
 
@@ -314,6 +305,23 @@ class _FinalInspectionApprovalPageState
           _collectionOption = 'scheduled';
         });
       }
+
+      // Notify admins/sales reps similar to immediate flow
+      try {
+        final adminSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userRole',
+                whereIn: ['admin', 'sales representative']).get();
+        for (var doc in adminSnapshot.docs) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': doc.id,
+            'offerId': widget.offerId,
+            'type': 'scheduledCollectionSelected',
+            'createdAt': FieldValue.serverTimestamp(),
+            'message': 'Dealer selected Scheduled Collection. Proceed to payment.',
+          });
+        }
+      } catch (_) {}
 
       if (!mounted) return;
       Navigator.push(
@@ -499,7 +507,7 @@ class _FinalInspectionApprovalPageState
                               ((userRole == 'dealer' &&
                                       !dealerInspectionApproval) ||
                                   ((userRole == 'transporter' ||
-                                          userRole == 'oem') &&
+                                          userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in') &&
                                       !transporterInspectionApproval)))
                             CustomButton(
                               text: 'APPROVE',
@@ -512,7 +520,7 @@ class _FinalInspectionApprovalPageState
                               ((userRole == 'dealer' &&
                                       dealerInspectionApproval) ||
                                   ((userRole == 'transporter' ||
-                                          userRole == 'oem') &&
+                                          userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in') &&
                                       transporterInspectionApproval)))
                             const Padding(
                               padding: EdgeInsets.all(16.0),
@@ -527,7 +535,7 @@ class _FinalInspectionApprovalPageState
                               ),
                             ),
                           if (_bothApproved &&
-                              (userRole == 'transporter' || userRole == 'oem'))
+                              (userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in'))
                             const Padding(
                               padding: EdgeInsets.all(16.0),
                               child: Text(

@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ctp/components/web_navigation_bar.dart' as ctp_nav;
 import 'package:ctp/utils/navigation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ctp/utils/offer_status.dart';
 
 import 'package:auto_route/auto_route.dart';
 
@@ -51,14 +52,76 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
     _checkProofOfPayment(); // Check if proof of payment is already uploaded
   }
 
+  Future<void> _requestInvoice() async {
+    try {
+      final offerRef =
+          FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
+      final offerSnap = await offerRef.get();
+      if (!offerSnap.exists) return;
+      final data = offerSnap.data() as Map<String, dynamic>;
+      final invoiceStatus = (data['transporterInvoiceStatus'] as String?) ?? '';
+      if (invoiceStatus.toLowerCase() != 'verified') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Waiting for CTP to verify transporter invoice before requesting dealer invoice.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      await offerRef.update({
+        'needsInvoice': true,
+        'offerStatus': OfferStatuses.adminInvoicePending,
+      });
+
+      // Notify admins/sales representatives
+      final adminSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userRole', whereIn: ['admin', 'sales representative']).get();
+      for (var doc in adminSnapshot.docs) {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'userId': doc.id,
+          'offerId': widget.offerId,
+          'type': 'invoiceRequest',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invoice request sent to admins.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to request invoice: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _updateOfferStatus() async {
     try {
-      await FirebaseFirestore.instance
-          .collection('offers')
-          .doc(widget.offerId)
-          .update({
-        'offerStatus': 'payment pending'
-      }); // Update status to "payment pending"
+      final docRef =
+          FirebaseFirestore.instance.collection('offers').doc(widget.offerId);
+      final snap = await docRef.get();
+      final data = snap.data();
+      final current = (data?['offerStatus'] as String?)?.toLowerCase().trim();
+      // Do not override invoice-pending statuses
+      if (current != OfferStatuses.adminInvoicePending &&
+          current != OfferStatuses.transporterInvoicePending) {
+        await docRef.update({'offerStatus': OfferStatuses.paymentPending});
+      }
     } catch (e) {
       print('Error updating offer status: $e');
     }
@@ -491,6 +554,79 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                   ),
                   Column(
                     children: [
+                      // Status banner for invoice-related states
+                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('offers')
+                            .doc(widget.offerId)
+                            .snapshots(),
+                        builder: (context, snap) {
+                          if (!snap.hasData || !snap.data!.exists) {
+                            return const SizedBox.shrink();
+                          }
+                          final data = snap.data!.data() ?? {};
+                          final statusLower =
+                              (data['offerStatus']?.toString() ?? '')
+                                  .toLowerCase()
+                                  .trim();
+                          final bool isAdminInvoicePending =
+                              statusLower == OfferStatuses.adminInvoicePending;
+                          final bool isTransporterInvoicePending =
+                              statusLower ==
+                                  OfferStatuses.transporterInvoicePending;
+                          if (!isAdminInvoicePending &&
+                              !isTransporterInvoicePending) {
+                            return const SizedBox.shrink();
+                          }
+                          final Color border = isAdminInvoicePending
+                              ? const Color(0xFF7E57C2)
+                              : const Color(0xFFFFA726);
+                          final Color bg = isAdminInvoicePending
+                              ? const Color(0xFF7E57C2).withOpacity(0.15)
+                              : const Color(0xFFFFA726).withOpacity(0.15);
+                          final String title = isAdminInvoicePending
+                              ? 'Awaiting Dealer Invoice'
+                              : 'Awaiting Transporter Invoice';
+                          final String message = isAdminInvoicePending
+                              ? 'CTP is preparing the dealer invoice. We\'ll notify you once it\'s ready.'
+                              : 'CTP is waiting for the transporter\'s invoice to be verified.';
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 8.0),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12.0),
+                              decoration: BoxDecoration(
+                                color: bg,
+                                borderRadius: BorderRadius.circular(10.0),
+                                border: Border.all(color: border, width: 1.5),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    message,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       // Conditionally display the "UPLOAD PROOF OF PAYMENT" button
                       if (userRole != 'transporter' && !_proofOfPaymentUploaded)
                         CustomButton(
@@ -505,6 +641,13 @@ class _PaymentPendingPageState extends State<PaymentPendingPage> {
                               _checkProofOfPayment();
                             });
                           },
+                        ),
+                      // For dealers: allow requesting the dealer invoice
+                      if (userRole == 'dealer')
+                        CustomButton(
+                          text: 'REQUEST INVOICE',
+                          borderColor: Colors.orange,
+                          onPressed: _requestInvoice,
                         ),
                       // Optionally, display a message or another widget indicating that the proof has been uploaded
                       if (_proofOfPaymentUploaded && userRole != 'transporter')

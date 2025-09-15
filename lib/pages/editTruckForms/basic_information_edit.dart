@@ -146,7 +146,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   // List for variants is user-entered or from DB.
   List<String> _variantOptions = [];
 
-  String? _initialVehicleStatus;
+  // Vehicle status is managed elsewhere; no local state needed
 
   // Variable to hold selected NATIS/RC1 file
   Uint8List? _natisRc1File;
@@ -160,7 +160,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
   final TextEditingController _configController = TextEditingController();
   final TextEditingController _applicationController = TextEditingController();
 
-  String? _vehicleStatus;
+  // Vehicle status is managed elsewhere; no local state needed
 
   // ------------------------- Existing Transporter Fields ---------------------------
   // List of users who can own trucks (transporters and admins)
@@ -1470,7 +1470,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in';
     // Allow sales representatives the same image options as admin
     final bool isSalesRep = userRole == 'sales representative';
     final formData = Provider.of<FormDataProvider>(context);
@@ -1619,7 +1619,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in';
     final bool isSalesRep = userRole == 'sales representative';
     final formData = Provider.of<FormDataProvider>(context);
     return Padding(
@@ -1651,26 +1651,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
                     style: const TextStyle(fontSize: 14, color: Colors.white),
                     textAlign: TextAlign.center)),
           const SizedBox(height: 20),
-          if (isTransporter || isAdmin || isSalesRep)
-            CustomDropdown(
-              hintText: 'Vehicle Status',
-              value: _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
-              items: const ['Draft', 'Live'],
-              onChanged: (value) {
-                setState(() {
-                  _vehicleStatus = value;
-                  formData.setVehicleStatus(value);
-                });
-                debugPrint('Vehicle Status selected: $value');
-              },
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please select the vehicle status';
-                }
-                return null;
-              },
-              isTransporter: isTransporter || isAdmin || isSalesRep,
-            ),
+          // Vehicle status selection removed; status is managed elsewhere.
           const SizedBox(height: 15),
           if (isTransporter || isAdmin || isSalesRep)
             _buildReferenceNumberField(),
@@ -2234,7 +2215,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         // NOTE: Do NOT set userId here unconditionally; for updates, only set when explicitly changed.
-        'vehicleStatus': _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
         if (_selectedTransporterId != null)
           'assignedTransporterId': _selectedTransporterId,
         // NEW: Save the assigned sales rep ID if it exists.
@@ -2276,7 +2256,6 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
           // For creation, default to selected transporter if provided; otherwise current user.
           'userId':
               _selectedTransporterId ?? FirebaseAuth.instance.currentUser?.uid,
-          'vehicleStatus': _vehicleStatus ?? 'Draft',
         });
         _vehicleId = docRef.id;
         debugPrint('Vehicle created successfully with ID: $_vehicleId');
@@ -2319,7 +2298,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
       'hasSelectedMainImage': formData.selectedMainImage != null,
       'natisUrl': _existingNatisRc1Url ?? '',
       'hasNatisFile': _natisRc1File != null,
-      'vehicleStatus': _vehicleStatus ?? _initialVehicleStatus ?? 'Draft',
+      // Vehicle status is managed elsewhere; exclude from dirty snapshot
       'country': formData.country ?? '',
       'province': formData.province ?? '',
       'truckType': _selectedTruckType ?? '',
@@ -2630,7 +2609,7 @@ class _BasicInformationEditState extends State<BasicInformationEdit> {
     final String userRole = userProvider.getUserRole;
     final bool isAdmin = userRole == 'admin';
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in';
     final bool isSalesRep = userRole == 'sales representative';
 
     void handleTruckTypeChange(String? value) {

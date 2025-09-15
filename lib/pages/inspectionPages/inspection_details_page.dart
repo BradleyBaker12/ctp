@@ -151,9 +151,25 @@ class _InspectionDetailsPageState extends State<InspectionDetailsPage> {
       for (var location in inspectionLocations) {
         // print('DEBUG: Processing location: $location');
 
-        String address = location['address'] ?? '';
-        var dates = location['dates'] ?? [];
-        var timeSlots = location['timeSlots'] ?? [];
+        final loc = Map<String, dynamic>.from(location as Map);
+
+        // Prefer full address assembled from granular fields if available
+        String address;
+        if (loc.containsKey('line1') || loc.containsKey('city')) {
+          address = [
+            (loc['line1'] ?? '').toString(),
+            if ((loc['suburb'] ?? '').toString().isNotEmpty)
+              (loc['suburb'] ?? '').toString(),
+            (loc['city'] ?? '').toString(),
+            (loc['state'] ?? '').toString(),
+            (loc['postalCode'] ?? '').toString(),
+          ].where((s) => s.trim().isNotEmpty).join(', ');
+        } else {
+          address = (loc['address'] ?? '').toString();
+        }
+
+        var dates = loc['dates'] ?? [];
+        var timeSlots = loc['timeSlots'] ?? [];
 
         // print('DEBUG: Address: $address');
         // print('DEBUG: Dates: $dates');

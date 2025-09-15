@@ -297,8 +297,7 @@ class TruckInfoWebNavBar extends StatelessWidget {
     ].contains(selectedTab);
 
     Future<void> confirmAndNavigate(Future<void> Function() navigate) async {
-      final shouldConfirm =
-          userRole == 'admin' || userRole == 'transporter' || userRole == 'oem';
+      final shouldConfirm = userRole == 'admin' || userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in';
       if (shouldConfirm) {
         await showDialog<int>(
           context: navContext,

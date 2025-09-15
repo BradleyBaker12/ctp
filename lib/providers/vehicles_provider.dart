@@ -47,11 +47,14 @@ class VehicleProvider with ChangeNotifier {
         .collection('vehicles')
         .orderBy('createdAt', descending: true);
 
-    // If OEM role, scope by manager relationship; else userId
+    // If OEM or Trade-In role, scope by manager relationship; else userId
     final role = userProvider.getUserRole.toLowerCase();
-    if (role == 'oem') {
+    if (role == 'oem' || role == 'tradein' || role == 'trade-in') {
+      final isManager = role == 'oem'
+          ? userProvider.isOemManager
+          : userProvider.isTradeInManager;
       // If the current user is a manager, show vehicles where managerUserId == current user
-      if (userProvider.isOemManager && userId != null && userId.isNotEmpty) {
+      if (isManager && userId != null && userId.isNotEmpty) {
         query = query.where('managerUserId', isEqualTo: userId);
       } else if (userId != null && userId.isNotEmpty) {
         // Employees see their own vehicles by userId
@@ -352,7 +355,7 @@ class VehicleProvider with ChangeNotifier {
 
     for (var vehicle in _vehicles) {
       for (var brand in brands) {
-        if (vehicle.makeModel.contains(brand.toLowerCase())) {
+        if (vehicle.makeModel.toLowerCase().contains(brand.toLowerCase())) {
           matchedBrands.add(brand);
           break;
         }
@@ -646,15 +649,21 @@ class VehicleProvider with ChangeNotifier {
         return;
       }
 
-      // Fetch the actual vehicles using the vehicle IDs
-      final vehiclesSnapshot = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .where(FieldPath.documentId, whereIn: vehicleIds)
-          .get();
+      // Firestore 'in' queries have a limit (typically 10). Chunk the requests.
+      final List<model.Vehicle> fetched = [];
+      const int chunkSize = 10;
+      for (var i = 0; i < vehicleIds.length; i += chunkSize) {
+        final chunk = vehicleIds.sublist(
+            i, i + chunkSize > vehicleIds.length ? vehicleIds.length : i + chunkSize);
+        final vehiclesSnapshot = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        fetched.addAll(vehiclesSnapshot.docs
+            .map((doc) => model.Vehicle.fromFirestore(doc.id, doc.data())));
+      }
 
-      _boughtVehicles = vehiclesSnapshot.docs
-          .map((doc) => model.Vehicle.fromFirestore(doc.id, doc.data()))
-          .toList();
+      _boughtVehicles = fetched;
 
       notifyListeners();
     } catch (e) {
@@ -671,7 +680,8 @@ class VehicleProvider with ChangeNotifier {
           .collection('vehicles')
           .doc(vehicleId)
           .update({
-        'status': 'live',
+        // Keep this consistent with queries using 'vehicleStatus' == 'Live'
+        'vehicleStatus': 'Live',
         'publishedAt': FieldValue.serverTimestamp(),
       });
 

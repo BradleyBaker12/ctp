@@ -459,7 +459,10 @@ Future<void> _navigateToOfferDetails(BuildContext context, String offerId,
         Navigator.of(context).pushNamed('/adminOffers');
       } else if (userRole == 'dealer') {
         Navigator.of(context).pushNamed('/offers');
-      } else if (userRole == 'transporter' || userRole == 'oem') {
+      } else if (userRole == 'transporter' ||
+          userRole == 'oem' ||
+          userRole == 'tradein' ||
+          userRole == 'trade-in') {
         Navigator.of(context).pushNamed('/offers');
       } else {
         Navigator.of(context).pushNamed('/offers');
@@ -602,13 +605,15 @@ Future<void> setupNotifications() async {
           settings.authorizationStatus == AuthorizationStatus.provisional) {
         const vapidKey = String.fromEnvironment('WEB_VAPID_KEY');
         if (vapidKey.isEmpty) {
-          print('DEBUG: No WEB_VAPID_KEY provided; skipping web FCM token retrieval');
+          print(
+              'DEBUG: No WEB_VAPID_KEY provided; skipping web FCM token retrieval');
         } else {
           final webToken = await messaging.getToken(vapidKey: vapidKey);
           print('DEBUG: Web FCM Token: $webToken');
         }
       } else {
-        print('DEBUG: Web notifications not authorized; skipping token retrieval');
+        print(
+            'DEBUG: Web notifications not authorized; skipping token retrieval');
       }
     } catch (e) {
       print('DEBUG: Error getting web FCM token: $e');

@@ -22,17 +22,20 @@ if (!sgKey) {
 
 // Import Places API functions
 const placesApi = require("./src/places-api");
+const { defineSecret } = require("firebase-functions/params");
+// Use secret name; set value via `firebase functions:secrets:set PLACES_API_KEY`
+const PLACES_API_KEY = defineSecret("PLACES_API_KEY");
 
 // Import HTTP trigger helper for v2 functions
 const { onRequest, onCall } = require("firebase-functions/v2/https");
 
 // Export all places API functions as HTTP triggers in europe-west3
 exports.placesAutocomplete = onRequest(
-  { region: "europe-west3" },
+  { region: "europe-west3", secrets: [PLACES_API_KEY] },
   placesApi.placesAutocomplete
 );
 exports.getPlaceDetails = onRequest(
-  { region: "europe-west3" },
+  { region: "europe-west3", secrets: [PLACES_API_KEY] },
   placesApi.getPlaceDetails
 );
 // Callable function: OEM manager creates an OEM employee under their company.
@@ -583,6 +586,211 @@ exports.notifyAdminsOnTransporterInvoiceUpload = onDocumentUpdated(
   }
 );
 
+// 4) Notify the transporter to upload an invoice when offer moves to Payment Options
+exports.notifyTransporterToUploadInvoiceOnPaymentOptions = onDocumentUpdated(
+  { document: "offers/{offerId}", region: "us-central1" },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    if (!before || !after) return;
+
+    const beforeStatus = (before.offerStatus || "").toLowerCase();
+    const afterStatus = (after.offerStatus || "").toLowerCase();
+
+    // Only trigger on transition INTO payment options
+    if (beforeStatus === afterStatus || afterStatus !== "payment options")
+      return;
+
+    // Stamp the time we entered payment options if missing
+    try {
+      if (!after.paymentOptionsAt) {
+        await db
+          .collection("offers")
+          .doc(event.params.offerId)
+          .set(
+            { paymentOptionsAt: admin.firestore.FieldValue.serverTimestamp() },
+            { merge: true }
+          );
+      }
+    } catch (e) {
+      console.warn(
+        "[notifyTransporterToUploadInvoiceOnPaymentOptions] Failed to set paymentOptionsAt",
+        e
+      );
+    }
+
+    // If transporter already uploaded an invoice, no need to notify
+    if (
+      after.transporterInvoice &&
+      String(after.transporterInvoice).trim() !== ""
+    )
+      return;
+
+    const offerId = event.params.offerId;
+    const transporterId = after.transporterId;
+    if (!transporterId) return;
+
+    try {
+      const [transporterDoc, vehicleDoc] = await Promise.all([
+        db.collection("users").doc(transporterId).get(),
+        db.collection("vehicles").doc(after.vehicleId).get(),
+      ]);
+      const transporter = transporterDoc.exists ? transporterDoc.data() : {};
+      const vehicle = vehicleDoc.exists ? vehicleDoc.data() : {};
+
+      const brand =
+        Array.isArray(vehicle?.brands) && vehicle.brands.length
+          ? String(vehicle.brands[0])
+          : vehicle?.brands
+          ? String(vehicle.brands)
+          : "";
+      const variant = vehicle?.variant ? String(vehicle.variant) : "";
+      const vehicleName =
+        [brand, variant].filter(Boolean).join(" ") || "Vehicle";
+
+      // Push to transporter FCM if available
+      if (transporter?.fcmToken) {
+        await admin.messaging().send({
+          notification: {
+            title: "Upload Your Transporter Invoice",
+            body: `Please upload your invoice for ${vehicleName}.`,
+          },
+          data: {
+            notificationType: "upload_transporter_invoice",
+            offerId,
+            vehicleId: after.vehicleId || "",
+            timestamp: new Date().toISOString(),
+          },
+          token: transporter.fcmToken,
+        });
+      }
+
+      // Optional: email the transporter
+      const transporterEmail = transporter?.email;
+      if (sgMail && transporterEmail) {
+        await sgMail.send({
+          from: "admin@ctpapp.co.za",
+          to: transporterEmail,
+          subject: "Action Required: Upload Your Transporter Invoice",
+          html: `<p>Hi,</p>
+                 <p>The buyer has moved to the payment stage for <strong>${vehicleName}</strong>.</p>
+                 <p>Please upload your transporter invoice in the app to proceed.</p>`,
+        });
+      }
+    } catch (e) {
+      console.error(
+        "[notifyTransporterToUploadInvoiceOnPaymentOptions] Error:",
+        e
+      );
+    }
+  }
+);
+
+// 5) Scheduled: alert admins if transporter invoice still missing 12h after payment options
+exports.notifyAdminsIfTransporterInvoiceOverdue = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    timeZone: "Africa/Johannesburg",
+    region: "us-central1",
+  },
+  async () => {
+    try {
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+      // Fetch offers in payment options with paymentOptionsAt <= threshold
+      const snap = await db
+        .collection("offers")
+        .where("offerStatus", "==", "payment options")
+        .where("paymentOptionsAt", "<=", twelveHoursAgo)
+        .get();
+
+      if (snap.empty) return;
+
+      const adminUsersSnap = await db
+        .collection("users")
+        .where("userRole", "in", ["admin", "sales representative"])
+        .get();
+      const adminUsers = adminUsersSnap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      for (const doc of snap.docs) {
+        const offer = doc.data();
+        // Skip if invoice present or reminder already sent
+        const hasInvoice = !!(
+          offer.transporterInvoice &&
+          String(offer.transporterInvoice).trim() !== ""
+        );
+        if (hasInvoice) continue;
+        if (offer.invoiceOverdueNotifiedAt) continue;
+
+        // Build vehicle name
+        let vehicleName = "Vehicle";
+        try {
+          const vdoc = await db
+            .collection("vehicles")
+            .doc(offer.vehicleId)
+            .get();
+          if (vdoc.exists) {
+            const v = vdoc.data() || {};
+            const brand =
+              Array.isArray(v.brands) && v.brands.length
+                ? String(v.brands[0])
+                : v.brands
+                ? String(v.brands)
+                : "";
+            const variant = v.variant ? String(v.variant) : "";
+            const parts = [brand, variant].filter(Boolean);
+            if (parts.length) vehicleName = parts.join(" ");
+          }
+        } catch (_) {}
+
+        // Notify admins via FCM
+        for (const a of adminUsers) {
+          if (!a.fcmToken) continue;
+          await admin.messaging().send({
+            notification: {
+              title: "Transporter Invoice Overdue",
+              body: `Offer ${doc.id}: No transporter invoice uploaded for ${vehicleName} within 12 hours.`,
+            },
+            data: {
+              notificationType: "transporter_invoice_overdue",
+              offerId: doc.id,
+              vehicleId: offer.vehicleId || "",
+              timestamp: new Date().toISOString(),
+            },
+            token: a.fcmToken,
+          });
+        }
+
+        // Optional: email admins
+        if (sgMail) {
+          const emails = adminUsers.map((u) => u.email).filter(Boolean);
+          if (emails.length) {
+            await sgMail.send({
+              from: "admin@ctpapp.co.za",
+              to: emails,
+              subject: "Transporter Invoice Overdue",
+              html: `<p>Offer <strong>${doc.id}</strong> for <strong>${vehicleName}</strong> has no transporter invoice uploaded within 12 hours of Payment Options.</p>`,
+            });
+          }
+        }
+
+        // Mark as notified to avoid spamming
+        await doc.ref.set(
+          {
+            invoiceOverdueNotifiedAt:
+              admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (e) {
+      console.error("[notifyAdminsIfTransporterInvoiceOverdue] Error:", e);
+    }
+  }
+);
+
 // Trigger: After dealer confirms collection, notify admins to release payment to transporter
 exports.notifyAdminsToReleasePaymentOnCollectionConfirmation =
   onDocumentUpdated(
@@ -713,57 +921,15 @@ exports.notifyAdminsToReleasePaymentOnCollectionConfirmation =
     }
   );
 
-// Immediate: when an offer is accepted and no transporter invoice exists, ask transporter to upload invoice
+// Immediate: when an offer is accepted — previously asked transporter to upload invoice.
+// Suppressed per product change: only notify on transition to "payment options".
 exports.notifyTransporterToUploadInvoiceOnAcceptance = onDocumentUpdated(
   { document: "offers/{offerId}", region: "us-central1" },
-  async (event) => {
-    const before = event.data.before.data();
-    const after = event.data.after.data();
-    if (!before || !after) return;
-
-    // Only run when offer transitions to accepted
-    const beforeStatus = (before.offerStatus || "").toLowerCase();
-    const afterStatus = (after.offerStatus || "").toLowerCase();
-    if (beforeStatus === afterStatus || afterStatus !== "accepted") return;
-
-    // If invoice already exists, skip
-    const hasInvoice = !!(
-      after.transporterInvoice && String(after.transporterInvoice).trim() !== ""
+  async () => {
+    console.log(
+      "[notifyTransporterToUploadInvoiceOnAcceptance] Suppressed — only notify on 'payment options'"
     );
-    if (hasInvoice) return;
-
-    try {
-      const vehicleDoc = await db
-        .collection("vehicles")
-        .doc(after.vehicleId)
-        .get();
-      if (!vehicleDoc.exists) return;
-      const transporterId = vehicleDoc.data().userId;
-      if (!transporterId) return;
-      const transporterDoc = await db
-        .collection("users")
-        .doc(transporterId)
-        .get();
-      if (!transporterDoc.exists) return;
-      const t = transporterDoc.data();
-      if (!t.fcmToken) return;
-
-      await admin.messaging().send({
-        notification: {
-          title: "Upload Your Invoice",
-          body: "Please upload your inspection/transport invoice to proceed with the sale.",
-        },
-        data: {
-          notificationType: "transporter_invoice_request",
-          offerId: event.params.offerId,
-          vehicleId: after.vehicleId || "",
-          timestamp: new Date().toISOString(),
-        },
-        token: t.fcmToken,
-      });
-    } catch (e) {
-      console.error("[notifyTransporterToUploadInvoiceOnAcceptance] Error:", e);
-    }
+    return;
   }
 );
 
@@ -1052,7 +1218,7 @@ exports.notifyTransporterOnNewOffer = onDocumentCreated(
   }
 );
 
-// 2) Daily reminder for transporter to upload invoice if missing
+// 2) Daily reminder for transporter to upload invoice if missing (only in payment options)
 exports.sendTransporterInvoiceReminders = onSchedule(
   {
     schedule: "0 9 * * *",
@@ -1063,11 +1229,7 @@ exports.sendTransporterInvoiceReminders = onSchedule(
     try {
       const offersSnap = await db
         .collection("offers")
-        .where("offerStatus", "in", [
-          "accepted",
-          "payment options",
-          "payment pending",
-        ]) // workflow stages before payment
+        .where("offerStatus", "==", "payment options")
         .get();
 
       if (offersSnap.empty) return;
@@ -1122,6 +1284,14 @@ exports.notifyTransporterOnOfferStatusChange = onDocumentUpdated(
     region: "us-central1",
   },
   async (event) => {
+    // Disabled: we no longer send transporters a push for every
+    // offerStatus change. This avoids spammy notifications.
+    // Leaving the trigger in place but no-op ensures any deployed
+    // instance won’t notify even if still scheduled/active.
+    console.log(
+      "[notifyTransporterOnOfferStatusChange] Suppressed — transporter generic status notifications are disabled"
+    );
+    return;
     console.log(
       "[notifyTransporterOnOfferStatusChange] Triggered for offerId:",
       event.params.offerId

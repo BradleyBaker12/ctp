@@ -10,7 +10,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:auto_route/auto_route.dart';
-@RoutePage()class AccountStatusPage extends StatefulWidget {
+
+@RoutePage()
+class AccountStatusPage extends StatefulWidget {
   const AccountStatusPage({super.key});
 
   @override
@@ -18,7 +20,10 @@ import 'package:auto_route/auto_route.dart';
 }
 
 class _AccountStatusPageState extends State<AccountStatusPage> {
-  String? accountStatus;
+  String? accountStatus; // raw accountStatus from Firestore
+  bool? isVerified; // verification flag
+  String?
+      _displayStatus; // derived status used for UI (e.g., awaiting_verification)
   bool isLoading = true;
 
   @override
@@ -42,9 +47,10 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
           .get();
 
       if (!userDoc.exists) {
-        // Handle case where user document does not exist
         setState(() {
           accountStatus = 'unknown';
+          isVerified = false;
+          _displayStatus = 'unknown';
           isLoading = false;
         });
         return;
@@ -52,15 +58,41 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
 
       Map<String, dynamic>? data = userDoc.data() as Map<String, dynamic>?;
 
+      final rawStatus =
+          data?['accountStatus']?.toString().toLowerCase() ?? 'unknown';
+      final verifiedFlag = data?['isVerified'] == true;
+
+      // Derive composite display status:
+      // active + verified => active
+      // active + !verified => awaiting_verification
+      // pending (regardless of verification flag) => pending
+      // others pass through
+      String derived;
+      if (rawStatus == 'active' && verifiedFlag) {
+        derived = 'active';
+      } else if (rawStatus == 'active' && !verifiedFlag) {
+        derived = 'awaiting_verification';
+      } else if (rawStatus == 'pending') {
+        derived = 'pending';
+      } else if (rawStatus == 'suspended') {
+        derived = 'suspended';
+      } else if (rawStatus == 'deactivated') {
+        derived = 'deactivated';
+      } else {
+        derived = 'unknown';
+      }
+
       setState(() {
-        accountStatus =
-            data?['accountStatus']?.toString().toLowerCase() ?? 'unknown';
+        accountStatus = rawStatus;
+        isVerified = verifiedFlag;
+        _displayStatus = derived;
         isLoading = false;
       });
     } catch (e) {
       // Handle errors appropriately
       setState(() {
         accountStatus = 'error';
+        _displayStatus = 'error';
         isLoading = false;
       });
     }
@@ -70,29 +102,37 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
     switch (status) {
       case 'active':
         return 'Account Active';
+      case 'awaiting_verification':
+        return 'Verifying Your Account';
       case 'pending':
         return 'Account Pending Approval';
       case 'suspended':
         return 'Account Suspended';
       case 'deactivated':
         return 'Account Deactivated';
-      default:
-        return 'Account Status Unknown';
+      case 'error':
+        return 'Status Processing';
+      default: // includes 'unknown'
+        return 'Account Under Review';
     }
   }
 
   String _getStatusMessage(String status) {
     switch (status) {
       case 'active':
-        return 'Your account is active. You can now access all features.';
+        return 'Your account is fully approved and verified. You can now access all features.';
+      case 'awaiting_verification':
+        return 'Your account has been approved and we\'re finalizing verification. You\'ll gain full access shortly.';
       case 'pending':
-        return 'Your account is currently under review. The admin team needs to approve your account before you can start trading. This usually takes 1-2 business days. You will receive a notification once your account is approved. Thank you for your patience!';
+        return 'Your application is under review. An admin is attending to your account. You\'ll receive a notification once approval and verification are complete.';
       case 'suspended':
         return 'Your account has been suspended. Please contact support for more information.';
       case 'deactivated':
-        return 'Your account has been deactivated. Please contact support to reactivate.';
-      default:
-        return 'Please wait while we verify your account status.';
+        return 'Your account has been deactivated. Please contact support to reactivate it.';
+      case 'error':
+        return 'We\'re processing your status. Please re-open the app in a moment.';
+      default: // includes 'unknown'
+        return 'An admin is attending to your account. You will gain access once it is fully approved and verified.';
     }
   }
 
@@ -100,6 +140,7 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
     switch (status) {
       case 'active':
         return Colors.green;
+      case 'awaiting_verification':
       case 'pending':
         return Colors.orange;
       case 'suspended':
@@ -168,12 +209,12 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
                             ),
                             SizedBox(height: screenSize.height * 0.02),
                             Text(
-                              _getStatusTitle(accountStatus ?? 'unknown'),
+                              _getStatusTitle(_displayStatus ?? 'unknown'),
                               style: GoogleFonts.montserrat(
                                 fontSize: screenSize.height * 0.04,
                                 fontWeight: FontWeight.bold,
-                                color:
-                                    _getStatusColor(accountStatus ?? 'unknown'),
+                                color: _getStatusColor(
+                                    _displayStatus ?? 'unknown'),
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -182,7 +223,7 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
                               padding: EdgeInsets.symmetric(
                                   horizontal: screenSize.width * 0.05),
                               child: Text(
-                                _getStatusMessage(accountStatus ?? 'unknown'),
+                                _getStatusMessage(_displayStatus ?? 'unknown'),
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.montserrat(
                                   fontSize: screenSize.height * 0.02,
@@ -204,8 +245,8 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
                             ),
                             SizedBox(height: screenSize.height * 0.02),
                             // Optionally, provide additional actions based on status
-                            if (accountStatus == 'suspended' ||
-                                accountStatus == 'deactivated')
+                            if (_displayStatus == 'suspended' ||
+                                _displayStatus == 'deactivated')
                               CustomButton(
                                 text: 'CONTACT SUPPORT',
                                 borderColor: Colors.white,

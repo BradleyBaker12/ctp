@@ -1049,18 +1049,27 @@ class _WishlistPageState extends State<WishlistPage> {
     final userProvider = Provider.of<UserProvider>(context);
     final userRole = userProvider.getUserRole;
 
+    final roleLower = userRole.toLowerCase();
+    final bool isOemEmployee = (roleLower == 'oem' ||
+            roleLower == 'tradein' ||
+            roleLower == 'trade-in') &&
+        !(Provider.of<UserProvider>(context, listen: false).isOemManager ||
+            Provider.of<UserProvider>(context, listen: false).isTradeInManager);
     List<NavigationItem> navigationItems = userRole == 'dealer'
         ? [
             NavigationItem(title: 'Home', route: '/home'),
             NavigationItem(title: 'Search Trucks', route: '/truckPage'),
             NavigationItem(title: 'Wishlist', route: '/wishlist'),
-            NavigationItem(title: 'Pending Offers', route: '/offers'),
+            if (!isOemEmployee)
+              NavigationItem(title: 'Pending Offers', route: '/offers'),
           ]
         : [
             NavigationItem(title: 'Home', route: '/home'),
             NavigationItem(title: 'Your Trucks', route: '/transporterList'),
-            NavigationItem(title: 'Your Offers', route: '/offers'),
-            NavigationItem(title: 'In-Progress', route: '/in-progress'),
+            if (!isOemEmployee)
+              NavigationItem(title: 'Your Offers', route: '/offers'),
+            if (!isOemEmployee)
+              NavigationItem(title: 'In-Progress', route: '/in-progress'),
           ];
 
     return GradientBackground(
@@ -1075,7 +1084,7 @@ class _WishlistPageState extends State<WishlistPage> {
                   onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
                 ),
               )
-            : CustomAppBar(),
+            : const CustomAppBar(showBackButton: false),
         drawer: (kIsWeb && _isCompactNavigation(context))
             ? Drawer(
                 child: Container(

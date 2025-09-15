@@ -3,7 +3,7 @@ import 'package:ctp/services/places_services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 
-class PlacesSearchField extends StatelessWidget {
+class PlacesSearchField extends StatefulWidget {
   final TextEditingController controller;
   final Function(PlacesData) onSuggestionSelected;
 
@@ -13,18 +13,68 @@ class PlacesSearchField extends StatelessWidget {
     required this.onSuggestionSelected,
   });
 
+  @override
+  State<PlacesSearchField> createState() => _PlacesSearchFieldState();
+}
+
+class _PlacesSearchFieldState extends State<PlacesSearchField> {
+  final FocusNode _focusNode = FocusNode();
+  bool _suppress = false; // suppress suggestions after selection
+  bool _hasSelected = false; // lock field after selection
+  bool _isOpen = false; // track suggestions dropdown visibility heuristic
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      // ignore: avoid_print
+      print(
+          'PlacesSearchField: focus ${_focusNode.hasFocus ? 'GAINED' : 'LOST'}');
+      if (!_focusNode.hasFocus) {
+        if (_isOpen) {
+          // ignore: avoid_print
+          print('PlacesSearchField: suggestions CLOSE (focus lost)');
+        }
+        _isOpen = false;
+      }
+    });
+  }
+
   Future<List<PlacesData>> _fetchSuggestions(String query) async {
-    if (query.length < 2) return []; // Only search if 2+ characters
-    return await PlacesService.getSuggestions(query); // Fetch places data
+    // Do not show suggestions while suppressed or after a confirmed selection
+    if (_suppress || _hasSelected) return [];
+    if (!_focusNode.hasFocus) return [];
+    if (query.trim().length < 2) return []; // Only search if 2+ characters
+    final results = await PlacesService.getSuggestions(query.trim());
+    // ignore: avoid_print
+    print('PlacesSearchField: query="$query" -> ${results.length} results');
+    if (!_isOpen && results.isNotEmpty) {
+      // ignore: avoid_print
+      print('PlacesSearchField: suggestions OPEN (count=${results.length})');
+      _isOpen = true;
+    }
+    if (_isOpen && results.isEmpty) {
+      // ignore: avoid_print
+      print('PlacesSearchField: suggestions CLOSE (no results)');
+      _isOpen = false;
+    }
+    return results;
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return TypeAheadField<PlacesData>(
-      controller: controller,
-      focusNode: FocusNode(),
+      controller: widget.controller,
+      focusNode: _focusNode,
       suggestionsCallback: _fetchSuggestions,
       hideOnEmpty: true,
+      debounceDuration: const Duration(milliseconds: 350),
       loadingBuilder: (context) => SizedBox(
         height: 80,
         child: Center(
@@ -34,6 +84,11 @@ class PlacesSearchField extends StatelessWidget {
             child: CircularProgressIndicator(color: Colors.blue),
           ),
         ),
+      ),
+      emptyBuilder: (context) => const Padding(
+        padding: EdgeInsets.all(12.0),
+        child: Text('No suggestions found',
+            style: TextStyle(color: Colors.black54)),
       ),
       itemBuilder: (context, PlacesData suggestion) {
         return ListTile(
@@ -48,6 +103,17 @@ class PlacesSearchField extends StatelessWidget {
         return TextFormField(
           controller: fieldController,
           focusNode: focusNode,
+          // Allow typing anytime; we gate suggestions via _hasSelected/_suppress
+          onChanged: (val) {
+            if (_hasSelected) {
+              // ignore: avoid_print
+              print(
+                  'PlacesSearchField: user typed after selection -> re-enable suggestions');
+              setState(() {
+                _hasSelected = false;
+              });
+            }
+          },
           cursorColor: const Color(0xFFFF4E00),
           decoration: InputDecoration(
             hintText: "Address",
@@ -70,8 +136,25 @@ class PlacesSearchField extends StatelessWidget {
         );
       },
       onSelected: (PlacesData suggestion) {
-        controller.text = suggestion.description ?? '';
-        onSuggestionSelected(suggestion);
+        // Unfocus and lock to prevent the suggestions from reopening
+        // ignore: avoid_print
+        print('PlacesSearchField: onSelected -> ${suggestion.description}');
+        _suppress = true;
+        _hasSelected = true;
+        _focusNode.unfocus();
+        if (_isOpen) {
+          // ignore: avoid_print
+          print('PlacesSearchField: suggestions CLOSE (selection)');
+          _isOpen = false;
+        }
+        // Defer text set + callback to next frame so overlay has time to close
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          widget.controller.text = suggestion.description ?? '';
+          widget.onSuggestionSelected(suggestion);
+          // Allow suggestions again after a short delay; still suppressed by _hasSelected
+          await Future.delayed(const Duration(milliseconds: 250));
+          if (mounted) setState(() => _suppress = false);
+        });
       },
     );
   }

@@ -54,6 +54,11 @@ class _UserDetailPageState extends State<UserDetailPage> {
   // OEM org fields (companyId removed)
   bool _isOemManagerFlag = false;
   String? _selectedOemManagerId;
+  // Trade-In brand controller (mirror OEM)
+  final TextEditingController _tradeInBrandController = TextEditingController();
+  // Trade-In org fields
+  bool _isTradeInManagerFlag = false;
+  String? _selectedTradeInManagerId;
 
   // Dropdown state variables.
   String _accountStatus = 'active'; // default value.
@@ -105,6 +110,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
     _registrationNumberController.dispose();
     _vatNumberController.dispose();
     _oemBrandController.dispose();
+    _tradeInBrandController.dispose();
     super.dispose();
   }
 
@@ -147,10 +153,62 @@ class _UserDetailPageState extends State<UserDetailPage> {
     }
   }
 
+  /// Synchronize manager <-> employee linkage for OEM hierarchy.
+  /// Maintains an array field `oemEmployeeIds` on manager documents.
+  Future<void> _syncManagerEmployeeLinks({
+    required String? oldManagerId,
+    required String? newManagerId,
+    required bool oldIsManager,
+    required bool newIsManager,
+  }) async {
+    final usersCol = FirebaseFirestore.instance.collection('users');
+    final currentUserId = widget.userId;
+
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+
+    // If user was previously assigned to a manager (and either manager changed or user became a manager), remove from old manager list.
+    if (oldManagerId != null &&
+        oldManagerId.isNotEmpty &&
+        (oldManagerId != newManagerId || newIsManager)) {
+      batch.update(usersCol.doc(oldManagerId), {
+        'oemEmployeeIds': FieldValue.arrayRemove([currentUserId])
+      });
+    }
+
+    // If user is now an employee (not a manager) and has a manager, add to new manager list.
+    if (!newIsManager && newManagerId != null && newManagerId.isNotEmpty) {
+      batch.update(usersCol.doc(newManagerId), {
+        'oemEmployeeIds': FieldValue.arrayUnion([currentUserId])
+      });
+    }
+
+    // If user transitioned from manager to employee, nothing special besides above.
+    // If user transitioned to manager (newIsManager) we keep their existing oemEmployeeIds array (or create empty) – ensure field exists.
+    if (newIsManager && !oldIsManager) {
+      batch.set(
+          usersCol.doc(currentUserId),
+          {
+            'oemEmployeeIds': FieldValue.arrayUnion([]),
+          },
+          SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
   /// Save the changes in the form and update Firestore.
   Future<void> _saveChanges() async {
     if (_formKey.currentState?.validate() ?? false) {
       try {
+        // Fetch current doc to compute diff for manager linkage before update.
+        DocumentSnapshot preUpdateSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .get();
+        final preData = preUpdateSnap.data() as Map<String, dynamic>? ?? {};
+        final String? oldManagerId = preData['managerId'] as String?;
+        final bool oldIsManager = preData['isOemManager'] == true;
+
         String? profileImageUrl;
         if (_profileImage != null) {
           profileImageUrl = await _uploadProfileImage(_profileImage!);
@@ -208,6 +266,21 @@ class _UserDetailPageState extends State<UserDetailPage> {
           updateData['managerId'] = null;
         }
 
+        // Persist Trade-In brand and org fields when applicable; clear otherwise
+        if (_userRole == 'tradein' || _userRole == 'trade-in') {
+          updateData['tradeInBrand'] = _tradeInBrandController.text;
+          updateData['isTradeInManager'] = _isTradeInManagerFlag;
+          if (_isTradeInManagerFlag) {
+            updateData['tradeInManagerId'] = null;
+          } else {
+            updateData['tradeInManagerId'] = _selectedTradeInManagerId;
+          }
+        } else {
+          updateData['tradeInBrand'] = null;
+          updateData['isTradeInManager'] = null;
+          updateData['tradeInManagerId'] = null;
+        }
+
         if (profileImageUrl != null) {
           updateData['profileImageUrl'] = profileImageUrl;
         }
@@ -216,6 +289,32 @@ class _UserDetailPageState extends State<UserDetailPage> {
             .collection('users')
             .doc(widget.userId)
             .update(updateData);
+
+        // After user doc update, sync manager employee linkage if OEM or Trade-In role involved in either old or new state.
+        if (_userRole == 'oem' || preData['userRole'] == 'oem') {
+          await _syncManagerEmployeeLinks(
+            oldManagerId: oldManagerId,
+            newManagerId: _isOemManagerFlag ? null : _selectedOemManagerId,
+            oldIsManager: oldIsManager,
+            newIsManager: _isOemManagerFlag,
+          );
+        }
+
+        // Trade-In manager sync: compute previous trade-in manager state
+        final String? oldTradeInManagerId =
+            preData['tradeInManagerId'] as String?;
+        final bool oldIsTradeInManager = preData['isTradeInManager'] == true;
+        if ((_userRole == 'tradein' || _userRole == 'trade-in') ||
+            (preData['userRole'] == 'tradein' ||
+                preData['userRole'] == 'trade-in')) {
+          await _syncManagerEmployeeLinks(
+            oldManagerId: oldTradeInManagerId,
+            newManagerId:
+                _isTradeInManagerFlag ? null : _selectedTradeInManagerId,
+            oldIsManager: oldIsTradeInManager,
+            newIsManager: _isTradeInManagerFlag,
+          );
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -393,7 +492,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
     // Admin: transporter, dealer, oem, admin.
     // Sales rep: transporter, dealer. If editing an OEM account, include 'oem' to preserve value display.
     List<String> roleOptions = isAdmin
-        ? ['transporter', 'dealer', 'oem', 'admin']
+        ? ['transporter', 'dealer', 'oem', 'tradein', 'admin']
         : ['transporter', 'dealer'];
 
     // If logged in user is a sales rep and no sales rep is assigned, assign current rep id.
@@ -473,7 +572,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
                     'dealer',
                     'admin',
                     'sales representative',
-                    'oem'
+                    'oem',
+                    'tradein',
+                    'trade-in'
                   ].contains(storedRole)) {
                 _userRole = storedRole;
               } else {
@@ -489,11 +590,20 @@ class _UserDetailPageState extends State<UserDetailPage> {
               _isOemManagerFlag = data['isOemManager'] == true;
               _selectedOemManagerId = data['managerId']?.toString();
 
+              // Initialize Trade-In brand
+              _tradeInBrandController.text =
+                  data['tradeInBrand']?.toString() ?? '';
+              // Initialize Trade-In org fields
+              _isTradeInManagerFlag = data['isTradeInManager'] == true;
+              _selectedTradeInManagerId = data['tradeInManagerId']?.toString();
+
               // Ensure role dropdown shows 'oem' for non-admins when viewing an OEM account
               if (!isAdmin &&
-                  _userRole == 'oem' &&
-                  !roleOptions.contains('oem')) {
-                roleOptions = [...roleOptions, 'oem'];
+                  (_userRole == 'oem' ||
+                      _userRole == 'tradein' ||
+                      _userRole == 'trade-in') &&
+                  !roleOptions.contains(_userRole)) {
+                roleOptions = [...roleOptions, _userRole];
               }
 
               _isControllersInitialized = true;
@@ -599,6 +709,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                         decoration: InputDecoration(
                                           filled: true,
                                           fillColor: Colors.grey[800],
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: Colors.white70),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: AppColors.orange),
+                                          ),
                                         ),
                                         items: _accountStatusOptions
                                             .map((String value) {
@@ -763,7 +881,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                       color: Colors.white),
                                   filled: true,
                                   fillColor: Colors.grey[800],
-                                  border: OutlineInputBorder(),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide:
+                                        BorderSide(color: Colors.white70),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide:
+                                        BorderSide(color: AppColors.orange),
+                                  ),
                                 ),
                                 items: roleOptions.map((String role) {
                                   return DropdownMenuItem<String>(
@@ -805,7 +930,14 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                         color: Colors.white),
                                     filled: true,
                                     fillColor: Colors.grey[800],
-                                    border: OutlineInputBorder(),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: Colors.white70),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: AppColors.orange),
+                                    ),
                                   ),
                                   validator: (value) {
                                     if (_userRole == 'oem' &&
@@ -867,8 +999,30 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                         ),
                                       );
                                     }).toList();
+                                    // Ensure the currently stored managerId actually exists in the dropdown list.
+                                    // If it does not (e.g. the previously assigned manager lost manager status or was deleted),
+                                    // fall back to null to satisfy DropdownButton's assertion.
+                                    final safeValue =
+                                        (_selectedOemManagerId != null &&
+                                                items.any((item) =>
+                                                    item.value ==
+                                                    _selectedOemManagerId))
+                                            ? _selectedOemManagerId
+                                            : null;
+                                    if (safeValue == null &&
+                                        _selectedOemManagerId != null) {
+                                      // Clear the stale selection so that a new one can be chosen without crashing.
+                                      // Using setState in a post-frame callback to avoid rebuild issues during build.
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          setState(() =>
+                                              _selectedOemManagerId = null);
+                                        }
+                                      });
+                                    }
                                     return DropdownButtonFormField<String>(
-                                      value: _selectedOemManagerId,
+                                      value: safeValue,
                                       dropdownColor: Colors.grey[850],
                                       style: GoogleFonts.montserrat(
                                           color: Colors.white),
@@ -881,10 +1035,9 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                           borderSide:
                                               BorderSide(color: Colors.white70),
                                         ),
-                                        focusedBorder:
-                                            const UnderlineInputBorder(
+                                        focusedBorder: UnderlineInputBorder(
                                           borderSide: BorderSide(
-                                              color: Color(0xFFFF4E00)),
+                                              color: AppColors.orange),
                                         ),
                                       ),
                                       items: items,
@@ -897,6 +1050,152 @@ class _UserDetailPageState extends State<UserDetailPage> {
                                             !_isOemManagerFlag &&
                                             (v == null || v.isEmpty)) {
                                           return 'Select OEM Manager for employee';
+                                        }
+                                        return null;
+                                      },
+                                    );
+                                  },
+                                ),
+                            ],
+                            // Trade-In Brand and Org fields (when role is 'tradein' or 'trade-in')
+                            if (_userRole == 'tradein' ||
+                                _userRole == 'trade-in') ...[
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10.0),
+                                child: TextFormField(
+                                  controller: _tradeInBrandController,
+                                  enabled: isAdmin,
+                                  style: GoogleFonts.montserrat(
+                                      color: Colors.white),
+                                  decoration: InputDecoration(
+                                    labelText: 'Trade-In Brand',
+                                    labelStyle: GoogleFonts.montserrat(
+                                        color: Colors.white),
+                                    filled: true,
+                                    fillColor: Colors.grey[800],
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: Colors.white70),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: AppColors.orange),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if ((_userRole == 'tradein' ||
+                                            _userRole == 'trade-in') &&
+                                        (value == null ||
+                                            value.trim().isEmpty)) {
+                                      return 'Please enter Trade-In Brand';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              SwitchListTile(
+                                value: _isTradeInManagerFlag,
+                                onChanged: isAdmin
+                                    ? (v) {
+                                        setState(() {
+                                          _isTradeInManagerFlag = v;
+                                          if (v) {
+                                            _selectedTradeInManagerId = null;
+                                          }
+                                        });
+                                      }
+                                    : null,
+                                title: Text('Is Trade-In Manager?',
+                                    style: GoogleFonts.montserrat(
+                                        color: Colors.white)),
+                                activeColor: const Color(0xFFFF4E00),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              if (!_isTradeInManagerFlag)
+                                FutureBuilder<QuerySnapshot>(
+                                  future: FirebaseFirestore.instance
+                                      .collection('users')
+                                      .where('userRole',
+                                          whereIn: ['tradein', 'trade-in'])
+                                      .where('isTradeInManager',
+                                          isEqualTo: true)
+                                      .get(),
+                                  builder: (context, snap) {
+                                    if (snap.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const CircularProgressIndicator();
+                                    }
+                                    final docs = snap.data?.docs ?? [];
+                                    if (docs.isEmpty) {
+                                      return Text(
+                                          'No Trade-In Managers available.',
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white));
+                                    }
+                                    final items = docs.map((d) {
+                                      final m =
+                                          d.data() as Map<String, dynamic>;
+                                      final name = ((m['firstName'] ?? '') +
+                                              ' ' +
+                                              (m['lastName'] ?? ''))
+                                          .trim();
+                                      return DropdownMenuItem<String>(
+                                        value: d.id,
+                                        child: Text(
+                                          name.isEmpty ? d.id : name,
+                                          style: GoogleFonts.montserrat(
+                                              color: Colors.white),
+                                        ),
+                                      );
+                                    }).toList();
+                                    final safeValue =
+                                        (_selectedTradeInManagerId != null &&
+                                                items.any((item) =>
+                                                    item.value ==
+                                                    _selectedTradeInManagerId))
+                                            ? _selectedTradeInManagerId
+                                            : null;
+                                    if (safeValue == null &&
+                                        _selectedTradeInManagerId != null) {
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback((_) {
+                                        if (mounted) {
+                                          setState(() =>
+                                              _selectedTradeInManagerId = null);
+                                        }
+                                      });
+                                    }
+                                    return DropdownButtonFormField<String>(
+                                      value: safeValue,
+                                      dropdownColor: Colors.grey[850],
+                                      style: GoogleFonts.montserrat(
+                                          color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'Assign Trade-In Manager',
+                                        labelStyle: GoogleFonts.montserrat(
+                                            color: Colors.white),
+                                        enabledBorder:
+                                            const UnderlineInputBorder(
+                                          borderSide:
+                                              BorderSide(color: Colors.white70),
+                                        ),
+                                        focusedBorder: UnderlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: AppColors.orange),
+                                        ),
+                                      ),
+                                      items: items,
+                                      onChanged: isAdmin
+                                          ? (v) => setState(() =>
+                                              _selectedTradeInManagerId = v)
+                                          : null,
+                                      validator: (v) {
+                                        if ((_userRole == 'tradein' ||
+                                                _userRole == 'trade-in') &&
+                                            !_isTradeInManagerFlag &&
+                                            (v == null || v.isEmpty)) {
+                                          return 'Select Trade-In Manager for employee';
                                         }
                                         return null;
                                       },

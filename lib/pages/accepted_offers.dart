@@ -26,7 +26,8 @@ class NavigationItem {
   });
 }
 
-@RoutePage()class AcceptedOffersPage extends StatefulWidget {
+@RoutePage()
+class AcceptedOffersPage extends StatefulWidget {
   const AcceptedOffersPage({super.key});
 
   @override
@@ -80,12 +81,29 @@ class _AcceptedOffersPageState extends State<AcceptedOffersPage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final userProv = Provider.of<UserProvider>(context, listen: false);
+    final role = userProv.getUserRole.toLowerCase();
+    final bool isOemOrTradeInEmployee =
+        (role == 'oem' && !userProv.isOemManager) ||
+            ((role == 'tradein' || role == 'trade-in') &&
+                !userProv.isTradeInManager);
+    if (isOemOrTradeInEmployee) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Restricted: Employee accounts cannot access offers.')),
+          );
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+      });
+      return;
+    }
     if (_isInit) {
       _offerProvider = Provider.of<OfferProvider>(context, listen: false);
       WidgetsBinding.instance.addPostFrameCallback((_) => _fetchOffers());
       _isInit = false;
     }
-
     final modalRoute = ModalRoute.of(context);
     if (modalRoute is PageRoute) {
       routeObserver.subscribe(this, modalRoute);
@@ -361,7 +379,7 @@ class _AcceptedOffersPageState extends State<AcceptedOffersPage>
                             _showNavigationDrawer(navigationItems),
                       ),
                     )
-                  : CustomAppBar(),
+                  : const CustomAppBar(showBackButton: false),
               body: Center(
                 child: Image.asset(
                   'lib/assets/Loading_Logo_CTP.gif',
@@ -384,7 +402,7 @@ class _AcceptedOffersPageState extends State<AcceptedOffersPage>
                             _showNavigationDrawer(navigationItems),
                       ),
                     )
-                  : CustomAppBar(),
+                  : const CustomAppBar(showBackButton: false),
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -418,7 +436,7 @@ class _AcceptedOffersPageState extends State<AcceptedOffersPage>
                             _showNavigationDrawer(navigationItems),
                       ),
                     )
-                  : CustomAppBar(),
+                  : const CustomAppBar(showBackButton: false),
               body: CustomScrollView(
                 slivers: [
                   // Header section with "ACCEPTED OFFERS" title and image.

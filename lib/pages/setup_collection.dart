@@ -211,15 +211,24 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       List<Map<String, dynamic>> timeSlots =
           List<Map<String, dynamic>>.from(location['timeSlots']);
 
-      List<String> addressParts = location['address'].split(', ');
-      _addressLine1Controller.text =
-          addressParts.isNotEmpty ? addressParts[0] : '';
-      _addressLine2Controller.text =
-          addressParts.length > 1 ? addressParts[1] : '';
-      _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
-      _stateController.text = addressParts.length > 3 ? addressParts[3] : '';
-      _postalCodeController.text =
-          addressParts.length > 4 ? addressParts[4] : '';
+      // Populate address fields: prefer granular fields if available
+      if (location.containsKey('line1') || location.containsKey('city')) {
+        _addressLine1Controller.text = (location['line1'] ?? '').toString();
+        _addressLine2Controller.text = (location['suburb'] ?? '').toString();
+        _cityController.text = (location['city'] ?? '').toString();
+        _stateController.text = (location['state'] ?? '').toString();
+        _postalCodeController.text = (location['postalCode'] ?? '').toString();
+      } else {
+        List<String> addressParts = (location['address'] ?? '').toString().split(', ');
+        _addressLine1Controller.text =
+            addressParts.isNotEmpty ? addressParts[0] : '';
+        _addressLine2Controller.text =
+            addressParts.length > 1 ? addressParts[1] : '';
+        _cityController.text = addressParts.length > 2 ? addressParts[2] : '';
+        _stateController.text = addressParts.length > 3 ? addressParts[3] : '';
+        _postalCodeController.text =
+            addressParts.length > 4 ? addressParts[4] : '';
+      }
 
       _selectedDays =
           dates.map((dateStr) => _parseDateString(dateStr)).toList();
@@ -255,8 +264,10 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
 
       if (_selectedDays.isNotEmpty) {
         _selectedDay = _selectedDays.first;
-        _selectedTimes =
-            _dateTimeSlots[_selectedDay!]?.map((e) => e).toList() ?? [null];
+        final times = _dateTimeSlots[_selectedDay!] ?? [];
+        _selectedTimes = times.isNotEmpty
+            ? times.map<TimeOfDay?>((t) => t).toList()
+            : [null];
 
         // If no time selected, choose the first time slot by default
         if (_selectedTimes.isEmpty || _selectedTimes.first == null) {
@@ -426,6 +437,11 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
       'lat': latLng?.latitude,
       'lng': latLng?.longitude,
       'address': fullAddress,
+      'line1': _addressLine1Controller.text,
+      'suburb': _addressLine2Controller.text,
+      'city': _cityController.text,
+      'state': _stateController.text,
+      'postalCode': _postalCodeController.text,
       'dates': _selectedDays.map((date) => date.toShortString()).toList(),
       'timeSlots': _selectedDays
           .map((date) => {
@@ -572,8 +588,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
     // ignore: unused_local_variable
     final bool isDealer = userRole == 'dealer'; // Check if the user is a dealer
     // ignore: unused_local_variable
-    final bool isTransporter =
-        userRole == 'transporter' || userRole == 'oem'; // Transporter-like
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in'; // Transporter-like
     return Stack(
       children: [
         GradientBackground(
@@ -686,6 +701,7 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                       _addressLine1Controller.text =
                                           p.description ?? '';
                                     });
+                                    print("SetupCollection address selected: ${p.placeId} ${p.description}");
                                     Map<String, dynamic> latLngData =
                                         await PlacesService.getPlaceLatLng(
                                             p.placeId!);
@@ -693,10 +709,49 @@ class _SetupCollectionPageState extends State<SetupCollectionPage> {
                                       latLngData['lat'],
                                       latLngData['lng'],
                                     );
-                                    _cityController.text = latLngData['city'];
-                                    _stateController.text = latLngData['state'];
+                                    // Address Line 1
+                                    final streetNumber =
+                                        (latLngData['streetNumber'] ?? '')
+                                            .toString();
+                                    final route =
+                                        (latLngData['route'] ?? '')
+                                            .toString();
+                                    String line1 = _addressLine1Controller.text;
+                                    if (streetNumber.isNotEmpty || route.isNotEmpty) {
+                                      line1 = [streetNumber, route]
+                                          .where((s) => s.isNotEmpty)
+                                          .join(' ');
+                                    } else if ((latLngData['formattedAddress'] ?? '')
+                                        .toString()
+                                        .isNotEmpty) {
+                                      line1 = (latLngData['formattedAddress'] as String)
+                                          .split(',')
+                                          .first
+                                          .trim();
+                                    }
+                                    _addressLine1Controller.text = line1;
+
+                                    // Suburb
+                                    String suburb =
+                                        (latLngData['suburb'] ?? '').toString();
+                                    if (suburb.isEmpty) {
+                                      final formatted =
+                                          (latLngData['formattedAddress'] ?? '')
+                                              .toString();
+                                      final parts = formatted.split(',');
+                                      if (parts.length >= 3) {
+                                        suburb = parts[1].trim();
+                                      }
+                                    }
+                                    _addressLine2Controller.text = suburb;
+
+                                    _cityController.text =
+                                        (latLngData['city'] ?? '').toString();
+                                    _stateController.text =
+                                        (latLngData['state'] ?? '').toString();
                                     _postalCodeController.text =
-                                        latLngData["postalCode"];
+                                        (latLngData["postalCode"] ?? '').toString();
+                                    print('Prepopulate(Collection): line1="${_addressLine1Controller.text}", suburb="${_addressLine2Controller.text}", city="${_cityController.text}", state="${_stateController.text}", postal="${_postalCodeController.text}"');
                                   },
                                 ),
                                 // Validation prompts for transporter collection setup

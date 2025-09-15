@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:ctp/components/loading_overlay.dart';
+import 'package:ctp/adminScreens/viewer_page.dart';
 
 // import 'package:auto_route/auto_route.dart';
 
@@ -76,12 +77,38 @@ class AdminSectionState extends State<AdminSection>
     _natisRc1Url = widget.natisRc1Url;
     _licenseDiskUrl = widget.licenseDiskUrl;
     _settlementLetterUrl = widget.settlementLetterUrl;
+    // If no NATIS url was passed, attempt to prefill from vehicle doc
+    if ((_natisRc1Url == null) || _natisRc1Url!.isEmpty) {
+      _tryPrefillFromVehicleDoc();
+    }
   }
 
   @override
   void dispose() {
     _settlementAmountController.dispose();
     super.dispose();
+  }
+
+  Future<void> _tryPrefillFromVehicleDoc() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicleId)
+          .get();
+      if (!doc.exists) return;
+      final data = doc.data();
+      if (data == null) return;
+      final adminData = (data['adminData'] as Map<String, dynamic>?) ?? {};
+      final String adminNatis = (adminData['natisRc1Url'] ?? '').toString();
+      final String rootRc1 = (data['rc1NatisFile'] ?? '').toString();
+      final String resolved =
+          adminNatis.isNotEmpty ? adminNatis : rootRc1; // prefer admin value
+      if (resolved.isNotEmpty) {
+        setState(() {
+          _natisRc1Url = resolved;
+        });
+      }
+    } catch (_) {}
   }
 
   // Helper function to pick files using file picker
@@ -246,7 +273,8 @@ class AdminSectionState extends State<AdminSection>
                   Column(
                     children: [
                       Icon(
-                        _getFileIcon(filesName!),
+                        _getFileIcon(
+                            (filesName ?? getFileNameFromUrl(fileUrl))),
                         color: Colors.white,
                         size: 50.0,
                       ),
@@ -255,7 +283,7 @@ class AdminSectionState extends State<AdminSection>
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Text(
-                          filesName,
+                          (filesName ?? getFileNameFromUrl(fileUrl)),
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.white,
@@ -327,6 +355,85 @@ class AdminSectionState extends State<AdminSection>
         ],
       );
     }
+  }
+
+  void _showDocumentOptions(int docNumber) {
+    String? url;
+    switch (docNumber) {
+      case 1:
+        url = _natisRc1Url;
+        break;
+      case 2:
+        url = _licenseDiskUrl;
+        break;
+      case 3:
+        url = _settlementLetterUrl;
+        break;
+    }
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Document Options'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (url != null && url.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.remove_red_eye),
+                title: const Text('View Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ViewerPage(url: url!)),
+                  );
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.upload_file),
+              title: const Text('Replace Document'),
+              onTap: () {
+                Navigator.pop(context);
+                _showAdminFilePickerOptions(docNumber);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Remove Document',
+                  style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() {
+                  switch (docNumber) {
+                    case 1:
+                      _natisRc1File = null;
+                      _natisRc1Url = null;
+                      widget.onAdminDoc1Selected(null);
+                      break;
+                    case 2:
+                      _licenseDiskFile = null;
+                      _licenseDiskUrl = null;
+                      widget.onAdminDoc2Selected(null);
+                      break;
+                    case 3:
+                      _settlementLetterFile = null;
+                      _settlementLetterUrl = null;
+                      widget.onAdminDoc3Selected(null);
+                      break;
+                  }
+                });
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   void loadAdminData(Map<String, dynamic> adminData) {
@@ -682,7 +789,11 @@ class AdminSectionState extends State<AdminSection>
                       const SizedBox(height: 15),
                       InkWell(
                         onTap: () {
-                          _showAdminFilePickerOptions(1);
+                          if (_natisRc1File != null || _natisRc1Url != null) {
+                            _showDocumentOptions(1);
+                          } else {
+                            _showAdminFilePickerOptions(1);
+                          }
                         },
                         borderRadius: BorderRadius.circular(10.0),
                         child: Container(

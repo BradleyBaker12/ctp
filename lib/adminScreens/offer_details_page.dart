@@ -13,6 +13,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:mime/mime.dart'; // Added for MIME type checks
 import '../providers/offer_provider.dart';
+import 'package:ctp/utils/offer_status.dart';
 import '../providers/user_provider.dart';
 import 'package:ctp/components/custom_button.dart';
 import 'package:ctp/components/gradient_background.dart';
@@ -61,6 +62,120 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
 
     _fetchVehicleDetails();
     _refreshOfferDetails(); // Load existing transporterInvoice if any
+  }
+
+  /// Helpers to persist payment verification/rejection to Firestore
+  Future<void> _verifyPayment() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .update({
+        'offerStatus': 'paid',
+        'paymentStatus': 'approved',
+        'paidAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        setState(() {
+          widget.offer.offerStatus = 'paid';
+        });
+      }
+
+      // optional: notify dealer/transporter
+      try {
+        final offerDoc = await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offer.offerId)
+            .get();
+        final dealerId = offerDoc.data()?['dealerId'] as String?;
+        final transporterId = offerDoc.data()?['transporterId'] as String?;
+        for (final uid in [dealerId, transporterId]) {
+          if (uid == null) continue;
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': uid,
+            'offerId': widget.offer.offerId,
+            'type': 'paymentVerified',
+            'createdAt': FieldValue.serverTimestamp(),
+            'message': 'Payment verified by CTP.',
+          });
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment verified successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to verify payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _rejectPayment() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .update({
+        'offerStatus': 'payment_rejected',
+        'paymentStatus': 'rejected',
+        'paymentRejectedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        setState(() {
+          widget.offer.offerStatus = 'payment_rejected';
+        });
+      }
+
+      // optional: notify dealer
+      try {
+        final offerDoc = await FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offer.offerId)
+            .get();
+        final dealerId = offerDoc.data()?['dealerId'] as String?;
+        if (dealerId != null) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': dealerId,
+            'offerId': widget.offer.offerId,
+            'type': 'paymentRejected',
+            'createdAt': FieldValue.serverTimestamp(),
+            'message':
+                'Payment rejected by CTP. Please re-upload proof or contact support.',
+          });
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment has been rejected.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to reject payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _fetchVehicleDetails() async {
@@ -244,6 +359,10 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                                                 'transporterInvoiceVerifiedAt':
                                                     FieldValue
                                                         .serverTimestamp(),
+                                                // Ensure admins are prompted to upload CTP/Admin invoice
+                                                'needsInvoice': true,
+                                                // Reflect next step in offer status for navigation
+                                                'offerStatus': OfferStatuses.adminInvoicePending,
                                               });
                                               try {
                                                 final offerDoc =
@@ -282,6 +401,11 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                                                   backgroundColor: Colors.green,
                                                 ),
                                               );
+                                              // Reflect prompt in UI immediately
+                                              setState(() {
+                                                widget.offer.needsInvoice =
+                                                    true;
+                                              });
                                             },
                                           ),
                                         ),
@@ -297,6 +421,9 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                                                   .update({
                                                 'transporterInvoiceStatus':
                                                     'rejected',
+                                                // Reflect that transporter needs to re-upload invoice
+                                                'offerStatus':
+                                                    OfferStatuses.transporterInvoicePending,
                                               });
                                               ScaffoldMessenger.of(context)
                                                   .showSnackBar(
@@ -802,45 +929,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                       return CustomButton(
                         text: 'Verify Payment',
                         borderColor: Colors.green,
-                        onPressed: () async {
-                          await offerProvider.updateOfferStatus(
-                            widget.offer.offerId,
-                            'paid',
-                          );
-                          setState(() {
-                            widget.offer.offerStatus = 'paid';
-                          });
-                          // notify transporter and dealer to proceed
-                          try {
-                            final offerDoc = await FirebaseFirestore.instance
-                                .collection('offers')
-                                .doc(widget.offer.offerId)
-                                .get();
-                            final dealerId =
-                                offerDoc.data()?['dealerId'] as String?;
-                            final transporterId =
-                                offerDoc.data()?['transporterId'] as String?;
-                            for (final uid in [dealerId, transporterId]) {
-                              if (uid == null) continue;
-                              await FirebaseFirestore.instance
-                                  .collection('notifications')
-                                  .add({
-                                'userId': uid,
-                                'offerId': widget.offer.offerId,
-                                'type': 'paymentVerified',
-                                'createdAt': FieldValue.serverTimestamp(),
-                                'message': 'Payment verified by CTP.',
-                              });
-                            }
-                          } catch (_) {}
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Payment verified successfully.'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        },
+                        onPressed: _verifyPayment,
                       );
                     },
                   ),
@@ -859,43 +948,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                       return CustomButton(
                         text: 'Reject Payment',
                         borderColor: Colors.red,
-                        onPressed: () async {
-                          await offerProvider.updateOfferStatus(
-                            widget.offer.offerId,
-                            'payment_rejected',
-                          );
-                          setState(() {
-                            widget.offer.offerStatus = 'payment_rejected';
-                          });
-                          // notify dealer about rejection
-                          try {
-                            final offerDoc = await FirebaseFirestore.instance
-                                .collection('offers')
-                                .doc(widget.offer.offerId)
-                                .get();
-                            final dealerId =
-                                offerDoc.data()?['dealerId'] as String?;
-                            if (dealerId != null) {
-                              await FirebaseFirestore.instance
-                                  .collection('notifications')
-                                  .add({
-                                'userId': dealerId,
-                                'offerId': widget.offer.offerId,
-                                'type': 'paymentRejected',
-                                'createdAt': FieldValue.serverTimestamp(),
-                                'message':
-                                    'Payment rejected by CTP. Please re-upload proof or contact support.',
-                              });
-                            }
-                          } catch (_) {}
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Payment has been rejected.'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        },
+                        onPressed: _rejectPayment,
                       );
                     },
                   ),
@@ -947,6 +1000,9 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
       case 'payment_rejected':
         return _buildPaymentRejectedSection(offerProvider);
 
+      case 'collected':
+        return _buildTransporterPayoutSection();
+
       default:
         return Center(
           child: Text(
@@ -958,6 +1014,201 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           ),
         );
     }
+  }
+
+  /// Confirm/Reject that payout was released to the transporter
+  Widget _buildTransporterPayoutSection() {
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .snapshots(),
+      builder: (context, snap) {
+        final data = snap.data?.data() ?? {};
+        final payoutStatus =
+            (data['transporterPayoutStatus'] as String? ?? '').toLowerCase();
+        final payoutAt = data['transporterPayoutPaidAt'];
+        final payoutRejectedAt = data['transporterPayoutRejectedAt'];
+        final receiptStatus =
+            (data['transporterPayoutReceiptStatus'] as String? ?? '')
+                .toLowerCase();
+        final receiptConfirmedAt = data['transporterPayoutReceiptConfirmedAt'];
+        final receiptRejectedAt = data['transporterPayoutReceiptRejectedAt'];
+
+        if (payoutStatus == 'paid') {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Text(
+                  'Transporter payout has been marked as PAID.',
+                  style: GoogleFonts.montserrat(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (payoutAt != null) ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Paid on: ${payoutAt is Timestamp ? payoutAt.toDate().toLocal() : payoutAt}',
+                    style: GoogleFonts.montserrat(color: Colors.white70),
+                  ),
+                ),
+              ],
+              if (receiptStatus == 'received') ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Transporter confirmed payout received${receiptConfirmedAt != null ? ' on: ${receiptConfirmedAt is Timestamp ? receiptConfirmedAt.toDate().toLocal().toString() : receiptConfirmedAt.toString()}' : ''}.',
+                    style: GoogleFonts.montserrat(color: Colors.greenAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ] else if (receiptStatus == 'not_received') ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Transporter reported payout not received${receiptRejectedAt != null ? ' on: ${receiptRejectedAt is Timestamp ? receiptRejectedAt.toDate().toLocal().toString() : receiptRejectedAt.toString()}' : ''}.',
+                    style: GoogleFonts.montserrat(color: Colors.orangeAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ],
+          );
+        }
+
+        if (payoutStatus == 'rejected') {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Text(
+                  'Payout marked as NOT released.',
+                  style: GoogleFonts.montserrat(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (payoutRejectedAt != null) ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Marked on: ${payoutRejectedAt is Timestamp ? payoutRejectedAt.toDate().toLocal() : payoutRejectedAt}',
+                    style: GoogleFonts.montserrat(color: Colors.white70),
+                  ),
+                ),
+              ],
+              if (receiptStatus == 'received') ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Transporter confirmed payout received${receiptConfirmedAt != null ? ' on: ${receiptConfirmedAt is Timestamp ? receiptConfirmedAt.toDate().toLocal().toString() : receiptConfirmedAt.toString()}' : ''}.',
+                    style: GoogleFonts.montserrat(color: Colors.greenAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ] else if (receiptStatus == 'not_received') ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Transporter reported payout not received${receiptRejectedAt != null ? ' on: ${receiptRejectedAt is Timestamp ? receiptRejectedAt.toDate().toLocal().toString() : receiptRejectedAt.toString()}' : ''}.',
+                    style: GoogleFonts.montserrat(color: Colors.orangeAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ],
+          );
+        }
+
+        // If transporter already confirmed received, hide controls and show message only
+        if (receiptStatus == 'received') {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Text(
+                  'Transporter confirmed payout received${receiptConfirmedAt != null ? ' on: ${receiptConfirmedAt is Timestamp ? receiptConfirmedAt.toDate().toLocal().toString() : receiptConfirmedAt.toString()}' : ''}.',
+                  style: GoogleFonts.montserrat(color: Colors.greenAccent),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Text(
+                'Please confirm whether payment has been released to the transporter.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.montserrat(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            CustomButton(
+              text: 'Confirm Payout Released',
+              borderColor: Colors.green,
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('offers')
+                    .doc(widget.offer.offerId)
+                    .update({
+                  'transporterPayoutStatus': 'paid',
+                  'transporterPayoutPaidAt': FieldValue.serverTimestamp(),
+                });
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Transporter payout marked as paid.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            CustomButton(
+              text: 'Reject (Not Released)',
+              borderColor: Colors.red,
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('offers')
+                    .doc(widget.offer.offerId)
+                    .update({
+                  'transporterPayoutStatus': 'rejected',
+                  'transporterPayoutRejectedAt': FieldValue.serverTimestamp(),
+                });
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Payout marked as NOT released.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            if (receiptStatus == 'not_received')
+              Center(
+                child: Text(
+                  'Transporter reported payout not received${receiptRejectedAt != null ? ' on: ${receiptRejectedAt is Timestamp ? receiptRejectedAt.toDate().toLocal().toString() : receiptRejectedAt.toString()}' : ''}.',
+                  style: GoogleFonts.montserrat(color: Colors.orangeAccent),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 
   /// APPROVE/REJECT BUTTONS
@@ -1051,23 +1302,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                   return CustomButton(
                     text: 'Verify Payment',
                     borderColor: Colors.green,
-                    onPressed: () async {
-                      // debugText('"Verify Payment" button tapped!');
-                      await offerProvider.updateOfferStatus(
-                        widget.offer.offerId,
-                        'paid',
-                      );
-                      setState(() {
-                        widget.offer.offerStatus = 'paid';
-                      });
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Payment verified successfully.'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    },
+                    onPressed: _verifyPayment,
                   );
                 },
               ),
@@ -1086,23 +1321,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                   return CustomButton(
                     text: 'Reject Payment',
                     borderColor: Colors.red,
-                    onPressed: () async {
-                      // debugText('"Reject Payment" button tapped!');
-                      await offerProvider.updateOfferStatus(
-                        widget.offer.offerId,
-                        'payment_rejected',
-                      );
-                      setState(() {
-                        widget.offer.offerStatus = 'payment_rejected';
-                      });
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Payment has been rejected.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    },
+                    onPressed: _rejectPayment,
                   );
                 },
               ),
@@ -1173,6 +1392,170 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
     // debugText('_buildPaidSection: showing "Paid" status');
     return Column(
       children: [
+        // Payout to transporter confirmation controls (if not already paid)
+        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('offers')
+              .doc(widget.offer.offerId)
+              .snapshots(),
+          builder: (context, snap) {
+            final data = snap.data?.data() ?? {};
+            final payoutStatus =
+                (data['transporterPayoutStatus'] as String? ?? '')
+                    .toLowerCase();
+            final paidAt = data['transporterPayoutPaidAt'];
+            final rejectedAt = data['transporterPayoutRejectedAt'];
+            final receiptStatus =
+                (data['transporterPayoutReceiptStatus'] as String? ?? '')
+                    .toLowerCase();
+            final receiptConfirmedAt =
+                data['transporterPayoutReceiptConfirmedAt'];
+            final receiptRejectedAt =
+                data['transporterPayoutReceiptRejectedAt'];
+
+            if (payoutStatus == 'paid') {
+              return Column(
+                children: [
+                  Text(
+                    'Transporter payout has been marked as PAID.',
+                    style: GoogleFonts.montserrat(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (paidAt != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Paid on: ${paidAt is Timestamp ? paidAt.toDate().toLocal() : paidAt}',
+                      style: GoogleFonts.montserrat(color: Colors.white70),
+                    ),
+                  ],
+                  if (receiptStatus == 'received') ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Transporter confirmed payout received${receiptConfirmedAt != null ? ' on: ${receiptConfirmedAt is Timestamp ? receiptConfirmedAt.toDate().toLocal().toString() : receiptConfirmedAt.toString()}' : ''}.',
+                      style: GoogleFonts.montserrat(color: Colors.greenAccent),
+                      textAlign: TextAlign.center,
+                    ),
+                  ] else if (receiptStatus == 'not_received') ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Transporter reported payout not received${receiptRejectedAt != null ? ' on: ${receiptRejectedAt is Timestamp ? receiptRejectedAt.toDate().toLocal().toString() : receiptRejectedAt.toString()}' : ''}.',
+                      style: GoogleFonts.montserrat(color: Colors.orangeAccent),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              );
+            }
+            if (payoutStatus == 'rejected') {
+              return Column(
+                children: [
+                  Text(
+                    'Payout marked as NOT released.',
+                    style: GoogleFonts.montserrat(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (rejectedAt != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Marked on: ${rejectedAt is Timestamp ? rejectedAt.toDate().toLocal() : rejectedAt}',
+                      style: GoogleFonts.montserrat(color: Colors.white70),
+                    ),
+                  ],
+                  if (receiptStatus == 'received') ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Transporter confirmed payout received${receiptConfirmedAt != null ? ' on: ${receiptConfirmedAt is Timestamp ? receiptConfirmedAt.toDate().toLocal().toString() : receiptConfirmedAt.toString()}' : ''}.',
+                      style: GoogleFonts.montserrat(color: Colors.greenAccent),
+                      textAlign: TextAlign.center,
+                    ),
+                  ] else if (receiptStatus == 'not_received') ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Transporter reported payout not received${receiptRejectedAt != null ? ' on: ${receiptRejectedAt is Timestamp ? receiptRejectedAt.toDate().toLocal().toString() : receiptRejectedAt.toString()}' : ''}.',
+                      style: GoogleFonts.montserrat(color: Colors.orangeAccent),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              );
+            }
+            // Only show controls when status not decided yet
+            return Column(
+              children: [
+                Text(
+                  'Next step: release payment to the transporter.',
+                  style: GoogleFonts.montserrat(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                CustomButton(
+                  text: 'Confirm Payout Released',
+                  borderColor: Colors.green,
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection('offers')
+                        .doc(widget.offer.offerId)
+                        .update({
+                      'transporterPayoutStatus': 'paid',
+                      'transporterPayoutPaidAt': FieldValue.serverTimestamp(),
+                    });
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Transporter payout marked as paid.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                CustomButton(
+                  text: 'Reject (Not Released)',
+                  borderColor: Colors.red,
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection('offers')
+                        .doc(widget.offer.offerId)
+                        .update({
+                      'transporterPayoutStatus': 'rejected',
+                      'transporterPayoutRejectedAt':
+                          FieldValue.serverTimestamp(),
+                    });
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Payout marked as NOT released.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                if (receiptStatus == 'received')
+                  Text(
+                    'Transporter confirmed payout received${receiptConfirmedAt != null ? ' on: ${receiptConfirmedAt is Timestamp ? receiptConfirmedAt.toDate().toLocal().toString() : receiptConfirmedAt.toString()}' : ''}.',
+                    style: GoogleFonts.montserrat(color: Colors.greenAccent),
+                    textAlign: TextAlign.center,
+                  )
+                else if (receiptStatus == 'not_received')
+                  Text(
+                    'Transporter reported payout not received${receiptRejectedAt != null ? ' on: ${receiptRejectedAt is Timestamp ? receiptRejectedAt.toDate().toLocal().toString() : receiptRejectedAt.toString()}' : ''}.',
+                    style: GoogleFonts.montserrat(color: Colors.orangeAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                const SizedBox(height: 16),
+              ],
+            );
+          },
+        ),
         Center(
           child: Text(
             'Payment verified. Offer is paid.',
@@ -1183,6 +1566,38 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           ),
         ),
         const SizedBox(height: 16),
+        // Admin collection actions (only after payment verified)
+        if (userProvider.userRole == 'admin')
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('offers')
+                .doc(widget.offer.offerId)
+                .snapshots(),
+            builder: (context, snap) {
+              final data = snap.data?.data() ?? {};
+              final hasCollection = data['collectionDetails'] != null;
+              if (!hasCollection) {
+                return CustomButton(
+                  text: 'Setup Collection Details',
+                  borderColor: Colors.blue,
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SetupCollectionPage(
+                        offerId: widget.offer.offerId,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return CustomButton(
+                text: 'Mark Collection Complete',
+                borderColor: Colors.green,
+                onPressed: _adminMarkCollectionCompletePaid,
+              );
+            },
+          ),
+        if (userProvider.userRole == 'admin') const SizedBox(height: 16),
         // Allow admin to revert if there's a mistake
         CustomButton(
           text: 'Change Payment Status',
@@ -1205,36 +1620,34 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             );
           },
         ),
-        const SizedBox(height: 16),
-        if (userProvider.userRole == 'admin') ...[
-          CustomButton(
-            text: 'Mark as Done & Sell Vehicle',
-            borderColor: Colors.blue,
-            onPressed: () async {
-              // Mark offer as done
-              await FirebaseFirestore.instance
-                  .collection('offers')
-                  .doc(widget.offer.offerId)
-                  .update({'offerStatus': 'Sold'});
-              // Mark vehicle as sold
-              await FirebaseFirestore.instance
-                  .collection('vehicles')
-                  .doc(widget.offer.vehicleId)
-                  .update({'vehicleStatus': "Sold"});
-              setState(() {
-                widget.offer.offerStatus = 'done';
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Offer marked done and vehicle marked as sold'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-          ),
-        ],
+        // Removed direct "Mark as Done & Sell Vehicle" to enforce collection flow
       ],
     );
+  }
+
+  Future<void> _adminMarkCollectionCompletePaid() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('offers')
+          .doc(widget.offer.offerId)
+          .update({
+        'offerStatus': 'collected',
+        'collectionCompleted': true,
+        'collectionConfirmed': true,
+        'collectedAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Collection marked complete.'),
+        backgroundColor: Colors.green,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to mark collection complete: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
   }
 
   /// SECTION WHEN PAYMENT IS "REJECTED"
@@ -1357,24 +1770,39 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
             const SizedBox(height: 16),
             // COLLECTION
             if (userProvider.userRole == 'admin') ...[
-              isCollectionComplete
-                  ? CustomButton(
-                      text: 'Mark Collection Complete',
-                      borderColor: Colors.green,
-                      onPressed: _markCollectionComplete,
-                    )
-                  : CustomButton(
-                      text: 'Setup Collection Details',
-                      borderColor: Colors.blue,
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SetupCollectionPage(
-                            offerId: widget.offer.offerId,
-                          ),
-                        ),
-                      ),
+              CustomButton(
+                text: 'Setup Collection Details',
+                borderColor: Colors.blue,
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SetupCollectionPage(
+                      offerId: widget.offer.offerId,
                     ),
+                  ),
+                ),
+              ),
+              if (isCollectionComplete) ...[
+                const SizedBox(height: 8),
+                // Show admin the ability to mark collection complete once it has been set up
+                CustomButton(
+                  text: 'Mark Collection Complete',
+                  borderColor: Colors.green,
+                  onPressed: _markCollectionComplete,
+                ),
+              ] else ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'No collection setup yet. Use the button above to configure.',
+                    style: GoogleFonts.montserrat(
+                      color: Colors.white70,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ] else ...[
               isCollectionComplete
                   ? Text(
@@ -1639,39 +2067,64 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
           const SizedBox(height: 10),
           _buildUploadedInvoice(widget.offer.externalInvoice!),
           const SizedBox(height: 10),
-          CustomButton(
-            text: 'Replace Invoice',
-            borderColor: Colors.orange,
-            onPressed: _uploadExternalInvoice,
-          ),
-        ],
-      );
-    } else if (widget.offer.needsInvoice ?? false) {
-      // debugText('Offer needsInvoice = true. Prompting to upload invoice.');
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          Text(
-            'Upload Admin Invoice',
-            style: GoogleFonts.montserrat(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 10),
-          CustomButton(
-            text: 'Upload Invoice',
-            borderColor: Colors.green,
-            onPressed: _uploadExternalInvoice,
+          // Allow replacing only when transporter invoice is verified
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('offers')
+                .doc(widget.offer.offerId)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const SizedBox.shrink();
+              final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+              final tStatus = (data['transporterInvoiceStatus'] ?? '')
+                  .toString()
+                  .toLowerCase();
+              if (tStatus != 'verified') return const SizedBox.shrink();
+              return CustomButton(
+                text: 'Replace Invoice',
+                borderColor: Colors.orange,
+                onPressed: _uploadExternalInvoice,
+              );
+            },
           ),
         ],
       );
     } else {
-      // debugText(
-      //     'No externalInvoice set and not needing invoice. Returning empty.');
-      return Container();
+      // Only show upload when transporter invoice is VERIFIED
+      return StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('offers')
+            .doc(widget.offer.offerId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const SizedBox.shrink();
+          final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+          final tStatus =
+              (data['transporterInvoiceStatus'] ?? '').toString().toLowerCase();
+          if (tStatus != 'verified') return const SizedBox.shrink();
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              Text(
+                'Upload Admin Invoice',
+                style: GoogleFonts.montserrat(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 10),
+              CustomButton(
+                text: 'Upload Invoice',
+                borderColor: Colors.green,
+                onPressed: _uploadExternalInvoice,
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 

@@ -35,7 +35,12 @@ class PlacesData {
         terms!.add(Terms.fromJson(v));
       });
     }
-    types = json['types'].cast<String>();
+    final t = json['types'];
+    if (t is List) {
+      types = t.cast<String>();
+    } else {
+      types = null;
+    }
   }
 
   Map<String, dynamic> toJson() {

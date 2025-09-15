@@ -412,14 +412,14 @@ class TruckConditionsTabsEditPageState
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final String userRole = userProvider.getUserRole;
     final bool isDealer = userRole == 'dealer';
-    final bool isTransporter = userRole == 'transporter' || userRole == 'oem';
+    final bool isTransporter = userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in';
 
     return WillPopScope(
       onWillPop: () async {
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         final String userRole = userProvider.getUserRole;
 
-        if ((userRole == 'transporter' || userRole == 'oem') &&
+        if ((userRole == 'transporter' || userRole == 'oem' || userRole == 'tradein' || userRole == 'trade-in') &&
             !_isNavigatingHome &&
             _modifiedSections.values.contains(true)) {
           bool shouldSave = await showDialog(

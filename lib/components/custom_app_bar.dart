@@ -7,32 +7,28 @@ import 'package:ctp/components/custom_back_button.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double height;
+  final bool showBackButton;
 
-  const CustomAppBar({super.key, this.height = 70.0});
+  const CustomAppBar({super.key, this.height = 70.0, this.showBackButton = true});
 
   @override
   Widget build(BuildContext context) {
     final canPop = Navigator.of(context).canPop();
+    final showLeading = showBackButton && canPop;
     return PreferredSize(
-      preferredSize: Size.fromHeight(height), // Set desired height
+      preferredSize: Size.fromHeight(height),
       child: AppBar(
-        automaticallyImplyLeading:
-            false, // We'll handle the back button manually
-        leadingWidth: canPop ? 56 : null,
-        leading: canPop
+        automaticallyImplyLeading: false,
+        leadingWidth: showLeading ? 56 : null,
+        leading: showLeading
             ? Padding(
                 padding: const EdgeInsets.only(left: 8.0),
                 child: Center(
                   child: SizedBox(
                     width: 32,
                     height: 32,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () => Navigator.of(context).maybePop(),
-                        child: const Center(child: CustomBackButton()),
-                      ),
+                    child: const Center(
+                      child: CustomBackButton(),
                     ),
                   ),
                 ),
@@ -44,7 +40,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
             child: Container(
-              color: Colors.grey.withValues(alpha: 0.1),
+              color: Colors.transparent, // Remove overlay color
             ),
           ),
         ),
@@ -52,10 +48,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Padding(
-              padding: EdgeInsets.only(
-                  left: canPop
-                      ? 8.0
-                      : 35.0), // Space on the left (reduced when back button is present)
+              padding: EdgeInsets.only(left: showLeading ? 8.0 : 35.0),
               child: Image.asset(
                 'lib/assets/CTPLogo.png',
                 width: 60,
@@ -63,13 +56,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 25.0), // Space on the right
+              padding: const EdgeInsets.only(right: 25.0),
               child: Consumer<UserProvider>(
                 builder: (context, userProvider, _) {
                   final profileImageUrl = userProvider.getProfileImageUrl;
-                  final hasNotifications = userProvider
-                      .hasNotifications; // Assuming you have a boolean flag for notifications
-
+                  final hasNotifications = userProvider.hasNotifications;
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -90,7 +81,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                       'lib/assets/default-profile-photo.jpg')
                                   as ImageProvider,
                           onBackgroundImageError: (exception, stackTrace) {
-                            // Log the error
                             debugPrint(
                                 'Error loading profile image: $exception');
                           },
@@ -99,7 +89,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   size: 26, color: Colors.grey)
                               : null,
                         ),
-                        // Conditionally show the red dot if there are notifications
                         if (hasNotifications)
                           Positioned(
                             top: 0,

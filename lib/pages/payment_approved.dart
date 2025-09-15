@@ -11,6 +11,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:ctp/providers/user_provider.dart';
 import 'package:ctp/components/web_navigation_bar.dart' as ctp_nav;
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ctp/utils/navigation.dart';
 import 'package:ctp/pages/collectionPages/collection_details_page.dart'
     show CollectionDetailsPage;
@@ -200,6 +202,10 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                 final location =
                     offerData['dealerSelectedCollectionLocation'] ??
                         'Unknown Location';
+                final address = (offerData['dealerSelectedCollectionAddress'] ??
+                        offerData['dealerSelectedCollectionLocation'] ??
+                        '')
+                    .toString();
 
                 final bool hasDealerSelection =
                     offerData['dealerSelectedCollectionDate'] != null &&
@@ -368,6 +374,51 @@ class _PaymentApprovedPageState extends State<PaymentApprovedPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        // Quick actions: copy address and open in maps
+                        CustomButton(
+                          text: 'COPY ADDRESS',
+                          borderColor: Colors.blue,
+                          onPressed: () async {
+                            final formatted = 'Address: ${address.isNotEmpty ? address : location.toString()}\nDate: $readyDate\nTime: $readyTime';
+                            await Clipboard.setData(ClipboardData(text: formatted));
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Collection details copied')),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        CustomButton(
+                          text: 'OPEN IN MAPS',
+                          borderColor: Colors.blue,
+                          onPressed: () async {
+                            final query = (address.isNotEmpty ? address : location.toString()).trim();
+                            if (query.isEmpty) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('No address available')),
+                                );
+                              }
+                              return;
+                            }
+                            final encoded = Uri.encodeComponent(query);
+                            // Prefer Apple Maps on iOS, Google Maps elsewhere
+                            final TargetPlatform platform = Theme.of(context).platform;
+                            final uri = (platform == TargetPlatform.iOS)
+                                ? Uri.parse('https://maps.apple.com/?q=$encoded')
+                                : Uri.parse('https://www.google.com/maps/search/?api=1&query=$encoded');
+                            final ok = await canLaunchUrl(uri);
+                            if (ok) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            } else if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Could not open maps')),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 8),
                         CustomButton(
                           text: 'VEHICLE COLLECTED',
                           borderColor: Colors.blue,

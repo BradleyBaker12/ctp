@@ -83,7 +83,7 @@ class AdminEditSectionState extends State<AdminEditSection>
     _settlementAmountController.text = widget.settlementAmount ?? '';
     // NATIS sourcing: prefer vehicle.rc1NatisFile, fallback to adminData.natisRc1Url
     final String vehicleNatis = widget.vehicle.rc1NatisFile;
-    if (vehicleNatis != null && vehicleNatis.isNotEmpty) {
+    if (vehicleNatis.isNotEmpty) {
       _natisRc1Url = vehicleNatis;
     } else {
       _natisRc1Url =

@@ -45,12 +45,18 @@ class TruckPage extends StatefulWidget {
   final String? selectedBrand;
   // When true, open the page with the OEM tab selected even if no brand is chosen
   final bool openOemTab;
+  // When true, open the page with the Trade-In tab selected
+  final bool openTradeInTab;
+  // Selected Trade-In brand (mirrors selectedBrand for OEM)
+  final String? selectedTradeInBrand;
 
   const TruckPage({
     super.key,
     this.vehicleType,
     this.selectedBrand,
     this.openOemTab = false,
+    this.openTradeInTab = false,
+    this.selectedTradeInBrand,
   });
 
   @override
@@ -86,6 +92,8 @@ class _TruckPageState extends State<TruckPage> {
 
   // Fleet/All mode state
   bool _isFleetMode = false;
+  // Trade-In tab state (dealer only)
+  bool _isTradeInMode = false;
 
   // Selection mode for fleet view (long-press to activate)
   bool _isSelectionMode = false;
@@ -206,7 +214,19 @@ class _TruckPageState extends State<TruckPage> {
         widget.selectedBrand != 'All';
     _isOemMode = widget.openOemTab || hasBrand;
 
+    // Determine initial Trade-In mode based on deep-linked brand or tab flag
+    final hasTradeInBrand = widget.selectedTradeInBrand != null &&
+        widget.selectedTradeInBrand!.isNotEmpty &&
+        widget.selectedTradeInBrand != 'All';
+    _isTradeInMode = widget.openTradeInTab || hasTradeInBrand;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isOemMode && !hasBrand) {
+        _loadOemBrands();
+      }
+      if (_isTradeInMode && !hasTradeInBrand) {
+        _loadTradeInBrands();
+      }
       _loadInitialVehicles();
     });
 
@@ -429,6 +449,127 @@ class _TruckPageState extends State<TruckPage> {
 
   // OEM brand selection now navigates to a new TruckPage; no in-place filter here.
 
+  // =============================
+  // Trade-In helpers
+  // =============================
+  // Cache of all Trade-In userIds for filtering
+  final Set<String> _allTradeInUserIds = {};
+  bool _allTradeInUserIdsLoaded = false;
+
+  // Trade-In tab state (dealer only)
+  List<String> _tradeInBrands = [];
+  bool _isLoadingTradeInBrands = false;
+  // When a brand is selected from the Trade-In tab, we only show vehicles uploaded by Trade-In users for that brand
+  final Set<String> _tradeInUserIdsForSelectedBrand = {};
+  bool _tradeInUserIdsLoadedForBrand = false;
+  String? _tradeInUserIdsBrandKey;
+
+  // Load Trade-In brands (from users' tradeInBrand field), with vehicle-based fallbacks
+  Future<void> _loadTradeInBrands() async {
+    try {
+      setState(() => _isLoadingTradeInBrands = true);
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      // Ensure we have vehicles loaded for fallbacks
+      final vehicleProvider =
+          Provider.of<VehicleProvider>(context, listen: false);
+      if (vehicleProvider.vehicles.isEmpty) {
+        await vehicleProvider.fetchAllVehicles();
+      }
+      // Fetch candidates by multiple role field variants and by non-empty tradeInBrand
+      final futures = <Future<QuerySnapshot>>[
+        usersRef
+            .where('userRole', whereIn: ['tradein', 'trade-in', 'TradeIn'])
+            .get(),
+        usersRef
+            .where('role', whereIn: ['tradein', 'trade-in', 'TradeIn'])
+            .get(),
+        usersRef.where('tradeInBrand', isGreaterThan: '').get(),
+      ];
+      final snapshots = await Future.wait(futures);
+      final set = <String>{};
+      for (final snap in snapshots) {
+        for (final doc in snap.docs) {
+          final Map<String, dynamic> data =
+              Map<String, dynamic>.from(doc.data() as Map);
+          final brand = (data['tradeInBrand'] ?? '').toString().trim();
+          if (brand.isNotEmpty) set.add(brand);
+        }
+      }
+      // If empty, derive brands from vehicles owned by Trade-In users
+      if (set.isEmpty) {
+        try {
+          await _ensureAllTradeInUserIdsLoaded();
+          final ownedByTradeIn = vehicleProvider.vehicles.where((v) {
+            final role = (v.ownerRole ?? '').trim().toLowerCase();
+            if (role == 'tradein' || role == 'trade-in') return true;
+            return _allTradeInUserIds.contains(v.userId);
+          });
+          for (final v in ownedByTradeIn) {
+            for (final b in v.brands) {
+              final bb = b.trim();
+              if (bb.isNotEmpty) set.add(bb);
+            }
+          }
+        } catch (e) {
+          debugPrint('Fallback Trade-In brand derivation failed: $e');
+        }
+      }
+      final brands = set.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      setState(() {
+        _tradeInBrands = brands;
+      });
+    } catch (e) {
+      debugPrint('Error loading Trade-In brands: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingTradeInBrands = false);
+    }
+  }
+
+  // Ensure we have the set of Trade-In userIds for the selected brand when filtering
+  Future<void> _ensureTradeInUserIdsForSelectedBrandLoaded(String brand) async {
+    if (_tradeInUserIdsLoadedForBrand && _tradeInUserIdsBrandKey == brand) {
+      return;
+    }
+    try {
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      // Fetch all Trade-In users (both schemas), then filter locally by brand (case-insensitive)
+      final results = await Future.wait([
+        usersRef
+            .where('userRole', whereIn: ['tradein', 'trade-in', 'TradeIn'])
+            .get(),
+        usersRef
+            .where('role', whereIn: ['tradein', 'trade-in', 'TradeIn'])
+            .get(),
+        usersRef.where('tradeInBrand', isGreaterThan: '').get(),
+      ]);
+      final target = brand.trim().toLowerCase();
+      _tradeInUserIdsForSelectedBrand.clear();
+      for (final snap in results) {
+        for (final doc in snap.docs) {
+          final Map<String, dynamic> data =
+              Map<String, dynamic>.from(doc.data() as Map);
+          final b =
+              (data['tradeInBrand'] ?? '').toString().trim().toLowerCase();
+          if (b != target) continue;
+          final roleVal = (data['userRole'] ?? data['role'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          if (roleVal.isEmpty || roleVal == 'tradein' || roleVal == 'trade-in') {
+            _tradeInUserIdsForSelectedBrand.add(doc.id);
+          }
+        }
+      }
+      _tradeInUserIdsLoadedForBrand = true;
+      _tradeInUserIdsBrandKey = brand;
+    } catch (e) {
+      debugPrint('Error loading Trade-In userIds for brand $brand: $e');
+      _tradeInUserIdsLoadedForBrand = true; // avoid repeated attempts
+      _tradeInUserIdsBrandKey = brand;
+    }
+  }
+
   void _updateProvincesForCountry(String countryName) {
     if (countryName == 'All') {
       setState(() {
@@ -573,8 +714,25 @@ class _TruckPageState extends State<TruckPage> {
           });
         }
 
-        // In All Stock (non-OEM) view, exclude OEM-owned vehicles entirely
-        if (!_isOemMode) {
+        // Trade-In mode: include Trade-In owned vehicles, or restrict to selected Trade-In brand
+        if (_isTradeInMode) {
+          final tb = (widget.selectedTradeInBrand ?? '').trim();
+          if (tb.isNotEmpty && tb.toLowerCase() != 'all') {
+            await _ensureTradeInUserIdsForSelectedBrandLoaded(tb);
+            filteredVehicles = filteredVehicles.where(
+                (v) => _tradeInUserIdsForSelectedBrand.contains(v.userId));
+          } else {
+            await _ensureAllTradeInUserIdsLoaded();
+            filteredVehicles = filteredVehicles.where((v) {
+              final role = (v.ownerRole ?? '').trim().toLowerCase();
+              if (role == 'tradein' || role == 'trade-in') return true;
+              return _allTradeInUserIds.contains(v.userId);
+            });
+          }
+        }
+
+        // In All Stock (non-OEM/Trade-In) view, exclude OEM-owned vehicles entirely
+        if (!_isOemMode && !_isTradeInMode) {
           await _ensureAllOemUserIdsLoaded();
           filteredVehicles =
               filteredVehicles.where((v) => !_isVehicleOemOwned(v));
@@ -636,8 +794,24 @@ class _TruckPageState extends State<TruckPage> {
           return matchesOwnerByUser || matchesOwnerByMeta;
         });
       }
-      // In All Stock (non-OEM) view, exclude OEM-owned vehicles entirely
-      if (!_isOemMode) {
+      // Trade-In mode: include Trade-In owned vehicles, or restrict to selected Trade-In brand
+      if (_isTradeInMode) {
+        final tb = (widget.selectedTradeInBrand ?? '').trim();
+        if (tb.isNotEmpty && tb.toLowerCase() != 'all') {
+          await _ensureTradeInUserIdsForSelectedBrandLoaded(tb);
+          filteredVehicles = filteredVehicles.where(
+              (v) => _tradeInUserIdsForSelectedBrand.contains(v.userId));
+        } else {
+          await _ensureAllTradeInUserIdsLoaded();
+          filteredVehicles = filteredVehicles.where((v) {
+            final role = (v.ownerRole ?? '').trim().toLowerCase();
+            if (role == 'tradein' || role == 'trade-in') return true;
+            return _allTradeInUserIds.contains(v.userId);
+          });
+        }
+      }
+      // In All Stock (non-OEM/Trade-In) view, exclude OEM-owned vehicles entirely
+      if (!_isOemMode && !_isTradeInMode) {
         await _ensureAllOemUserIdsLoaded();
         filteredVehicles =
             filteredVehicles.where((v) => !_isVehicleOemOwned(v));
@@ -1314,7 +1488,7 @@ class _TruckPageState extends State<TruckPage> {
                 onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
             )
-          : CustomAppBar();
+          : const CustomAppBar(showBackButton: false);
     }
     // --- END: AppBar logic for selection mode ---
 
@@ -1401,8 +1575,10 @@ class _TruckPageState extends State<TruckPage> {
                   children: [
                     if (userRole == 'dealer')
                       DefaultTabController(
-                        length: 2,
-                        initialIndex: _isOemMode ? 1 : 0,
+                        length: 3,
+                        initialIndex: _isTradeInMode
+                            ? 2
+                            : (_isOemMode ? 1 : 0),
                         child: TabBar(
                           labelColor: const Color(0xFFFF4E00),
                           unselectedLabelColor: Colors.white,
@@ -1410,11 +1586,18 @@ class _TruckPageState extends State<TruckPage> {
                           onTap: (index) async {
                             setState(() {
                               _isOemMode = index == 1;
+                              _isTradeInMode = index == 2;
                               _isFleetMode =
                                   false; // disable fleet UI in dealer tabs
                             });
                             if (_isOemMode) {
                               await _loadOemBrands();
+                              setState(() {
+                                displayedVehicles = [];
+                                _totalFilteredVehicles = 0;
+                              });
+                            } else if (_isTradeInMode) {
+                              await _loadTradeInBrands();
                               setState(() {
                                 displayedVehicles = [];
                                 _totalFilteredVehicles = 0;
@@ -1427,6 +1610,7 @@ class _TruckPageState extends State<TruckPage> {
                           tabs: const [
                             Tab(text: 'All Stock'),
                             Tab(text: 'OEM'),
+                            Tab(text: 'Trade-In'),
                           ],
                         ),
                       ),
@@ -1511,6 +1695,35 @@ class _TruckPageState extends State<TruckPage> {
                                   shape: const StadiumBorder(),
                                 ),
                               ),
+                            if (_isTradeInMode &&
+                                widget.selectedTradeInBrand != null &&
+                                widget.selectedTradeInBrand!.isNotEmpty &&
+                                widget.selectedTradeInBrand != 'All')
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final nav = Navigator.of(context);
+                                  if (nav.canPop()) {
+                                    nav.pop();
+                                  } else {
+                                    // No back stack (e.g., deep link) → jump to Trade-In brands list
+                                    await nav.pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => const TruckPage(
+                                          openTradeInTab: true,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.swap_horiz, size: 18),
+                                label: const Text('Change Brand'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFFF4E00),
+                                  side: const BorderSide(
+                                      color: Color(0xFFFF4E00)),
+                                  shape: const StadiumBorder(),
+                                ),
+                              ),
                             IconButton(
                               icon: const Icon(Icons.tune, color: Colors.white),
                               onPressed: _showFilterDialog,
@@ -1560,7 +1773,9 @@ class _TruckPageState extends State<TruckPage> {
               Expanded(
                 child: _isOemMode
                     ? _buildOemContent(context)
-                    : _buildAllContent(context),
+                    : (_isTradeInMode
+                        ? _buildTradeInContent(context)
+                        : _buildAllContent(context)),
               ),
             ],
           ),
@@ -1699,6 +1914,75 @@ class _TruckPageState extends State<TruckPage> {
     );
   }
 
+  Widget _buildTradeInContent(BuildContext context) {
+    final hasBrand = widget.selectedTradeInBrand != null &&
+        widget.selectedTradeInBrand!.isNotEmpty &&
+        widget.selectedTradeInBrand != 'All';
+    if (hasBrand) {
+      if (_isLoading) {
+        return Center(
+          child: Image.asset(
+            'lib/assets/Loading_Logo_CTP.gif',
+            width: 100,
+            height: 100,
+          ),
+        );
+      }
+      return displayedVehicles.isNotEmpty
+          ? _buildVehicleGrid(context)
+          : _buildNoVehiclesAvailable();
+    }
+    // No brand selected → show brand list
+    if (_isLoadingTradeInBrands) {
+      return const Center(
+        child: SizedBox(
+          height: 32,
+          width: 32,
+          child: CircularProgressIndicator(
+              color: Color(0xFFFF4E00), strokeWidth: 2),
+        ),
+      );
+    }
+    if (_tradeInBrands.isEmpty) {
+      return Center(
+        child: Text(
+          'No Trade-In brands available yet.',
+          style: _customFont(14, FontWeight.w500, Colors.white70),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      itemBuilder: (context, index) {
+        final brand = _tradeInBrands[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TruckPage(selectedTradeInBrand: brand),
+              ),
+            );
+          },
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.grey[700],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              brand,
+              style: _customFont(16, FontWeight.w600, Colors.white),
+            ),
+          ),
+        );
+      },
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemCount: _tradeInBrands.length,
+    );
+  }
+
   Widget _buildAllContent(BuildContext context) {
     if (_isFleetMode && _selectedCompany == null) {
       return _buildNoVehiclesAvailable();
@@ -1791,6 +2075,26 @@ class _TruckPageState extends State<TruckPage> {
     // Heuristic: if oemBrand is present, treat as OEM-owned
     final ob = (v.oemBrand ?? '').trim();
     return ob.isNotEmpty;
+  }
+
+  Future<void> _ensureAllTradeInUserIdsLoaded() async {
+    if (_allTradeInUserIdsLoaded) return;
+    try {
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      final snapshots = await Future.wait([
+        usersRef.where('userRole', whereIn: ['tradein', 'trade-in']).get(),
+        usersRef.where('role', whereIn: ['tradein', 'trade-in']).get(),
+      ]);
+      for (final snap in snapshots) {
+        for (final doc in snap.docs) {
+          _allTradeInUserIds.add(doc.id);
+        }
+      }
+      _allTradeInUserIdsLoaded = true;
+    } catch (e) {
+      debugPrint('Error loading all Trade-In userIds: $e');
+      _allTradeInUserIdsLoaded = true; // avoid repeated attempts
+    }
   }
 }
 

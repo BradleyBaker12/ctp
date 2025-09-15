@@ -202,6 +202,21 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
 
     final formData = Provider.of<FormDataProvider>(context, listen: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // SAFEGUARD: If this screen is opened for a brand new upload (no vehicle passed in)
+      // or explicitly flagged as a new/admin upload (not editing) then clear any stale
+      // main image values that might remain in the shared FormDataProvider from a
+      // previous user's session. (Root cause of cross-user image bleed.)
+      final bool isFreshUploadContext =
+          (widget.vehicle == null) || widget.isNewUpload;
+      if (isFreshUploadContext && !widget.isDuplicating) {
+        if (formData.mainImageUrl != null ||
+            formData.selectedMainImage != null) {
+          debugPrint(
+              'Resetting stale main image state for fresh upload (prev mainImageUrl=${formData.mainImageUrl}).');
+        }
+        formData.setMainImageUrl(null, notify: false);
+        formData.setSelectedMainImage(null, null);
+      }
       // If OEM user, prefill locked brand
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final String? oemBrand = userProvider.oemBrand;
@@ -461,6 +476,15 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
       }
       _updateProvinceOptions(widget.vehicle!.country);
       debugPrint('=== Duplication Data Population Complete ===');
+
+      // IMPORTANT: When duplicating, do NOT carry over the previous vehicle's main image
+      // (root cause of wrong images showing on newly created duplicated vehicles).
+      if (widget.isDuplicating) {
+        debugPrint(
+            'Duplication: Clearing inherited mainImageUrl so user must pick a new main image.');
+        formData.setMainImageUrl(null, notify: false);
+        formData.setSelectedMainImage(null, null); // clear any cached bytes
+      }
     }
   }
 
@@ -1854,10 +1878,16 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
         'oemBrand': (role == 'oem')
             ? (oemBrand ?? (enforcedBrands?.first ?? ''))
             : null,
-        // OEM scoping via manager/employee relationship
-        'managerUserId': userProvider.isOemManager
-            ? currentUser?.uid
-            : userProvider.managerId,
+        // Manager scoping via manager/employee relationship for OEM and Trade-In
+        'managerUserId': (role == 'oem')
+            ? (userProvider.isOemManager
+                ? currentUser?.uid
+                : userProvider.managerId)
+            : ((role == 'tradein' || role == 'trade-in')
+                ? (userProvider.isTradeInManager
+                    ? currentUser?.uid
+                    : userProvider.tradeInManagerId)
+                : null),
         // Placeholder URLs that will be updated
         'mainImageUrl': null,
         'rc1NatisFile': null,
@@ -2040,6 +2070,8 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
                 MaterialPageRoute(
                   builder: (context) => MaintenanceWarrantyScreen(
                     vehicleId: vehicleId,
+                    natisRc1Url:
+                        formData.natisRc1Url ?? _existingNatisRc1Url,
                     vehicleRef: formData.referenceNumber ?? '',
                     maintenanceSelection: formData.maintenance,
                     warrantySelection: formData.warranty,
@@ -2267,8 +2299,19 @@ class _VehicleUploadScreenState extends State<VehicleUploadScreen>
 
     // Only include URLs if we have them; avoid overwriting with null on autosave
     final String? mainImageUrl = formData.mainImageUrl;
-    if (mainImageUrl != null && mainImageUrl.isNotEmpty) {
+    final bool hasNewlyPickedImage = formData.selectedMainImage != null;
+    // Persist mainImageUrl if:
+    // 1) Editing existing (_vehicleId not null) -> keep existing image
+    // 2) User actually picked a new image in this session
+    // Never persist inherited image during duplication unless user re-selects.
+    if (mainImageUrl != null &&
+        mainImageUrl.isNotEmpty &&
+        !widget.isDuplicating &&
+        (_vehicleId != null || hasNewlyPickedImage)) {
       data['mainImageUrl'] = mainImageUrl;
+    } else {
+      debugPrint(
+          'Draft creation: Skipping mainImageUrl inclusion (duplicating without new image or empty).');
     }
     final String? natisUrl = formData.natisRc1Url ?? _existingNatisRc1Url;
     if (natisUrl != null && natisUrl.isNotEmpty) {

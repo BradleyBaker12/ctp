@@ -38,15 +38,8 @@ class BlurryAppBar extends StatelessWidget implements PreferredSizeWidget {
                               child: SizedBox(
                                 width: 32,
                                 height: 32,
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: () =>
-                                        Navigator.of(context).maybePop(),
-                                    child:
-                                        const Center(child: CustomBackButton()),
-                                  ),
+                                child: const Center(
+                                  child: CustomBackButton(),
                                 ),
                               ),
                             ),
